@@ -210,6 +210,7 @@ static MultiAccessSizeMem<512 * 1024, uint32, false> *BIOSROM = NULL;
 static MultiAccessSizeMem<65536, uint32, false> *PIOMem = NULL;
 
 MultiAccessSizeMem<2048 * 1024, uint32, false> MainRAM;
+gte_precision PrecisionRAM[2048 * 1024 / 4];
 
 static uint32_t TextMem_Start;
 static std::vector<uint8> TextMem;

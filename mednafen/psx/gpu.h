@@ -31,9 +31,17 @@ enum dither_mode {
 
 extern enum dither_mode psx_gpu_dither_mode;
 
+typedef struct
+{
+  uint32_t cmd;
+  // Source address in RAM, used to pair the command with the
+  // precise GTE data if necessary
+  uint32_t src;
+} GpuCommand;
+
 struct CTEntry
 {
-   void (*func[4][8])(PS_GPU* g, const uint32 *cb);
+   void (*func[4][8])(PS_GPU* g, const GpuCommand *cb);
    uint8 len;
    uint8 fifo_fb_len;
    bool ss_cmd;
@@ -106,7 +114,7 @@ class PS_GPU
          if(InCmd & (INCMD_FBREAD | INCMD_FBWRITE))
             return(false);
 
-         if(BlitterFIFO.CanRead() >= Commands[BlitterFIFO.Peek() >> 24].fifo_fb_len)
+         if(BlitterFIFO.CanRead() >= Commands[BlitterFIFO.Peek().cmd >> 24].fifo_fb_len)
             return(false);
 
          return(true);
@@ -122,7 +130,7 @@ class PS_GPU
 	return psx_gpu_dither_mode != DITHER_OFF && dtd;
       }
 
-      void WriteDMA(uint32 V);
+      void WriteDMA(uint32 V, uint32 Source);
       uint32 ReadDMA(void);
 
       uint32 Read(const int32_t timestamp, uint32 A);
@@ -237,7 +245,7 @@ class PS_GPU
 
       static CTEntry Commands[256];
 
-      FastFIFO<uint32, 0x20> BlitterFIFO; // 0x10 on an actual PS1 GPU, 0x20 here (see comment at top of gpu.h)
+      FastFIFO<GpuCommand, 0x20> BlitterFIFO; // 0x10 on an actual PS1 GPU, 0x20 here (see comment at top of gpu.h)
 
       uint32 DataReadBuffer;
       uint32 DataReadBufferEx;
@@ -347,7 +355,7 @@ class PS_GPU
 
 
       void ProcessFIFO(void);
-      void WriteCB(uint32 data);
+      void WriteCB(uint32 data, uint32 addr);
       uint32 ReadData(void);
       void SoftReset(void);
 
@@ -379,29 +387,29 @@ class PS_GPU
 
    public:
       template<int numvertices, bool shaded, bool textured, int BlendMode, bool TexMult, uint32 TexMode_TA, bool MaskEval_TA>
-         void Command_DrawPolygon(const uint32 *cb);
+         void Command_DrawPolygon(const GpuCommand *cb);
 
       template<uint8 raw_size, bool textured, int BlendMode, bool TexMult, uint32 TexMode_TA, bool MaskEval_TA>
-         void Command_DrawSprite(const uint32 *cb);
+         void Command_DrawSprite(const GpuCommand *cb);
 
 
       template<bool polyline, bool goraud, int BlendMode, bool MaskEval_TA>
-         void Command_DrawLine(const uint32 *cb);
+         void Command_DrawLine(const GpuCommand *cb);
 
-      void Command_ClearCache(const uint32 *cb);
-      void Command_IRQ(const uint32 *cb);
+      void Command_ClearCache(const GpuCommand *cb);
+      void Command_IRQ(const GpuCommand *cb);
 
-      void Command_FBFill(const uint32 *cb);
-      void Command_FBCopy(const uint32 *cb);
-      void Command_FBWrite(const uint32 *cb);
-      void Command_FBRead(const uint32 *cb);
+      void Command_FBFill(const GpuCommand *cb);
+      void Command_FBCopy(const GpuCommand *cb);
+      void Command_FBWrite(const GpuCommand *cb);
+      void Command_FBRead(const GpuCommand *cb);
 
-      void Command_DrawMode(const uint32 *cb);
-      void Command_TexWindow(const uint32 *cb);
-      void Command_Clip0(const uint32 *cb);
-      void Command_Clip1(const uint32 *cb);
-      void Command_DrawingOffset(const uint32 *cb);
-      void Command_MaskSetting(const uint32 *cb);
+      void Command_DrawMode(const GpuCommand *cb);
+      void Command_TexWindow(const GpuCommand *cb);
+      void Command_Clip0(const GpuCommand *cb);
+      void Command_Clip1(const GpuCommand *cb);
+      void Command_DrawingOffset(const GpuCommand *cb);
+      void Command_MaskSetting(const GpuCommand *cb);
 
    private:
 

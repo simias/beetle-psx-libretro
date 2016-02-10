@@ -189,7 +189,7 @@ static void RecalcHalt(void)
 }
 
 
-static INLINE void ChRW(const unsigned ch, const uint32_t CRModeCache, uint32_t *V, uint32_t *offset)
+static INLINE void ChRW(const unsigned ch, const uint32_t CRModeCache, uint32_t *V, uint32_t source, uint32_t *offset)
 {
    unsigned extra_cyc_overhead = 0;
 
@@ -212,7 +212,7 @@ static INLINE void ChRW(const unsigned ch, const uint32_t CRModeCache, uint32_t 
 
       case CH_GPU:
          if(CRModeCache & 0x1)
-            GPU->WriteDMA(*V);
+	   GPU->WriteDMA(*V, source);
          else
             *V = GPU->ReadDMA();
          break;
@@ -421,6 +421,7 @@ static INLINE void RunChannel(int32_t timestamp, int32_t clocks, int ch)
          // Do the payload read/write
          {
             uint32_t vtmp;
+	    uint32_t source = 0;
             uint32_t voffs = 0;
 
             if(MDFN_UNLIKELY(DMACH[ch].CurAddr & 0x800000))
@@ -431,10 +432,12 @@ static INLINE void RunChannel(int32_t timestamp, int32_t clocks, int ch)
                break;
             }
 
-            if(CRModeCache & 0x1)
-               vtmp = MainRAM.ReadU32(DMACH[ch].CurAddr & 0x1FFFFC);
+            if(CRModeCache & 0x1) {
+               source = DMACH[ch].CurAddr & 0x1FFFFC;
+               vtmp = MainRAM.ReadU32(source);
+	    }
 
-            ChRW(ch, CRModeCache, &vtmp, &voffs);
+            ChRW(ch, CRModeCache, &vtmp, source, &voffs);
 
             if(!(CRModeCache & 0x1))
                MainRAM.WriteU32((DMACH[ch].CurAddr + (voffs << 2)) & 0x1FFFFC, vtmp);

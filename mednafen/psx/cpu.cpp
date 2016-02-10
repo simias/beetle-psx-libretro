@@ -1253,6 +1253,20 @@ int32_t PS_CPU::RunReal(int32_t timestamp_in)
          if(timestamp < gte_ts_done)
           timestamp = gte_ts_done;
 
+	 // Attempt to fetch increased precision values)
+	 const gte_precision *p = GTE_get_precise(rt);
+
+	 if (p) {
+	   uint32_t paddr = address & addr_mask[address >> 29];
+
+	   if (paddr < 0x00800000) {
+	     // Store to RAM
+	     paddr &= 0x1FFFFF;
+
+	     PrecisionRAM[paddr >> 2] = *p;
+	   }
+	 }
+
 	 WriteMemory<uint32>(timestamp, address, GTE_ReadDR(rt));
 	}
 	DO_LDS();

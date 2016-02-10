@@ -431,9 +431,9 @@ void PS_GPU::DrawTriangle(tri_vertex *vertices, uint32_t clut)
 }
 
 template<int numvertices, bool goraud, bool textured, int BlendMode, bool TexMult, uint32_t TexMode_TA, bool MaskEval_TA>
-INLINE void PS_GPU::Command_DrawPolygon(const uint32_t *cb)
+INLINE void PS_GPU::Command_DrawPolygon(const GpuCommand *cb)
 {
-   const unsigned cb0 = cb[0];
+   const unsigned cb0 = cb[0].cmd;
    tri_vertex vertices[3];
    uint32_t clut = 0;
    unsigned sv = 0;
@@ -468,7 +468,7 @@ INLINE void PS_GPU::Command_DrawPolygon(const uint32_t *cb)
    {
       if(v == 0 || goraud)
       {
-         uint32_t raw_color = (*cb & 0xFFFFFF);
+         uint32_t raw_color = (cb->cmd & 0xFFFFFF);
 
          vertices[v].r = raw_color & 0xFF;
          vertices[v].g = (raw_color >> 8) & 0xFF;
@@ -483,18 +483,18 @@ INLINE void PS_GPU::Command_DrawPolygon(const uint32_t *cb)
          vertices[v].b = vertices[0].b;
       }
 
-      vertices[v].x = sign_x_to_s32(11, ((int16_t)(*cb & 0xFFFF))) + OffsX;
-      vertices[v].y = sign_x_to_s32(11, ((int16_t)(*cb >> 16))) + OffsY;
+      vertices[v].x = sign_x_to_s32(11, ((int16_t)(cb->cmd & 0xFFFF))) + OffsX;
+      vertices[v].y = sign_x_to_s32(11, ((int16_t)(cb->cmd >> 16))) + OffsY;
       cb++;
 
       if(textured)
       {
-         vertices[v].u = (*cb & 0xFF);
-         vertices[v].v = (*cb >> 8) & 0xFF;
+         vertices[v].u = (cb->cmd & 0xFF);
+         vertices[v].v = (cb->cmd >> 8) & 0xFF;
 
          if(v == 0)
          {
-            clut = ((*cb >> 16) & 0xFFFF) << 4;
+            clut = ((cb->cmd >> 16) & 0xFFFF) << 4;
          }
 
          cb++;

@@ -99,5 +99,6 @@ extern PS_GPU *GPU;
 extern PS_CDC *CDC;
 extern PS_SPU *SPU;
 extern MultiAccessSizeMem<2048 * 1024, uint32_t, false> MainRAM;
+extern gte_precision PrecisionRAM[2048 * 1024 / 4];
 
 #endif

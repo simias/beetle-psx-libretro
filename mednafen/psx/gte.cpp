@@ -69,6 +69,7 @@ typedef struct
 {
    int16_t X;
    int16_t Y;
+   gte_precision precise;
 } gtexy;
 
 static uint32_t CR[32];
@@ -459,23 +460,28 @@ void GTE_WriteDR(unsigned int which, uint32_t value)
       case 12:
          XY_FIFO[0].X = value;
          XY_FIFO[0].Y = value >> 16;
+	 XY_FIFO[0].precise.valid = false;
          break;
 
       case 13:
          XY_FIFO[1].X = value;
          XY_FIFO[1].Y = value >> 16;
+	 XY_FIFO[1].precise.valid = false;
          break;
 
       case 14:
          XY_FIFO[2].X = value;
          XY_FIFO[2].Y = value >> 16;
+	 XY_FIFO[2].precise.valid = false;
          XY_FIFO[3].X = value;
          XY_FIFO[3].Y = value >> 16;
+	 XY_FIFO[3].precise.valid = false;
          break;
 
       case 15:
          XY_FIFO[3].X = value;
          XY_FIFO[3].Y = value >> 16;
+	 XY_FIFO[3].precise.valid = false;
 
          XY_FIFO[0] = XY_FIFO[1];
          XY_FIFO[1] = XY_FIFO[2];
@@ -699,6 +705,31 @@ uint32_t GTE_ReadDR(unsigned int which)
          break;
    }
    return(ret);
+}
+
+const gte_precision *GTE_get_precise(unsigned int which)
+{
+  gte_precision *p = NULL;
+
+  switch (which) {
+  case 12:
+    p = &XY_FIFO[0].precise;
+    break;
+
+  case 13:
+    p = &XY_FIFO[1].precise;
+    break;
+
+  case 14:
+    p = &XY_FIFO[2].precise;
+    break;
+
+  case 15:
+    p = &XY_FIFO[3].precise;
+    break;
+  }
+
+  return p;
 }
 
 #define sign_x_to_s64(_bits, _value) (((int64_t)((uint64_t)(_value) << (64 - _bits))) >> (64 - _bits))
@@ -1036,13 +1067,21 @@ static INLINE uint32_t Divide(uint32_t dividend, uint32_t divisor)
    return 0x1FFFF;
 }
 
-static INLINE void TransformXY(int64_t h_div_sz)
+static INLINE void TransformXY(int64_t h_div_sz, float precise_h_div_sz, uint16_t z)
 {
+   float fofx = ((float)OFX / (float)(1 << 16));
+   float fofy = ((float)OFX / (float)(1 << 16));
+
    MAC[0] = F((int64_t)OFX + IR1 * h_div_sz * ((widescreen_hack) ? 0.75 : 1.00)) >> 16;
    XY_FIFO[3].X = Lm_G(0, MAC[0]);
 
    MAC[0] = F((int64_t)OFY + IR2 * h_div_sz) >> 16;
    XY_FIFO[3].Y = Lm_G(1, MAC[0]);
+
+   // Increased precision calculation (sub-pixel precision)
+   XY_FIFO[3].precise.x = fofx + ((float)IR1 * precise_h_div_sz);
+   XY_FIFO[3].precise.y = fofy + ((float)IR1 * precise_h_div_sz);
+   XY_FIFO[3].precise.valid = true;
 
    XY_FIFO[0] = XY_FIFO[1];
    XY_FIFO[1] = XY_FIFO[2];
@@ -1064,7 +1103,9 @@ static int32_t RTPS(uint32_t instr)
    MultiplyMatrixByVector_PT(&Matrices.Rot, Vectors[0], CRVectors.T, sf, lm);
    h_div_sz = Divide(H, Z_FIFO[3]);
 
-   TransformXY(h_div_sz);
+   float precise_h_div_sz = (float)H / (float)Z_FIFO[3];
+
+   TransformXY(h_div_sz, precise_h_div_sz, Z_FIFO[3]);
    TransformDQ(h_div_sz);
 
    return(15);
@@ -1083,7 +1124,9 @@ static int32_t RTPT(uint32_t instr)
       MultiplyMatrixByVector_PT(&Matrices.Rot, Vectors[i], CRVectors.T, sf, lm);
       h_div_sz = Divide(H, Z_FIFO[3]);
 
-      TransformXY(h_div_sz);
+      float precise_h_div_sz = (float)H / (float)Z_FIFO[3];
+
+      TransformXY(h_div_sz, precise_h_div_sz, Z_FIFO[3]);
 
       if(i == 2)
          TransformDQ(h_div_sz);

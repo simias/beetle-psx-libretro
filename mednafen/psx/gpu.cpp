@@ -403,7 +403,7 @@ void PS_GPU::ResetTS(void)
 //
    template<int numvertices, bool shaded, bool textured,
    int BlendMode, bool TexMult, uint32 TexMode_TA, bool MaskEval_TA>
-static void G_Command_DrawPolygon(PS_GPU* g, const uint32 *cb)
+static void G_Command_DrawPolygon(PS_GPU* g, const GpuCommand *cb)
 {
    g->Command_DrawPolygon<numvertices, shaded, textured,
       BlendMode, TexMult, TexMode_TA, MaskEval_TA>(cb);
@@ -411,14 +411,14 @@ static void G_Command_DrawPolygon(PS_GPU* g, const uint32 *cb)
 
    template<uint8 raw_size, bool textured, int BlendMode, bool TexMult,
    uint32 TexMode_TA, bool MaskEval_TA>
-static void G_Command_DrawSprite(PS_GPU* g, const uint32 *cb)
+static void G_Command_DrawSprite(PS_GPU* g, const GpuCommand *cb)
 {
    g->Command_DrawSprite<raw_size, textured, BlendMode, TexMult,
       TexMode_TA, MaskEval_TA>(cb);
 }
 
    template<bool polyline, bool goraud, int BlendMode, bool MaskEval_TA>
-static void G_Command_DrawLine(PS_GPU* g, const uint32 *cb)
+static void G_Command_DrawLine(PS_GPU* g, const GpuCommand *cb)
 {
    g->Command_DrawLine<polyline, goraud, BlendMode, MaskEval_TA>(cb);
 }
@@ -436,12 +436,12 @@ void PS_GPU::InvalidateCache()
    InvalidateTexCache();
 }
 
-static void G_Command_ClearCache(PS_GPU* g, const uint32 *cb)
+static void G_Command_ClearCache(PS_GPU* g, const GpuCommand *cb)
 {
    g->InvalidateCache();
 }
 
-static void G_Command_IRQ(PS_GPU* g, const uint32 *cb)
+static void G_Command_IRQ(PS_GPU* g, const GpuCommand *cb)
 {
    g->IRQPending = true;
    IRQ_Assert(IRQ_GPU, g->IRQPending);
@@ -449,17 +449,17 @@ static void G_Command_IRQ(PS_GPU* g, const uint32 *cb)
 
 // Special RAM write mode(16 pixels at a time), 
 // does *not* appear to use mask drawing environment settings.
-static void G_Command_FBFill(PS_GPU* gpu, const uint32 *cb)
+static void G_Command_FBFill(PS_GPU* gpu, const GpuCommand *cb)
 {
    int32_t x, y;
-   int32_t r                 = cb[0] & 0xFF;
-   int32_t g                 = (cb[0] >> 8) & 0xFF;
-   int32_t b                 = (cb[0] >> 16) & 0xFF;
+   int32_t r                 = cb[0].cmd & 0xFF;
+   int32_t g                 = (cb[0].cmd >> 8) & 0xFF;
+   int32_t b                 = (cb[0].cmd >> 16) & 0xFF;
    const uint16_t fill_value = ((r >> 3) << 0) | ((g >> 3) << 5) | ((b >> 3) << 10);
-   int32_t destX             = (cb[1] >>  0) & 0x3F0;
-   int32_t destY             = (cb[1] >> 16) & 0x3FF;
-   int32_t width             = (((cb[2] >> 0) & 0x3FF) + 0xF) & ~0xF;
-   int32_t height            = (cb[2] >> 16) & 0x1FF;
+   int32_t destX             = (cb[1].cmd >>  0) & 0x3F0;
+   int32_t destY             = (cb[1].cmd >> 16) & 0x3FF;
+   int32_t width             = (((cb[2].cmd >> 0) & 0x3FF) + 0xF) & ~0xF;
+   int32_t height            = (cb[2].cmd >> 16) & 0x1FF;
 
    //printf("[GPU] FB Fill %d:%d w=%d, h=%d\n", destX, destY, width, height);
    gpu->DrawTimeAvail       -= 46; // Approximate
@@ -482,14 +482,14 @@ static void G_Command_FBFill(PS_GPU* gpu, const uint32 *cb)
    }
 }
 
-static void G_Command_FBCopy(PS_GPU* g, const uint32 *cb)
+static void G_Command_FBCopy(PS_GPU* g, const GpuCommand *cb)
 {
-   int32_t sourceX = (cb[1] >> 0) & 0x3FF;
-   int32_t sourceY = (cb[1] >> 16) & 0x3FF;
-   int32_t destX   = (cb[2] >> 0) & 0x3FF;
-   int32_t destY   = (cb[2] >> 16) & 0x3FF;
-   int32_t width   = (cb[3] >> 0) & 0x3FF;
-   int32_t height  = (cb[3] >> 16) & 0x1FF;
+   int32_t sourceX = (cb[1].cmd >> 0) & 0x3FF;
+   int32_t sourceY = (cb[1].cmd >> 16) & 0x3FF;
+   int32_t destX   = (cb[2].cmd >> 0) & 0x3FF;
+   int32_t destY   = (cb[2].cmd >> 16) & 0x3FF;
+   int32_t width   = (cb[3].cmd >> 0) & 0x3FF;
+   int32_t height  = (cb[3].cmd >> 16) & 0x1FF;
 
    if(!width)
       width = 0x400;
@@ -530,15 +530,15 @@ static void G_Command_FBCopy(PS_GPU* g, const uint32 *cb)
    }
 }
 
-static void G_Command_FBWrite(PS_GPU* g, const uint32 *cb)
+static void G_Command_FBWrite(PS_GPU* g, const GpuCommand *cb)
 {
    //assert(InCmd == INCMD_NONE);
 
-   g->FBRW_X = (cb[1] >>  0) & 0x3FF;
-   g->FBRW_Y = (cb[1] >> 16) & 0x3FF;
+   g->FBRW_X = (cb[1].cmd >>  0) & 0x3FF;
+   g->FBRW_Y = (cb[1].cmd >> 16) & 0x3FF;
 
-   g->FBRW_W = (cb[2] >>  0) & 0x3FF;
-   g->FBRW_H = (cb[2] >> 16) & 0x1FF;
+   g->FBRW_W = (cb[2].cmd >>  0) & 0x3FF;
+   g->FBRW_H = (cb[2].cmd >> 16) & 0x1FF;
 
    if(!g->FBRW_W)
       g->FBRW_W = 0x400;
@@ -559,15 +559,15 @@ static void G_Command_FBWrite(PS_GPU* g, const uint32 *cb)
  * raw_height == 0, or raw_height != 0x200 && (raw_height & 0x1FF) == 0
  */
 
-static void G_Command_FBRead(PS_GPU* g, const uint32 *cb)
+static void G_Command_FBRead(PS_GPU* g, const GpuCommand *cb)
 {
    //assert(g->InCmd == INCMD_NONE);
 
-   g->FBRW_X = (cb[1] >>  0) & 0x3FF;
-   g->FBRW_Y = (cb[1] >> 16) & 0x3FF;
+   g->FBRW_X = (cb[1].cmd >>  0) & 0x3FF;
+   g->FBRW_Y = (cb[1].cmd >> 16) & 0x3FF;
 
-   g->FBRW_W = (cb[2] >>  0) & 0x3FF;
-   g->FBRW_H = (cb[2] >> 16) & 0x3FF;
+   g->FBRW_W = (cb[2].cmd >>  0) & 0x3FF;
+   g->FBRW_H = (cb[2].cmd >> 16) & 0x3FF;
 
    if(!g->FBRW_W)
       g->FBRW_W = 0x400;
@@ -584,9 +584,9 @@ static void G_Command_FBRead(PS_GPU* g, const uint32 *cb)
       g->InCmd = INCMD_FBREAD;
 }
 
-static void G_Command_DrawMode(PS_GPU* g, const uint32 *cb)
+static void G_Command_DrawMode(PS_GPU* g, const GpuCommand *cb)
 {
-   const uint32 cmdw = *cb;
+   const uint32 cmdw = cb->cmd;
 
    g->SetTPage(cmdw);
 
@@ -597,43 +597,43 @@ static void G_Command_DrawMode(PS_GPU* g, const uint32 *cb)
    //printf("*******************DFE: %d -- scanline=%d\n", dfe, scanline);
 }
 
-static void G_Command_TexWindow(PS_GPU* g, const uint32 *cb)
+static void G_Command_TexWindow(PS_GPU* g, const GpuCommand *cb)
 {
-   g->tww = (*cb & 0x1F);
-   g->twh = ((*cb >> 5) & 0x1F);
-   g->twx = ((*cb >> 10) & 0x1F);
-   g->twy = ((*cb >> 15) & 0x1F);
+   g->tww = (cb->cmd & 0x1F);
+   g->twh = ((cb->cmd >> 5) & 0x1F);
+   g->twx = ((cb->cmd >> 10) & 0x1F);
+   g->twy = ((cb->cmd >> 15) & 0x1F);
 
    g->RecalcTexWindowStuff();
 }
 
-static void G_Command_Clip0(PS_GPU* g, const uint32 *cb)
+static void G_Command_Clip0(PS_GPU* g, const GpuCommand *cb)
 {
-   g->ClipX0 = *cb & 1023;
-   g->ClipY0 = (*cb >> 10) & 1023;
+   g->ClipX0 = cb->cmd & 1023;
+   g->ClipY0 = (cb->cmd >> 10) & 1023;
 }
 
-static void G_Command_Clip1(PS_GPU* g, const uint32 *cb)
+static void G_Command_Clip1(PS_GPU* g, const GpuCommand *cb)
 {
-   g->ClipX1 = *cb & 1023;
-   g->ClipY1 = (*cb >> 10) & 1023;
+   g->ClipX1 = cb->cmd & 1023;
+   g->ClipY1 = (cb->cmd >> 10) & 1023;
 }
 
 // XXX this command (and probably those around it) doesn't appear to
 // be called at all, the code is inlined in ProcessFIFO
-static void G_Command_DrawingOffset(PS_GPU* g, const uint32 *cb)
+static void G_Command_DrawingOffset(PS_GPU* g, const GpuCommand *cb)
 {
-   g->OffsX = sign_x_to_s32(11, (*cb & 2047));
-   g->OffsY = sign_x_to_s32(11, ((*cb >> 11) & 2047));
+   g->OffsX = sign_x_to_s32(11, (cb->cmd & 2047));
+   g->OffsY = sign_x_to_s32(11, ((cb->cmd >> 11) & 2047));
 
    //fprintf(stderr, "[GPU] Drawing offset: %d(raw=%d) %d(raw=%d) -- %d\n", OffsX, *cb, OffsY, *cb >> 11, scanline);
 }
 
-static void G_Command_MaskSetting(PS_GPU* g, const uint32 *cb)
+static void G_Command_MaskSetting(PS_GPU* g, const GpuCommand *cb)
 {
    //printf("Mask setting: %08x\n", *cb);
-   g->MaskSetOR = (*cb & 1) ? 0x8000 : 0x0000;
-   g->MaskEvalAND = (*cb & 2) ? 0x8000 : 0x0000;
+   g->MaskSetOR = (cb->cmd & 1) ? 0x8000 : 0x0000;
+   g->MaskEvalAND = (cb->cmd & 2) ? 0x8000 : 0x0000;
 }
 
 
@@ -784,7 +784,8 @@ CTEntry PS_GPU::Commands[256] =
 
 void PS_GPU::ProcessFIFO(void)
 {
-   uint32_t CB[0x10], InData;
+   GpuCommand CB[0x10];
+   GpuCommand InData;
    unsigned i;
    unsigned command_len;
    uint32_t cc            = InCmd_CC;
@@ -811,7 +812,7 @@ void PS_GPU::ProcessFIFO(void)
             bool fetch = texel_fetch(FBRW_CurX & 1023, FBRW_CurY & 511) & MaskEvalAND;
 
             if (!fetch)
-               texel_put(FBRW_CurX & 1023, FBRW_CurY & 511, InData | MaskSetOR);
+               texel_put(FBRW_CurX & 1023, FBRW_CurY & 511, InData.cmd | MaskSetOR);
 
             FBRW_CurX++;
             if(FBRW_CurX == (FBRW_X + FBRW_W))
@@ -824,7 +825,7 @@ void PS_GPU::ProcessFIFO(void)
                   break;	// Break out of the for() loop.
                }
             }
-            InData >>= 16;
+            InData.cmd >>= 16;
          }
          return;
 
@@ -841,7 +842,7 @@ void PS_GPU::ProcessFIFO(void)
 
          command_len        = 1 + (bool)(InCmd_CC & 0x10);
 
-         if((BlitterFIFO.Peek() & 0xF000F000) == 0x50005000)
+         if((BlitterFIFO.Peek().cmd & 0xF000F000) == 0x50005000)
          {
             BlitterFIFO.Read();
             InCmd = INCMD_NONE;
@@ -854,7 +855,7 @@ void PS_GPU::ProcessFIFO(void)
 
    if (!read_fifo)
    {
-      cc          = BlitterFIFO.Peek() >> 24;
+      cc          = BlitterFIFO.Peek().cmd >> 24;
       command     = &Commands[cc];
       command_len = command->len;
 
@@ -879,7 +880,7 @@ void PS_GPU::ProcessFIFO(void)
       if(cc >= 0x20 && cc <= 0x3F && (cc & 0x4))
       {
          /* Don't alter SpriteFlip here. */
-         SetTPage(CB[4 + ((cc >> 4) & 0x1)] >> 16);
+         SetTPage(CB[4 + ((cc >> 4) & 0x1)].cmd >> 16);
       }
    }
 
@@ -909,20 +910,20 @@ void PS_GPU::ProcessFIFO(void)
          G_Command_TexWindow(this, CB);
          break;
       case 0xe3: /* Clip 0 */
-         this->ClipX0 = *CB & 1023;
-         this->ClipY0 = (*CB >> 10) & 1023;
+         this->ClipX0 = CB->cmd & 1023;
+         this->ClipY0 = (CB->cmd >> 10) & 1023;
          break;
       case 0xe4: /* Clip 1 */
-         this->ClipX1 = *CB & 1023;
-         this->ClipY1 = (*CB >> 10) & 1023;
+         this->ClipX1 = CB->cmd & 1023;
+         this->ClipY1 = (CB->cmd >> 10) & 1023;
          break;
       case 0xe5: /* Drawing Offset */
-         this->OffsX = sign_x_to_s32(11, (*CB & 2047));
-         this->OffsY = sign_x_to_s32(11, ((*CB >> 11) & 2047));
+         this->OffsX = sign_x_to_s32(11, (CB->cmd & 2047));
+         this->OffsY = sign_x_to_s32(11, ((CB->cmd >> 11) & 2047));
          break;
       case 0xe6: /* Mask Setting */
-         this->MaskSetOR = (*CB & 1) ? 0x8000 : 0x0000;
-         this->MaskEvalAND = (*CB & 2) ? 0x8000 : 0x0000;
+         this->MaskSetOR = (CB->cmd & 1) ? 0x8000 : 0x0000;
+         this->MaskEvalAND = (CB->cmd & 2) ? 0x8000 : 0x0000;
          break;
       default:
          if(command->func[abr][TexMode])
@@ -931,16 +932,18 @@ void PS_GPU::ProcessFIFO(void)
    }
 }
 
-INLINE void PS_GPU::WriteCB(uint32_t InData)
+INLINE void PS_GPU::WriteCB(uint32 InData, uint32 Addr)
 {
    if(BlitterFIFO.CanRead() >= 0x10 
-         && (InCmd != INCMD_NONE || (BlitterFIFO.CanRead() - 0x10) >= Commands[BlitterFIFO.Peek() >> 24].fifo_fb_len))
+         && (InCmd != INCMD_NONE || (BlitterFIFO.CanRead() - 0x10) >= Commands[BlitterFIFO.Peek().cmd >> 24].fifo_fb_len))
    {
       PSX_DBG(PSX_DBG_WARNING, "GPU FIFO overflow!!!\n");
       return;
    }
 
-   BlitterFIFO.Write(InData);
+   GpuCommand c = {InData, Addr};
+
+   BlitterFIFO.Write(c);
    ProcessFIFO();
 }
 
@@ -1091,14 +1094,15 @@ void PS_GPU::Write(const int32_t timestamp, uint32_t A, uint32_t V)
       //uint32_t command = V >> 24;
       //printf("Meow command: %02x\n", command);
       //assert(!(DMAControl & 2));
-      WriteCB(V);
+     // No extended precision available, pretend we come from address 0
+     WriteCB(V, 0);
    }
 }
 
 
-void PS_GPU::WriteDMA(uint32_t V)
+void PS_GPU::WriteDMA(uint32_t V, uint32_t Source)
 {
-   WriteCB(V);
+  WriteCB(V, Source);
 }
 
 INLINE uint32_t PS_GPU::ReadData(void)
@@ -1665,6 +1669,15 @@ int PS_GPU::StateAction(StateMem *sm, int load, int data_only)
          TexCache_Data[i][j] = TexCache[i].Data[j];
 
    }
+
+   int32 blitter_temp[0x20];
+
+   if (!load) {
+     for (int i = 0; i < 0x20; i++) {
+       blitter_temp[i] = BlitterFIFO.data[i].cmd;
+     }
+   }
+
    SFORMAT StateRegs[] =
    {
       // Hardcode entry name to remain backward compatible with the
@@ -1703,7 +1716,8 @@ int PS_GPU::StateAction(StateMem *sm, int load, int data_only)
       SFVAR(abr),
       SFVAR(TexMode),
 
-      SFARRAY32(&BlitterFIFO.data[0], sizeof(BlitterFIFO.data) / sizeof(BlitterFIFO.data[0])),
+      SFARRAY32N(blitter_temp, sizeof(blitter_temp), "&BlitterFIFO.data[0]"),
+
       SFVAR(BlitterFIFO.read_pos),
       SFVAR(BlitterFIFO.write_pos),
       SFVAR(BlitterFIFO.in_count),
@@ -1788,6 +1802,12 @@ int PS_GPU::StateAction(StateMem *sm, int load, int data_only)
 
    if(load)
    {
+      for (int i = 0; i < 0x20; i++)
+      {
+         BlitterFIFO.data[i].cmd = blitter_temp[i];
+         BlitterFIFO.data[i].src = 0;
+      }
+
       for(unsigned i = 0; i < 256; i++)
       {
          TexCache[i].Tag = TexCache_Tag[i];

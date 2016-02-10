@@ -114,7 +114,7 @@ void PS_GPU::DrawSprite(int32_t x_arg, int32_t y_arg, int32_t w, int32_t h,
 
 template<uint8_t raw_size, bool textured, int BlendMode,
    bool TexMult, uint32_t TexMode_TA, bool MaskEval_TA>
-INLINE void PS_GPU::Command_DrawSprite(const uint32_t *cb)
+INLINE void PS_GPU::Command_DrawSprite(const GpuCommand *cb)
 {
    int32_t x, y;
    int32_t w, h;
@@ -125,19 +125,19 @@ INLINE void PS_GPU::Command_DrawSprite(const uint32_t *cb)
 
    DrawTimeAvail   -= 16;	// FIXME, correct time.
 
-   color            = *cb & 0x00FFFFFF;
+   color            = cb->cmd & 0x00FFFFFF;
    cb++;
 
-   x                = sign_x_to_s32(11, (*cb & 0xFFFF));
-   y                = sign_x_to_s32(11, (*cb >> 16));
+   x                = sign_x_to_s32(11, (cb->cmd & 0xFFFF));
+   y                = sign_x_to_s32(11, (cb->cmd >> 16));
    cb++;
 
    if(textured)
    {
-      u    = *cb & 0xFF;
-      v    = (*cb >> 8) & 0xFF;
-      clut = ((*cb >> 16) & 0xFFFF) << 4;
-      Update_CLUT_Cache<TexMode_TA>((*cb >> 16) & 0xFFFF);
+      u    = cb->cmd & 0xFF;
+      v    = (cb->cmd >> 8) & 0xFF;
+      clut = ((cb->cmd >> 16) & 0xFFFF) << 4;
+      Update_CLUT_Cache<TexMode_TA>((cb->cmd >> 16) & 0xFFFF);
       cb++;
    }
 
@@ -145,8 +145,8 @@ INLINE void PS_GPU::Command_DrawSprite(const uint32_t *cb)
    {
       default:
       case 0:
-         w = (*cb & 0x3FF);
-         h = (*cb >> 16) & 0x1FF;
+         w = (cb->cmd & 0x3FF);
+         h = (cb->cmd >> 16) & 0x1FF;
          cb++;
          break;
 

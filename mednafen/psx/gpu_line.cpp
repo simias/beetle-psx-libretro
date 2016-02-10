@@ -169,10 +169,10 @@ void PS_GPU::DrawLine(line_point *points)
 }
 
 template<bool polyline, bool goraud, int BlendMode, bool MaskEval_TA>
-INLINE void PS_GPU::Command_DrawLine(const uint32_t *cb)
+INLINE void PS_GPU::Command_DrawLine(const GpuCommand *cb)
 {
    line_point points[2];
-   const uint8_t cc = cb[0] >> 24; // For pline handling later.
+   const uint8_t cc = cb[0].cmd >> 24; // For pline handling later.
 
    DrawTimeAvail   -= 16;	// FIXME, correct time.
 
@@ -183,21 +183,21 @@ INLINE void PS_GPU::Command_DrawLine(const uint32_t *cb)
    }
    else
    {
-      points[0].r = (*cb >> 0) & 0xFF;
-      points[0].g = (*cb >> 8) & 0xFF;
-      points[0].b = (*cb >> 16) & 0xFF;
+      points[0].r = (cb->cmd >> 0) & 0xFF;
+      points[0].g = (cb->cmd >> 8) & 0xFF;
+      points[0].b = (cb->cmd >> 16) & 0xFF;
       cb++;
 
-      points[0].x = sign_x_to_s32(11, ((*cb >> 0) & 0xFFFF)) + OffsX;
-      points[0].y = sign_x_to_s32(11, ((*cb >> 16) & 0xFFFF)) + OffsY;
+      points[0].x = sign_x_to_s32(11, ((cb->cmd >> 0) & 0xFFFF)) + OffsX;
+      points[0].y = sign_x_to_s32(11, ((cb->cmd >> 16) & 0xFFFF)) + OffsY;
       cb++;
    }
 
    if(goraud)
    {
-      points[1].r = (*cb >> 0) & 0xFF;
-      points[1].g = (*cb >> 8) & 0xFF;
-      points[1].b = (*cb >> 16) & 0xFF;
+      points[1].r = (cb->cmd >> 0) & 0xFF;
+      points[1].g = (cb->cmd >> 8) & 0xFF;
+      points[1].b = (cb->cmd >> 16) & 0xFF;
       cb++;
    }
    else
@@ -207,8 +207,8 @@ INLINE void PS_GPU::Command_DrawLine(const uint32_t *cb)
       points[1].b = points[0].b;
    }
 
-   points[1].x = sign_x_to_s32(11, ((*cb >> 0) & 0xFFFF)) + OffsX;
-   points[1].y = sign_x_to_s32(11, ((*cb >> 16) & 0xFFFF)) + OffsY;
+   points[1].x = sign_x_to_s32(11, ((cb->cmd >> 0) & 0xFFFF)) + OffsX;
+   points[1].y = sign_x_to_s32(11, ((cb->cmd >> 16) & 0xFFFF)) + OffsY;
    cb++;
 
    if(polyline)
