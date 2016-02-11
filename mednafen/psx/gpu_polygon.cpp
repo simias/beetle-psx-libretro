@@ -389,34 +389,42 @@ void PS_GPU::DrawTriangle(tri_vertex *vertices, uint32_t clut)
 
    if(right_facing)
    {
-      for(int32_t y = y_start; y < y_middle; y++)
-      {
-         DrawSpan<goraud, textured, BlendMode, TexMult, TexMode_TA, MaskEval_TA>(y, clut, GetPolyXFP_Int(base_coord), GetPolyXFP_Int(bound_coord_ul), ig, idl);
-         base_coord += base_step;
-         bound_coord_ul += bound_coord_us;
-      }
+     int32_t y;
 
-      for(int32_t y = y_middle; y < y_bound; y++)
+#pragma omp parallel for default(shared) private(y)
+      for(y = y_start; y < y_bound; y++)
       {
-         DrawSpan<goraud, textured, BlendMode, TexMult, TexMode_TA, MaskEval_TA>(y, clut, GetPolyXFP_Int(base_coord), GetPolyXFP_Int(bound_coord_ll), ig, idl);
-         base_coord += base_step;
-         bound_coord_ll += bound_coord_ls;
+	int32_t delta = y - y_start;
+	int64_t base = base_coord + base_step * delta;
+	int64_t bound;
+
+	if (y < y_middle) {
+	  bound = bound_coord_ul + bound_coord_us * delta;
+	} else {
+	  bound = bound_coord_ll + bound_coord_ls * (y - y_middle);
+	}
+
+	DrawSpan<goraud, textured, BlendMode, TexMult, TexMode_TA, MaskEval_TA>(y, clut, GetPolyXFP_Int(base), GetPolyXFP_Int(bound), ig, idl);
       }
    }
    else
    {
-      for(int32_t y = y_start; y < y_middle; y++)
-      {
-         DrawSpan<goraud, textured, BlendMode, TexMult, TexMode_TA, MaskEval_TA>(y, clut, GetPolyXFP_Int(bound_coord_ul), GetPolyXFP_Int(base_coord), ig, idl);
-         base_coord += base_step;
-         bound_coord_ul += bound_coord_us;
-      }
+     int32_t y;
 
-      for(int32_t y = y_middle; y < y_bound; y++)
+#pragma omp parallel for default(shared) private(y)
+      for(y = y_start; y < y_bound; y++)
       {
-         DrawSpan<goraud, textured, BlendMode, TexMult, TexMode_TA, MaskEval_TA>(y, clut, GetPolyXFP_Int(bound_coord_ll), GetPolyXFP_Int(base_coord), ig, idl);
-         base_coord += base_step;
-         bound_coord_ll += bound_coord_ls;
+	int32_t delta = y - y_start;
+	int64_t base = base_coord + base_step * delta;
+	int64_t bound;
+
+	if (y < y_middle) {
+	  bound = bound_coord_ul + bound_coord_us * delta;
+	} else {
+	  bound = bound_coord_ll + bound_coord_ls * (y - y_middle);
+	}
+
+	DrawSpan<goraud, textured, BlendMode, TexMult, TexMode_TA, MaskEval_TA>(y, clut, GetPolyXFP_Int(bound), GetPolyXFP_Int(base), ig, idl);
       }
    }
 

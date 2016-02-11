@@ -234,9 +234,9 @@ OBJECTS := $(SOURCES_CXX:.cpp=.o) $(SOURCES_C:.c=.o)
 all: $(TARGET)
 
 ifeq ($(DEBUG),0)
-   FLAGS += -O2 $(EXTRA_GCC_FLAGS)
+   FLAGS += -O2 -fopenmp $(EXTRA_GCC_FLAGS)
 else
-   FLAGS += -O0 -g
+   FLAGS += -O0 -fopenmp -g
 endif
 
 LDFLAGS += $(fpic) $(SHARED)
@@ -252,7 +252,7 @@ $(TARGET): $(OBJECTS)
 ifeq ($(STATIC_LINKING), 1)
 	$(AR) rcs $@ $(OBJECTS)
 else
-	$(CXX) -o $@ $^ $(LDFLAGS)
+	$(CXX) -o $@ $^ $(LDFLAGS) -fopenmp
 endif
 
 %.o: %.cpp
