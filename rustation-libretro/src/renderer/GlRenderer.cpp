@@ -7,8 +7,8 @@
 #include "shaders/image_load_vertex.glsl.h"
 #include "shaders/image_load_fragment.glsl.h"
 
-#include <cstdio>   // printf()
-#include <cstdlib> // size_t, EXIT_FAILURE
+#include <stdio.h>   // printf()
+#include <stdlib.h> // size_t, EXIT_FAILURE
 
 GlRenderer::GlRenderer(DrawConfig& config)
 {
@@ -103,9 +103,8 @@ GlRenderer::GlRenderer(DrawConfig& config)
     //// NOTE: r5 - I have no idea what a borrow checker is.
     // Yet an other copy of this 1MB array to make the borrow
     // checker happy...
-    std::vector<uint16_t> vram_contents = this->config.vram;
 
-    this->upload_textures({0, 0}, {VRAM_WIDTH_PIXELS, VRAM_HEIGHT}, vram_contents);
+    this->upload_textures({0, 0}, {VRAM_WIDTH_PIXELS, VRAM_HEIGHT}, &this->config.vram);
 }
 
 GlRenderer::~GlRenderer()
@@ -289,7 +288,7 @@ void GlRenderer::bind_libretro_framebuffer()
 }
 
 void GlRenderer::upload_textures( TopLeft top_left, Dimensions dimensions,
-                                  std::vector<uint16_t> pixel_buffer)
+                                  uint16_t* pixel_buffer[VRAM_PIXELS])
 {
     this->fb_texture.set_sub_image( top_left,
                                     dimensions,
@@ -329,7 +328,7 @@ void GlRenderer::upload_textures( TopLeft top_left, Dimensions dimensions,
 }
 
 void GlRenderer::upload_vram_window( TopLeft top_left, Dimensions dimensions,
-                             std::std::vector<uint16_t> pixel_buffer)
+                                     uint16_t* pixel_buffer[VRAM_PIXELS])
 {
     this->fb_texture.set_sub_image_window(  top_left,
                                             dimensions,
@@ -369,7 +368,7 @@ void GlRenderer::upload_vram_window( TopLeft top_left, Dimensions dimensions,
     // get_error()
 }
 
-DrawConfig& GlRenderer::draw_config()
+DrawConfig* GlRenderer::draw_config()
 {
     return this->config;
 }
@@ -431,15 +430,13 @@ bool GlRenderer::refresh_variables()
 
         //// TODO: Memory leak? Old Texture wasn't 'delete'd
         this->fb_out = fb_out;
-        //// TODO: Is clone() implemented?
-        std:vector<uint16_t> vram_contents = this->config.vram;
 
         // This is a bit wasteful since it'll re-upload the data
         // to `fb_texture` even though we haven't touched it but
         // this code is not very performance-critical anyway.
         this->upload_textures({0, 0},
                              {VRAM_WIDTH_PIXELS, VRAM_HEIGHT},
-                             vram_contents);
+                             &this->config.vram);
 
         //// TODO: Memory leak? Old Texture was not 'delete'd
         this->fb_out_depth = new Texture(w, h, GL_DEPTH_COMPONENT32F);
@@ -524,7 +521,7 @@ void GlRenderer::finalize_frame()
     glLineWidth(1.0);
     glClearColor(0.0, 0.0, 0.0, 0.0);
 
-    video_cb(-1, this->frontend_resolution.x, this->frontend_resolution.y, 0);
+    video_refresh(-1, this->frontend_resolution.x, this->frontend_resolution.y, 0);
 
 }
 
@@ -706,8 +703,3 @@ void GlRenderer::copy_rect( TopLeft source_top_left,
 
     // get_error();
 }
-
-
-
-
-

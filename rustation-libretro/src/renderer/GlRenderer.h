@@ -4,7 +4,7 @@
 
 #include <gl>
 #include <vector>
-#include <cstdint>
+#include <stdint.h>
 
 #include "../retrogl/retrogl.h"
 #include "../retrogl/error.h"
@@ -17,8 +17,8 @@
 
 #include "../libretro.h"
 
-#define VRAM_WIDTH_PIXELS
-#define VRAM_HEIGHT
+extern unsigned int VRAM_WIDTH_PIXELS
+extern unsigned int VRAM_HEIGHT
 
 /// How many vertices we buffer before forcing a draw
 #define VERTEX_BUFFER_LEN 2048
@@ -30,24 +30,11 @@ struct FrontendResolution {
     uint32_t h;
 };
 
-struct Resolution {
-    uint16_t w;
-    uint16_t h;
-};
-
-struct Position {
-    uint16_t x;
-    uint16_t y;
-};
-
 struct Color {
     uint8_t r;
     uint8_t g;
     uint8_t b;
 };
-
-typedef Position TopLeft;
-typedef Position Dimensions;
 
 class GlRenderer
 {
@@ -103,12 +90,12 @@ public:
     void apply_scissor();
     void bind_libretro_framebuffer();
     void upload_textures( TopLeft topleft, Dimensions dimensions,
-                          std::vector<uint16_t>& pixel_buffer);
+                          uint16_t* pixel_buffer[VRAM_PIXELS]);
 
     void upload_vram_window( TopLeft top_left, Dimensions dimensions,
-                             std::vector<uint16_t>& pixel_buffer);
+                             uint16_t* pixel_buffer[VRAM_PIXELS]);
 
-    DrawConfig& draw_config();
+    DrawConfig* draw_config();
     void prepare_render();
     bool refresh_variables();
     void finalize_frame();
@@ -122,10 +109,10 @@ public:
     void set_display_mode(TopLeft top_left, 
                           Resolution resolution, depth_24bpp bool);
 
-    void push_triangle( CommandVertex* v[3],
+    void push_triangle( CommandVertex v[3],
                         SemiTransparencyMode semi_transparency_mode);
 
-    void push_line( CommandVertex* v[2],
+    void push_line( CommandVertex v[2],
                     SemiTransparencyMode semi_transparency_mode);
 
     void fill_rect(Color color, TopLeft top_left, Dimensions dimensions);
@@ -137,7 +124,7 @@ public:
 
 //// TODO: These have to be classes with ctors so it plays nice with
 //// push_slice() and initializer lists
-struct CommandVertex {
+class CommandVertex {
     /// Position in PlayStation VRAM coordinates
     int16_t position[3];
     /// RGB color, 8bits per component
@@ -157,16 +144,19 @@ struct CommandVertex {
     uint8_t dither;
     /// 0: primitive is opaque, 1: primitive is semi-transparent
     uint8_t semi_transparent;
+
+    //from_vertex
+    CommandVertex(Vertex& v);
 };
 
-struct OutputVertex {
+class OutputVertex {
     /// Vertex position on the screen
     float position[2];
     /// Corresponding coordinate in the framebuffer
     uint16_t fb_coord[2];
 };
 
-struct ImageLoadVertex {
+class ImageLoadVertex {
     // Vertex position in VRAM
     uint16_t position[2];
 };
