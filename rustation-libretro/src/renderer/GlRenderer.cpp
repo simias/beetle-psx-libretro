@@ -607,7 +607,7 @@ void GlRenderer::set_draw_area(TopLeft top_left, Dimensions dimensions)
 }
 
 void GlRenderer::set_display_mode(  TopLeft top_left, 
-                                    Resolution resolution, depth_24bpp bool)
+                                    Resolution resolution, bool depth_24bpp)
 {
     this->config.display_top_left.x = top_left.x;
     this->config.display_top_left.y = top_left.y;

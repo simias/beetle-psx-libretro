@@ -21,7 +21,7 @@ extern unsigned int VRAM_WIDTH_PIXELS
 extern unsigned int VRAM_HEIGHT
 
 /// How many vertices we buffer before forcing a draw
-unsigned int VERTEX_BUFFER_LEN 2048
+unsigned int VERTEX_BUFFER_LEN = 2048;
 
 // Helper structs are used because C/C++ syntax doesn't allow
 // statements like e.g. (u32, u32) frontend_resolution = (640, 480); 
@@ -107,7 +107,7 @@ public:
 
     void set_draw_area(TopLeft top_left, Dimensions dimensions);
     void set_display_mode(TopLeft top_left, 
-                          Resolution resolution, depth_24bpp bool);
+                          Resolution resolution, bool depth_24bpp);
 
     void push_triangle( CommandVertex v[3],
                         SemiTransparencyMode semi_transparency_mode);
