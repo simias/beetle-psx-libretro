@@ -21,7 +21,7 @@ extern unsigned int VRAM_WIDTH_PIXELS
 extern unsigned int VRAM_HEIGHT
 
 /// How many vertices we buffer before forcing a draw
-#define VERTEX_BUFFER_LEN 2048
+unsigned int VERTEX_BUFFER_LEN 2048
 
 // Helper structs are used because C/C++ syntax doesn't allow
 // statements like e.g. (u32, u32) frontend_resolution = (640, 480); 

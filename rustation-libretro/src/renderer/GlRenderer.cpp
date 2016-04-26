@@ -12,10 +12,23 @@
 
 GlRenderer::GlRenderer(DrawConfig& config)
 {
-    auto upscaling      = CoreVariables::internal_resolution();
-    auto depth          = CoreVariables::internal_color_depth();
-    auto scale_dither   = CoreVariables::scale_dither();
-    auto wireframe      = CoreVariables::wireframe();
+    struct retro_variable var = {0};
+    
+    var.key = "beetle_psx_internal_resolution";
+    environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var);
+    auto upscaling      = var.value;
+    
+    var.key = "beetle_psx_internal_color_depth";
+    environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var);
+    auto depth          = var.value;
+    
+    var.key = "beetle_psx_scale_dither";
+    environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var);
+    auto scale_dither   = var.value;
+
+    var.key = "beetle_psx_wireframe";
+    environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var);
+    auto wireframe      = var.value;
 
     printf("Building OpenGL state (%dx internal res., %dbpp)", upscaling, depth);
 
@@ -392,10 +405,23 @@ void GlRenderer::prepare_render()
 
 bool GlRenderer::refresh_variables()
 {
-    auto upscaling      = CoreVariables::internal_resolution();
-    auto depth          = CoreVariables::internal_color_depth();
-    auto scale_dither   = CoreVariables::scale_dither();
-    auto wireframe      = CoreVariables::wireframe();
+    struct retro_variable var = {0};
+    
+    var.key = "beetle_psx_internal_resolution";
+    environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var);
+    auto upscaling      = var.value;
+    
+    var.key = "beetle_psx_internal_color_depth";
+    environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var);
+    auto depth          = var.value;
+    
+    var.key = "beetle_psx_scale_dither";
+    environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var);
+    auto scale_dither   = var.value;
+
+    var.key = "beetle_psx_wireframe";
+    environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var);
+    auto wireframe      = var.value;
 
     bool rebuild_fb_out =   upscaling != this->internal_upscaling ||
                             depth != this->internal_color_depth;
