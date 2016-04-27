@@ -30,7 +30,7 @@ GlRenderer::GlRenderer(DrawConfig& config)
     environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var);
     auto wireframe      = var.value;
 
-    printf("Building OpenGL state (%dx internal res., %dbpp)", upscaling, depth);
+    printf("Building OpenGL state (%dx internal res., %dbpp)\n", upscaling, depth);
 
     auto opaque_command_buffer = 
         GlRenderer::build_buffer<CommandVertex>(
@@ -82,7 +82,7 @@ GlRenderer::GlRenderer(DrawConfig& config)
         texture_storage = GL_RGBA8;
         break;
     default:
-        printf("Unsupported depth %d", depth);
+        printf("Unsupported depth %d\n", depth);
         exit(EXIT_FAILURE);
     }
 
@@ -122,23 +122,13 @@ GlRenderer::GlRenderer(DrawConfig& config)
 
 GlRenderer::~GlRenderer()
 {
-    if (command_buffer != nullptr)
-        delete command_buffer;
-
-    if (output_buffer != nullptr)
-        delete output_buffer;
-
-    if (image_load_buffer != nullptr)
-        delete image_load_buffer;    
-
-    if (fb_texture != nullptr)
-        delete fb_texture;
-
-    if (fb_out != nullptr)
-        delete fb_out;
-
-    if (fb_out_depth != nullptr)
-        delete fb_out_depth;
+    if (command_buffer != nullptr)      delete command_buffer;
+    if (output_buffer != nullptr)       delete output_buffer;
+    if (image_load_buffer != nullptr)   delete image_load_buffer;    
+    if (fb_texture != nullptr)          delete fb_texture;
+    if (fb_out != nullptr)              delete fb_out;
+    if (fb_out_depth != nullptr)        delete fb_out_depth;
+    if (config != nullptr)              delete config;
 }
 
 static template<typename T>
@@ -286,7 +276,7 @@ void GlRenderer::bind_libretro_framebuffer()
         geometry.aspect_ratio: 4.0/3.0;
     
 
-        printf("Target framebuffer size: %dx%d", w, h);
+        printf("Target framebuffer size: %dx%d\n", w, h);
 
         environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &geometry);
 
@@ -448,7 +438,7 @@ bool GlRenderer::refresh_variables()
             texture_storage = GL_RGBA8;
             break;
         default:
-            printf("Unsupported depth %d", depth);
+            printf("Unsupported depth %d\n", depth);
             exit(EXIT_FAILURE);
         }
 

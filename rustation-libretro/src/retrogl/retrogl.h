@@ -14,24 +14,43 @@ const size_t VRAM_PIXELS = (size_t) VRAM_WIDTH_PIXELS * (size_t) VRAM_HEIGHT;
 
 class RetroGl {
 public:
-	GlState state;
-	VideoClock video_clock;
+    /* 
+    Rust's enums members can contain data. To emulate that,
+    I'll use a helper struct to save the data.  
+    */
+    GlStateData state_data;
+    GlState state;
+    
+    VideoClock video_clock;
 
-	// new(video_clock: VideoClock)
-	RetroGl(VideoClock video_clock);
-	~RetroGl();
+    // new(video_clock: VideoClock)
+    RetroGl(VideoClock video_clock);
+    ~RetroGl();
 
-	void context_reset();
+    void context_reset();
+    GlRenderer* gl_renderer();
+    void context_destroy();
+    void prepare_render();
+    void finalize_frame();
+    void refresh_variables();
+
 };
 
 /// State machine dealing with OpenGL context
 /// destruction/reconstruction
 enum class GlState {
-	// OpenGL context is ready
-	Valid(GlRenderer),
-	/// OpenGL context has been destroyed (or is not created yet)
-	Invalid(DrawConfig)
+    // OpenGL context is ready
+    Valid,
+    /// OpenGL context has been destroyed (or is not created yet)
+    Invalid
 };
+
+struct GlStateData {
+    GlRenderer* r;
+    DrawConfig c;
+};
+
+
 
 struct Resolution {
     uint16_t w;
@@ -44,21 +63,21 @@ struct Position {
 };
 
 struct Offset {
-	int16_t x;
-	int16_t y;
+    int16_t x;
+    int16_t y;
 };
 
 typedef Position TopLeft;
 typedef Position Dimensions;
 
 struct DrawConfig {
-	TopLeft display_top_left;
-	Resolution display_resolution;
-	bool display_24bpp;
-	Offset draw_offset;
-	TopLeft draw_area_top_left;
-	Dimensions draw_area_dimensions;
-	uint16_t vram[VRAM_PIXELS];
+    TopLeft display_top_left;
+    Resolution display_resolution;
+    bool display_24bpp;
+    Offset draw_offset;
+    TopLeft draw_area_top_left;
+    Dimensions draw_area_dimensions;
+    uint16_t vram[VRAM_PIXELS];
 };
 
 #endif

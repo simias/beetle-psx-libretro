@@ -7,13 +7,13 @@ RetroGl::RetroGl(VideoClock video_clock)
 {
     // TODO: Is bool set_pixel_format() declared by including libretro.h?
     if ( !set_pixel_format(RETRO_PIXEL_FORMAT_XRGB8888) ) {
-        puts("Can't set pixel format");
+        puts("Can't set pixel format\n");
         exit(EXIT_FAILURE);
     }
 
     // TODO: Is bool hw_context_init() declared by including libretro.h?
     if ( !hw_context_init() ) {
-        puts("Failed to init hardware context");
+        puts("Failed to init hardware context\n");
         exit(EXIT_FAILURE);
     }
 
@@ -44,7 +44,7 @@ RetroGl::~RetroGl() {
 }
 
 void RetroGl::context_reset() {
-    puts("OpenGL context reset");
+    puts("OpenGL context reset\n");
 
     // Should I call this at every reset? Does it matter?
     //// TODO: I don't know how to translate this into C++
@@ -54,20 +54,125 @@ void RetroGl::context_reset() {
     });
     */
 
-    //// r5 - I'm not sure what the match self.state is doing or how to
-    //// replicate it in C++
+    /* Save this on the stack, I'm unsure if saving a ptr would
+    would cause trouble because of the 'delete' below  */
+    DrawConfig config;
 
-    /*
-    DrawConfig* config = nullptr;
-    let config =
-            match self.state {
-                GlState::Valid(ref r) => r.draw_config().clone(),
-                GlState::Invalid(ref c) => c.clone(),
-            };
+    switch (this->state)
+    {
+    case GlState::Valid:
+        config = *( this->state_data.r.draw_config() );
+        break;
+    case GlState::Invalid:
+        config = *( this->state_data.c );
+        break;
+    }
 
-        match GlRenderer::from_config(config) {
-            Ok(r) => self.state = GlState::Valid(r),
-            Err(e) => panic!("Couldn't create RetroGL state: {:?}", e),
+    /* TODO - Not checking Ok() or Err() */
+    delete this->state_data.r;
+    this->state_data.r = new GlRenderer(&config);
+    this->state = GlState::Valid;
+}
+
+GlRenderer* RetroGl::gl_renderer() 
+{
+    switch (this->state)
+    {
+    case GlState::Valid:
+        return this->state_data.r;
+    case GlState::Invalid:
+        puts("Attempted to get GL state without GL context!\n");
+        exit(EXIT_FAILURE);
+    }
+}
+
+void GlRenderer::context_destroy()
+{
+    puts("OpenGL context destroy\n");
+
+    DrawConfig config;
+
+    switch (this->state)
+    {
+    case GlState::Valid:
+        config = *( this->state_data.r.draw_config() );
+        break;
+    case GlState::Invalid:
+        return;
+    }
+
+    this->state = GlState::Invalid;
+    this->state_data.c = config;
+}
+
+void GlRenderer::prepare_render() 
+{
+    GlRenderer* renderer = nullptr;
+    switch (this->state)
+    {
+    case GlState::Valid:
+        renderer = this->state_data.r;
+        break;
+    case GlState::Invalid:
+        puts("Attempted to render a frame without GL context\n");
+        exit(EXIT_FAILURE);
+    }
+
+    renderer->prepare_render();
+}
+
+void GlRenderer::finalize_frame()
+{
+    GlRenderer* renderer = nullptr;
+    switch (this->state)
+    {
+    case GlState::Valid:
+        renderer = this->state_data.r;
+        break;
+    case GlState::Invalid:
+        puts("Attempted to render a frame without GL context\n");
+        exit(EXIT_FAILURE);
+    }
+
+    renderer->finalize_frame();
+}
+
+void refresh_variables()
+{
+    GlRenderer* renderer = nullptr;
+    switch (this->state)
+    {
+    case GlState::Valid:
+        renderer = this->state_data.r;
+        break;
+    case GlState::Invalid:
+        // Nothing to be done if we don't have a GL context
+        return;
+    }
+
+    bool reconfigure_frontend = renderer->refresh_variables();
+    if (reconfigure_frontend) {
+        // The resolution has changed, we must tell the frontend
+        // to change its format
+        struct retro_variable var = {0};
+        var.key = "beetle_psx_internal_resolution";
+        environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var);
+        auto upscaling      = var.value;
+
+        /* TODO: Is get_av_info declared by libretro.h? */
+        auto av_info = get_av_info(this->video_clock, upscaling);
+
+        // This call can potentially (but not necessarily) call
+        // `context_destroy` and `context_reset` to reinitialize
+        // the entire OpenGL context, so beware.
+        /* The above comment may not be applicable anymore since we're
+        calling environ_cb directly */
+        bool ok = environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &av_info);
+
+        if (!ok)
+        {
+            puts("Couldn't change frontend resolution\n");
+            puts("Try resetting to enable the new configuration\n");
         }
-     */   
+    }
 }

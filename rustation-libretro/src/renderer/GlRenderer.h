@@ -39,7 +39,7 @@ struct Color {
 class GlRenderer
 {
 public:
-	/// Buffer used to handle PlayStation GPU draw commands
+    /// Buffer used to handle PlayStation GPU draw commands
     DrawBuffer<CommandVertex*>* command_buffer;
     /// Primitive type for the vertices in the command buffers
     /// (TRIANGLES or LINES)
