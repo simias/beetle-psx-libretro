@@ -20,7 +20,6 @@ public:
     */
     GlStateData state_data;
     GlState state;
-    
     VideoClock video_clock;
 
     // new(video_clock: VideoClock)
@@ -33,8 +32,7 @@ public:
     void prepare_render();
     void finalize_frame();
     void refresh_variables();
-
-};
+    retro_system_av_info get_system_av_info();
 
 /// State machine dealing with OpenGL context
 /// destruction/reconstruction
@@ -49,8 +47,6 @@ struct GlStateData {
     GlRenderer* r;
     DrawConfig c;
 };
-
-
 
 struct Resolution {
     uint16_t w;

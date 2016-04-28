@@ -35,12 +35,13 @@ RetroGl::RetroGl(VideoClock video_clock)
         vram
     };
 
-    this->state(config);
+    this->state = GlState::Invalid;
+    this->state_data.c = config;
     this->video_clock = video_clock;
 }
 
 RetroGl::~RetroGl() {
-
+    if (this->state_data.r != nullptr) delete this->state_data.r;
 }
 
 void RetroGl::context_reset() {
@@ -159,14 +160,21 @@ void refresh_variables()
         environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var);
         auto upscaling      = var.value;
 
-        /* TODO: Is get_av_info declared by libretro.h? */
-        auto av_info = get_av_info(this->video_clock, upscaling);
+        /* TODO: Is get_av_info declared by libretro.h? 
+        Also, check what the namespace operator is doing here,
+        what get_av_info is this refering to? CoreVariables?
+        */
+        auto av_info = ::get_av_info(this->video_clock, upscaling);
 
         // This call can potentially (but not necessarily) call
         // `context_destroy` and `context_reset` to reinitialize
         // the entire OpenGL context, so beware.
         /* The above comment may not be applicable anymore since we're
-        calling environ_cb directly */
+        calling environ_cb directly
+        
+        TODO - This callback can only be used in retro_run(), what should
+        be done instead? 
+         */
         bool ok = environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &av_info);
 
         if (!ok)
@@ -175,4 +183,17 @@ void refresh_variables()
             puts("Try resetting to enable the new configuration\n");
         }
     }
+}
+
+retro_system_av_info RetroGl::get_system_av_info()
+{
+    struct retro_variable var = {0};
+    var.key = "beetle_psx_internal_resolution";
+    environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var);
+    auto upscaling      = var.value;
+
+    /* What's with the namespace operator behind get_av_info()? */
+    struct retro_system_av_info av_info = ::get_av_info(this->video_clock, upscaling);
+
+    return av_info;
 }
