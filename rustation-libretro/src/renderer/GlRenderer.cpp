@@ -71,7 +71,7 @@ GlRenderer::GlRenderer(DrawConfig& config)
     auto command_draw_mode = wireframe ? GL_LINE : GL_FILL;
 
     // TODO: This isn't C++ yet I think....
-    opaque_command_buffer.program().uniform1ui("dither_scaling", dither_scaling);
+    opaque_command_buffer->program().uniform1ui("dither_scaling", dither_scaling);
 
     auto texture_storage = GL_RGB5_A1;
     switch (depth){
@@ -153,10 +153,10 @@ void GlRenderer::draw() {
     int16_t y = this->config.draw_offset.y;
 
     // TODO: Is this C++? Check what uniform2i is
-    this->command_buffer.program().uniform2i("offset", (GLint)x, (GLint)y);
+    this->command_buffer->program().uniform2i("offset", (GLint)x, (GLint)y);
 
     // We use texture unit 0
-    this->command_buffer.program().uniform1i("fb_texture", 0);
+    this->command_buffer->program().uniform1i("fb_texture", 0);
 
     // Bind the out framebuffer
     // TODO: Ensure we have a Framebuffer ctor which receives a bool
@@ -171,7 +171,7 @@ void GlRenderer::draw() {
         glDisable(GL_BLEND);
 
         // TODO: Is this C++? uniform1ui
-        this->command_buffer.program().uniform1ui("draw_semi_transparent", 0);
+        this->command_buffer->program().uniform1ui("draw_semi_transparent", 0);
         this->command_buffer.draw(this->command_draw_mode);
         this->command_buffer.clear();
     }
@@ -215,7 +215,7 @@ void GlRenderer::draw() {
         glEnable(GL_BLEND);
 
         //// TODO: Is the first  statement C++? uniform1ui
-        this->command_buffer.program().uniform1ui("draw_semi_transparent", 1);
+        this->command_buffer->program().uniform1ui("draw_semi_transparent", 1);
         this->command_buffer.draw(this->command_draw_mode);
         
         //// TODO: Memory leak? Maybe a for-each loop to 'delete' all items
@@ -312,7 +312,7 @@ void GlRenderer::upload_textures( TopLeft top_left, Dimensions dimensions,
             ImageLoadVertex(x_end, y_end) 
         });
 
-    this->image_load_buffer.program().uniform1i("fb_texture", 0);
+    this->image_load_buffer->program().uniform1i("fb_texture", 0);
 
     glDisable(GL_SCISSOR_TEST);
     glDisable(GL_BLEND);
@@ -354,7 +354,7 @@ void GlRenderer::upload_vram_window( TopLeft top_left, Dimensions dimensions,
             ImageLoadVertex(x_end, y_end) 
         });
 
-    this->image_load_buffer.program().uniform1i("fb_texture", 0);
+    this->image_load_buffer->program().uniform1i("fb_texture", 0);
 
     glDisable(GL_SCISSOR_TEST);
     glDisable(GL_BLEND);
@@ -459,7 +459,7 @@ bool GlRenderer::refresh_variables()
     }
 
     auto dither_scaling = scale_dither ? upscaling : 1;
-    this->command_buffer.program().uniform1ui("dither_scaling", dither_scaling);
+    this->command_buffer->program().uniform1ui("dither_scaling", dither_scaling);
 
     this->command_polygon_mode = wireframe ? GL_LINE : GL_FILL;
 
@@ -518,9 +518,9 @@ void GlRenderer::finalize_frame()
     GLint depth_24bpp = (GLint) this->config.display_24bpp;
 
     //// TODO: Is this C++? Figure out these unfirom1i things
-    this->output_buffer.program().uniform1i("fb", 1);
-    this->output_buffer.program().uniform1i("depth_24bpp", depth_24bpp);
-    this->output_buffer.program().uniform1ui(   "internal_upscaling",
+    this->output_buffer->program().uniform1i("fb", 1);
+    this->output_buffer->program().uniform1i("depth_24bpp", depth_24bpp);
+    this->output_buffer->program().uniform1ui(   "internal_upscaling",
                                                 this->internal_upscaling);
     this->output_buffer.draw(GL_TRIANGLE_STRIP);
 
