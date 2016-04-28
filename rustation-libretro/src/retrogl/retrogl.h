@@ -33,6 +33,7 @@ public:
     void finalize_frame();
     void refresh_variables();
     retro_system_av_info get_system_av_info();
+};
 
 /// State machine dealing with OpenGL context
 /// destruction/reconstruction
