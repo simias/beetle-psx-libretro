@@ -305,12 +305,15 @@ void GlRenderer::upload_textures( TopLeft top_left, Dimensions dimensions,
     auto y_start    = top_left.y;
     auto y_end      = y_start + dimensions.y;
 
-    this->image_load_buffer.push_slice(
+    size_t slice_len = 4
+    ImageLoadVertex slice[slice_len] =  
         {   ImageLoadVertex(x_start, y_start), 
             ImageLoadVertex(x_end, y_start),
             ImageLoadVertex(x_start, y_end),
-            ImageLoadVertex(x_end, y_end) 
-        });
+            ImageLoadVertex(x_end, y_end)
+        };
+
+    this->image_load_buffer.push_slice(slice, slice_len);
 
     this->image_load_buffer->program().uniform1i("fb_texture", 0);
 
@@ -347,12 +350,15 @@ void GlRenderer::upload_vram_window( TopLeft top_left, Dimensions dimensions,
     auto y_start    = top_left.y;
     auto y_end      = y_start + dimensions.y;
 
-    this->image_load_buffer.push_slice(
+
+    size_t slice_len = 4
+    ImageLoadVertex slice[slice_len] =
         {   ImageLoadVertex(x_start, y_start), 
             ImageLoadVertex(x_end, y_start),
             ImageLoadVertex(x_start, y_end),
             ImageLoadVertex(x_end, y_end) 
-        });
+        };
+    this->image_load_buffer.push_slice(slice, slice_len);
 
     this->image_load_buffer->program().uniform1i("fb_texture", 0);
 
@@ -504,16 +510,16 @@ void GlRenderer::finalize_frame()
 
     this->output_buffer.clear();
 
-    //// In these push_slices() calls, I'm building the slices on the stack
-    //// through initializer lists, hoping it all works with minimal code
-    //// TODO: Make sure OutputVertex has ctors for this
-    this->output_buffer.push_slice(
+    /* TODO: Make sure OutputVertex can be built like this */
+    size_t slice_len = 4;
+    OutputVertex slice[slice_len] =
         {
             OutputVertex( {-1.0, -1.0}, {fb_x_start, fb_y_end} ),
             OutputVertex( {1.0, -1.0}, {fb_x_end, fb_y_end} ),
             OutputVertex( {-1.0, 1.0}, {fb_x_start, fb_y_start} ),
             OutputVertex( {1.0, 1.0}, {fb_x_end, fb_y_start} )
-        });
+        };
+    this->output_buffer.push_slice(slice, slice_len);
 
     GLint depth_24bpp = (GLint) this->config.display_24bpp;
 
@@ -607,55 +613,59 @@ void GlRenderer::set_display_mode(  TopLeft top_left,
     this->config.display_24bpp = depth_24bpp;
 }
 
-void GlRenderer::push_triangle( CommandVertex* v[3], 
+void GlRenderer::push_triangle( CommandVertex v[3], 
                                 SemiTransparencyMode semi_transparency_mode)
 {
     this->maybe_force_draw( 3, GL_TRIANGLES,
-                            v[0]->semi_transparent == 1,
+                            v[0].semi_transparent == 1,
                             semi_transparency_mode);
 
-    auto z = this->primitive_ordering;
+    int16_t z = this->primitive_ordering;
     this->primitive_ordering += 1;
 
-    for (size_t i = 0; i < 3; ++i) {
-        v[i]->position[2] = z;
+    size_t slice_len = 3;
+    size_t i;
+    for (i = 0; i < slice_len; ++i) {
+        v[i].position[2] = z; /* TODO: Is position an array or a struct? */
     }
 
     bool needs_opaque_draw =
-        !(v[0]->semi_transparent == 1) ||
+        !(v[0].semi_transparent == 1) ||
         // Textured semi-transparent polys can contain opaque
         // texels (when bit 15 of the color is set to
         // 0). Therefore they're drawn twice, once for the opaque
         // texels and once for the semi-transparent ones
-        v[0]->texture_blend_mode != 0;
+        v[0].texture_blend_mode != 0;
 
     if (needs_opaque_draw) {
-        this->command_buffer.push_slice( {v[0], v[1], v[2]} );
+        this->command_buffer.push_slice(v, slice_len);
     }
 
-    if (v[0]->semi_transparent == 1) {
-        this->semi_transparent_vertices.extend_from_slice( {v[0], v[1], v[2]} );   
+    if (v[0].semi_transparent == 1) {
+        this->semi_transparent_vertices.extend_from_slice(v, slice_len);   
     }
 }
 
-void GlRenderer::push_line( CommandVertex* v[2],
+void GlRenderer::push_line( CommandVertex v[2],
                             SemiTransparencyMode semi_transparency_mode)
 {
     this->maybe_force_draw( 2, GL_LINES,
-                            v[0]->semi_transparent == 1,
+                            v[0].semi_transparent == 1,
                             semi_transparency_mode);
 
-    auto z = this->primitive_ordering;
+    int16_t z = this->primitive_ordering;
     this->primitive_ordering += 1;
 
-    for (size_t i = 0; i < 2; ++i) {
-        v[i]->position[2] = z;
+    size_t slice_len = 2;
+    size_t i;
+    for (i = 0; i < slice_len; ++i) {
+        v[i].position[2] = z;
     }
 
-    if (v[0]->semi_transparent == 1) {
-        this->semi_transparent_vertices.extend_from_slice( {v[0], v[1]} );
+    if (v[0].semi_transparent == 1) {
+        this->semi_transparent_vertices.extend_from_slice(v, slice_len);
     } else {
-        this->command_buffer.push_slice( {v[0], v[1]} );
+        this->command_buffer.push_slice(v, slice_len);
     }
 }
 

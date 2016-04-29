@@ -3,6 +3,7 @@
 
 #include <gl>
 #include <stdlib.h> // size_t
+#include <vector>
 
 #include "error.h"
 #include "vertex.h"
@@ -20,11 +21,10 @@ public:
     /// buffer for simplicity.
     VertexArrayObject vao;
     /// Program used to draw this buffer
-    Program program;
+    Program* program;
     /// Number of elements T that the vertex buffer can hold
     size_t capacity;
     /// Marker for the type of our buffer's contents
-    /* How do I simulate this in C++? Maybe an array of size 1? */
     /* PhantomData<T> contains; */
     T* contains;
     /// Current number of entries in the buffer
@@ -33,7 +33,8 @@ public:
     /// (i.e. they'll be drawn first)
     bool lifo;
 
-    /* pub fn new(capacity: usize,
+    /* 
+    pub fn new(capacity: usize,
                program: Program,
                lifo: bool) -> Result<DrawBuffer<T>, Error> {
     */
@@ -50,7 +51,12 @@ public:
     void clear();
     /// Bind the buffer to the current VAO
     void bind();
+    void push_slice(T slice[], size_t n);
+    void draw(GLenum mode);
+    size_t remaining_capacity();
 
+    /* impl<T> Drop for DrawBuffer<T> { */
+    void drop();
 };
 
 #endif

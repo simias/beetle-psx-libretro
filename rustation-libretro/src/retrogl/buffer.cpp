@@ -103,7 +103,6 @@ void DrawBuffer::enable_attribute(const char* attr)
     /* get_error() */
 }
 
-
 void DrawBuffer::disable_attribute(const char* attr)
 {
     GLuint index = this->find_attribute(attr);
@@ -149,3 +148,53 @@ void DrawBuffer::bind()
     glBindBuffer(GL_ARRAY_BUFFER, this->id);
 }
 
+void DrawBuffer::push_slice(T slice[], size_t n)
+{
+    if (n > this->remaining_capacity() ) {
+        puts("Error::OutOfMemory\n");
+        return;
+    }
+
+    size_t element_size = sizeof( *(this->contains) );
+
+    size_t offset;
+    if (this->lifo) {
+        offset = this->capacity - this->len - n;
+    } else {
+        offset = this->len;
+    }
+
+    size_t offset_bytes = offset * element_size;
+    size_t size_bytes = n * element_size;
+
+    this->bind();
+
+    /* TODO - Is the last argument supposed to be cast to void* or GLvoid*? */
+    glBufferSubData(    GL_ARRAY_BUFFER,
+                        (GLintptr) offset_bytes,
+                        (GLintptr) size_bytes,
+                        (void*) &slice);
+
+    /* get_error() */
+    this->len += n;
+}
+
+void DrawBuffer::draw(GLenum mode)
+{
+    this->vao.bind();
+    this->program.bind();
+
+    GLint first = this->lifo ? (GLint) this->remaining_capacity() : 0;
+
+    glDrawArrays(mode, first, (GLsizei) this->len);
+}
+
+size_t DrawBuffer::remaining_capacity()
+{
+    return this->capacity - this->len;
+}
+
+void DrawBuffer::drop()
+{
+    glDeleteBuffers(1, &this->id);
+}
