@@ -3,7 +3,6 @@
 
 #include <gl>
 #include <stdlib.h> // size_t
-#include <vector>
 
 #include "error.h"
 #include "vertex.h"
