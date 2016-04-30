@@ -2,7 +2,7 @@
 
 DrawBuffer::DrawBuffer(size_t capacity, Program* program, bool lifo)
 {
-    VertexArrayObject vao = new VertexArrayObject();
+    VertexArrayObject* vao = new VertexArrayObject();
 
     GLuint id = 0;
     // Generate the buffer object
@@ -27,13 +27,14 @@ DrawBuffer::DrawBuffer(size_t capacity, Program* program, bool lifo)
 
 DrawBuffer::~DrawBuffer()
 {
-    if (this->program != nullptr) delete program;
-    if (this->T != nullptr) delete T;
+    if (this->vao != nullptr)       delete vao;
+    if (this->program != nullptr)   delete program;
+    if (this->T != nullptr)         delete T;
 }
 
 void DrawBuffer::bind_attributes()
 {
-    this->vao.bind();
+    this->vao->bind();
 
     //ARRAY_BUFFER is captured by VertexAttribPointer
     this->bind();
@@ -61,7 +62,7 @@ void DrawBuffer::bind_attributes()
         glEnableVertexAttribArray(index);
 
         // This captures the buffer so that we don't have to bind it
-        // when we draw later on, we'll just have to bind the vao.
+        // when we draw later on, we'll just have to bind the vao
         switch (Kind::from_type(atrib.ty)) {
         /* TODO - Make sure KindEnum exists, Rust allows enums to have funcs  */
         case KindEnum::Integer:
@@ -96,7 +97,7 @@ void DrawBuffer::bind_attributes()
 void DrawBuffer::enable_attribute(const char* attr)
 {
     GLuint index = this->find_attribute(attr);
-    this->vao.bind();
+    this->vao->bind();
 
     glEnableVertexAttribArray(index);
 
@@ -106,7 +107,7 @@ void DrawBuffer::enable_attribute(const char* attr)
 void DrawBuffer::disable_attribute(const char* attr)
 {
     GLuint index = this->find_attribute(attr);
-    this->vao.bind();
+    this->vao->bind();
 
     glDisableVertexAttribArray(index);
 
@@ -181,8 +182,8 @@ void DrawBuffer::push_slice(T slice[], size_t n)
 
 void DrawBuffer::draw(GLenum mode)
 {
-    this->vao.bind();
-    this->program.bind();
+    this->vao->bind();
+    this->program->bind();
 
     GLint first = this->lifo ? (GLint) this->remaining_capacity() : 0;
 

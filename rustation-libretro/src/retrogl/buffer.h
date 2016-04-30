@@ -18,7 +18,7 @@ public:
     /// Vertex Array Object containing the bindings for this
     /// buffer. I'm assuming that each VAO will only use a single
     /// buffer for simplicity.
-    VertexArrayObject vao;
+    VertexArrayObject* vao;
     /// Program used to draw this buffer
     Program* program;
     /// Number of elements T that the vertex buffer can hold

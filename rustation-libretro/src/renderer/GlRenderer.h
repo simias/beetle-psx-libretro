@@ -90,10 +90,10 @@ public:
     void apply_scissor();
     void bind_libretro_framebuffer();
     void upload_textures( TopLeft topleft, Dimensions dimensions,
-                          uint16_t* pixel_buffer[VRAM_PIXELS]);
+                          uint16_t pixel_buffer[VRAM_PIXELS]);
 
     void upload_vram_window( TopLeft top_left, Dimensions dimensions,
-                             uint16_t* pixel_buffer[VRAM_PIXELS]);
+                             uint16_t pixel_buffer[VRAM_PIXELS]);
 
     DrawConfig* draw_config();
     void prepare_render();
@@ -121,10 +121,7 @@ public:
 
 };
 
-
-//// TODO: These have to be classes with ctors so it plays nice with
-//// push_slice() and initializer lists
-class CommandVertex {
+struct CommandVertex {
     /// Position in PlayStation VRAM coordinates
     int16_t position[3];
     /// RGB color, 8bits per component
@@ -144,19 +141,16 @@ class CommandVertex {
     uint8_t dither;
     /// 0: primitive is opaque, 1: primitive is semi-transparent
     uint8_t semi_transparent;
-
-    //from_vertex
-    CommandVertex(Vertex& v);
 };
 
-class OutputVertex {
+struct OutputVertex {
     /// Vertex position on the screen
     float position[2];
     /// Corresponding coordinate in the framebuffer
     uint16_t fb_coord[2];
 };
 
-class ImageLoadVertex {
+struct ImageLoadVertex {
     // Vertex position in VRAM
     uint16_t position[2];
 };

@@ -64,14 +64,14 @@ GlRenderer::GlRenderer(DrawConfig& config)
     if (depth > 16) {
         // Dithering is superfluous when we increase the internal
         // color depth
-        opaque_command_buffer.disable_attribute("dither");
+        opaque_command_buffer->disable_attribute("dither");
     }
 
     auto dither_scaling = scaling_dither ? upscaling : 1;
     auto command_draw_mode = wireframe ? GL_LINE : GL_FILL;
 
     // TODO: This isn't C++ yet I think....
-    opaque_command_buffer->program().uniform1ui("dither_scaling", dither_scaling);
+    opaque_command_buffer->program()->uniform1ui("dither_scaling", dither_scaling);
 
     auto texture_storage = GL_RGB5_A1;
     switch (depth){
@@ -117,7 +117,7 @@ GlRenderer::GlRenderer(DrawConfig& config)
     // Yet an other copy of this 1MB array to make the borrow
     // checker happy...
 
-    this->upload_textures({0, 0}, {VRAM_WIDTH_PIXELS, VRAM_HEIGHT}, &this->config.vram);
+    this->upload_textures({0, 0}, {VRAM_WIDTH_PIXELS, VRAM_HEIGHT}, &this->config->vram);
 }
 
 GlRenderer::~GlRenderer()
@@ -146,17 +146,17 @@ DrawBuffer<T>* GlRenderer::build_buffer<T>( const char* vertex_shader,
 }
 
 void GlRenderer::draw() {
-    if (this->command_buffer.empty() && this->semi_transparent_vertices.empty())
+    if (this->command_buffer->empty() && this->semi_transparent_vertices.empty())
         return; // Nothing to be done
 
-    int16_t x = this->config.draw_offset.x;
-    int16_t y = this->config.draw_offset.y;
+    int16_t x = this->config->draw_offset.x;
+    int16_t y = this->config->draw_offset.y;
 
     // TODO: Is this C++? Check what uniform2i is
-    this->command_buffer->program().uniform2i("offset", (GLint)x, (GLint)y);
+    this->command_buffer->program()->uniform2i("offset", (GLint)x, (GLint)y);
 
     // We use texture unit 0
-    this->command_buffer->program().uniform1i("fb_texture", 0);
+    this->command_buffer->program()->uniform1i("fb_texture", 0);
 
     // Bind the out framebuffer
     // TODO: Ensure we have a Framebuffer ctor which receives a bool
@@ -166,14 +166,14 @@ void GlRenderer::draw() {
     glClear(GL_DEPTH_BUFFER_BIT);
 
     // First we draw the opaque vertices
-    if (!this->command_buffer.empty()) {
+    if (!this->command_buffer->empty()) {
         glBlendFuncSeparate(GL_ONE, GL_ZERO, GL_ONE, GL_ZERO);
         glDisable(GL_BLEND);
 
         // TODO: Is this C++? uniform1ui
-        this->command_buffer->program().uniform1ui("draw_semi_transparent", 0);
-        this->command_buffer.draw(this->command_draw_mode);
-        this->command_buffer.clear();
+        this->command_buffer->program()->uniform1ui("draw_semi_transparent", 0);
+        this->command_buffer->draw(this->command_draw_mode);
+        this->command_buffer->clear();
     }
 
     // Then the semi-transparent vertices
@@ -215,11 +215,11 @@ void GlRenderer::draw() {
         glEnable(GL_BLEND);
 
         //// TODO: Is the first  statement C++? uniform1ui
-        this->command_buffer->program().uniform1ui("draw_semi_transparent", 1);
-        this->command_buffer.draw(this->command_draw_mode);
+        this->command_buffer->program()->uniform1ui("draw_semi_transparent", 1);
+        this->command_buffer->draw(this->command_draw_mode);
         
         //// TODO: Memory leak? Maybe a for-each loop to 'delete' all items
-        this->command_buffer.clear();
+        this->command_buffer->clear();
         //this->semi_transparent_vertices.clear();
         for (auto& stv : semi_transparent_vertices)
             delete stv;       
@@ -230,10 +230,10 @@ void GlRenderer::draw() {
 
 void GlRenderer::apply_scissor()
 {
-    auto _x = this->config.draw_area_top_left.x;
-    auto _y = this->config.draw_area_top_left.y;
-    auto _w = this->config.draw_area_dimensions.w;
-    auto _h = this->config.draw_area_dimensions.h;
+    auto _x = this->config->draw_area_top_left.x;
+    auto _y = this->config->draw_area_top_left.y;
+    auto _w = this->config->draw_area_dimensions.w;
+    auto _h = this->config->draw_area_dimensions.h;
 
     GLsizei upscale = (GLsizei) this->internal_upscaling;
 
@@ -252,8 +252,8 @@ void GlRenderer::bind_libretro_framebuffer()
 {
     auto f_w = this->frontend_resolution.w;
     auto f_h = this->frontend_resolution.h;
-    auto _w = this->config.display_resolution.w;
-    auto _h = this->config.display_resolution.h;
+    auto _w = this->config->display_resolution.w;
+    auto _h = this->config->display_resolution.h;
 
     auto upscale = this->internal_upscaling;
 
@@ -291,14 +291,14 @@ void GlRenderer::bind_libretro_framebuffer()
 }
 
 void GlRenderer::upload_textures( TopLeft top_left, Dimensions dimensions,
-                                  uint16_t* pixel_buffer[VRAM_PIXELS])
+                                  uint16_t pixel_buffer[VRAM_PIXELS])
 {
-    this->fb_texture.set_sub_image( top_left,
+    this->fb_texture->set_sub_image( top_left,
                                     dimensions,
                                     GL_RGBA,
                                     GL_UNSIGNED_SHORT_1_5_5_5_REV,
                                     pixel_buffer);
-    this->image_load_buffer.clear();
+    this->image_load_buffer->clear();
 
     auto x_start    = top_left.x;
     auto x_end      = x_start + dimensions.x;
@@ -307,15 +307,16 @@ void GlRenderer::upload_textures( TopLeft top_left, Dimensions dimensions,
 
     size_t slice_len = 4
     ImageLoadVertex slice[slice_len] =  
-        {   ImageLoadVertex(x_start, y_start), 
-            ImageLoadVertex(x_end, y_start),
-            ImageLoadVertex(x_start, y_end),
-            ImageLoadVertex(x_end, y_end)
+        {   
+            {   {x_start,   y_start }   }, 
+            {   {x_end,     y_start }   },
+            {   {x_start,   y_end   }   },
+            {   {x_end,     y_end   }   }
         };
 
-    this->image_load_buffer.push_slice(slice, slice_len);
+    this->image_load_buffer->push_slice(slice, slice_len);
 
-    this->image_load_buffer->program().uniform1i("fb_texture", 0);
+    this->image_load_buffer->program()->uniform1i("fb_texture", 0);
 
     glDisable(GL_SCISSOR_TEST);
     glDisable(GL_BLEND);
@@ -326,7 +327,7 @@ void GlRenderer::upload_textures( TopLeft top_left, Dimensions dimensions,
     //// r5 - Don't understand this, _fb is never used
     let _fb = new Framebuffer(this->fb_out);
 
-    this->image_load_buffer.draw(GL_TRIANGLE_STRIP);
+    this->image_load_buffer->draw(GL_TRIANGLE_STRIP);
     glPolygonMode(GL_FRONT_AND_BACK, this->command_polygon_mode);
     glEnable(GL_SCISSOR_TEST);
 
@@ -334,43 +335,43 @@ void GlRenderer::upload_textures( TopLeft top_left, Dimensions dimensions,
 }
 
 void GlRenderer::upload_vram_window( TopLeft top_left, Dimensions dimensions,
-                                     uint16_t* pixel_buffer[VRAM_PIXELS])
+                                     uint16_t pixel_buffer[VRAM_PIXELS])
 {
-    this->fb_texture.set_sub_image_window(  top_left,
+    this->fb_texture->set_sub_image_window( top_left,
                                             dimensions,
                                             (size_t) VRAM_WIDTH_PIXELS,
                                             GL_RGBA,
                                             GL_UNSIGNED_SHORT_1_5_5_5_REV,
                                             pixel_buffer);
 
-    this->image_load_buffer.clear();
+    this->image_load_buffer->clear();
 
     auto x_start    = top_left.x;
     auto x_end      = x_start + dimensions.x;
     auto y_start    = top_left.y;
     auto y_end      = y_start + dimensions.y;
 
-
     size_t slice_len = 4
     ImageLoadVertex slice[slice_len] =
-        {   ImageLoadVertex(x_start, y_start), 
-            ImageLoadVertex(x_end, y_start),
-            ImageLoadVertex(x_start, y_end),
-            ImageLoadVertex(x_end, y_end) 
+        {   
+            {   {x_start,   y_start }   }, 
+            {   {x_end,     y_start }   },
+            {   {x_start,   y_end   }   },
+            {   {x_end,     y_end   }   }
         };
-    this->image_load_buffer.push_slice(slice, slice_len);
+    this->image_load_buffer->push_slice(slice, slice_len);
 
-    this->image_load_buffer->program().uniform1i("fb_texture", 0);
+    this->image_load_buffer->program()->uniform1i("fb_texture", 0);
 
     glDisable(GL_SCISSOR_TEST);
     glDisable(GL_BLEND);
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     // Bind the output framebuffer
-    //// r5 - Don't understand this, _fb is never used
+    /* TODO - What's happening here in the Rust code? This is a memleak in C */
     let _fb = new Framebuffer(this->fb_out);
 
-    this->image_load_buffer.draw(GL_TRIANGLE_STRIP);
+    this->image_load_buffer->draw(GL_TRIANGLE_STRIP);
     glPolygonMode(GL_FRONT_AND_BACK, this->command_polygon_mode);
     glEnable(GL_SCISSOR_TEST);
 
@@ -396,7 +397,7 @@ void GlRenderer::prepare_render()
     this->apply_scissor();
 
     // Bind `fb_texture` to texture unit 0
-    this->fb_texture.bind(GL_TEXTURE0);
+    this->fb_texture->bind(GL_TEXTURE0);
 }
 
 bool GlRenderer::refresh_variables()
@@ -424,13 +425,13 @@ bool GlRenderer::refresh_variables()
 
     if (rebuild_fb_out) {
         if (depth > 16) {
-            this->command_buffer.disable_attribute("dither");
+            this->command_buffer->disable_attribute("dither");
         } else {
-            this->command_buffer.enable_attribute("dither");
+            this->command_buffer->enable_attribute("dither");
         }
 
-        auto native_width = (uint32_t) VRAM_WIDTH_PIXELS;
-        auto native_height = (uint32_t) VRAM_HEIGHT;
+        uint32_t native_width = (uint32_t) VRAM_WIDTH_PIXELS;
+        uint32_t native_height = (uint32_t) VRAM_HEIGHT;
 
         auto w = native_width * upscaling;
         auto h = native_height * upscaling;
@@ -448,24 +449,32 @@ bool GlRenderer::refresh_variables()
             exit(EXIT_FAILURE);
         }
 
-        auto& fb_out = new Texture(w, h, texture_storage);
+        Texture* fb_out = new Texture(w, h, texture_storage);
 
-        //// TODO: Memory leak? Old Texture wasn't 'delete'd
+        if (this->fb_out != nullptr) { 
+            delete this->fb_out;
+        }
+        
         this->fb_out = fb_out;
 
         // This is a bit wasteful since it'll re-upload the data
         // to `fb_texture` even though we haven't touched it but
         // this code is not very performance-critical anyway.
-        this->upload_textures({0, 0},
-                             {VRAM_WIDTH_PIXELS, VRAM_HEIGHT},
-                             &this->config.vram);
+        
+        TopLeft tl = {0, 0};
+        Dimensions d = {(uint16_t) VRAM_WIDTH_PIXELS, (uint16_t) VRAM_HEIGHT};
+        this->upload_textures(tl, d, &this->config->vram);
 
-        //// TODO: Memory leak? Old Texture was not 'delete'd
+        
+        if (this->fb_out_depth != nullptr) { 
+            delete this->fb_out;
+        }
+
         this->fb_out_depth = new Texture(w, h, GL_DEPTH_COMPONENT32F);
     }
 
     auto dither_scaling = scale_dither ? upscaling : 1;
-    this->command_buffer->program().uniform1ui("dither_scaling", dither_scaling);
+    this->command_buffer->program()->uniform1ui("dither_scaling", dither_scaling);
 
     this->command_polygon_mode = wireframe ? GL_LINE : GL_FILL;
 
@@ -492,7 +501,7 @@ void GlRenderer::finalize_frame()
     this->bind_libretro_framebuffer();
 
     // Bind 'fb_out' to texture unit 1
-    this->fb_out.bind(GL_TEXTURE1);
+    this->fb_out->bind(GL_TEXTURE1);
 
     // First we draw the visible part of fb_out
     glDisable(GL_SCISSOR_TEST);
@@ -500,35 +509,35 @@ void GlRenderer::finalize_frame()
     glDisable(GL_BLEND);
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-    auto fb_x_start = this->config.display_top_left.x;
-    auto fb_y_start = this->config.display_top_left.y;
+    auto fb_x_start = this->config->display_top_left.x;
+    auto fb_y_start = this->config->display_top_left.y;
     auto fb_width = this->display_resolution.w;
     auto fb_height = this->display_resolution.h;
 
     auto fb_x_end = fb_x_start + fb_width;
     auto fb_y_end = fb_y_start + fb_height;
 
-    this->output_buffer.clear();
+    this->output_buffer->clear();
 
     /* TODO: Make sure OutputVertex can be built like this */
     size_t slice_len = 4;
     OutputVertex slice[slice_len] =
         {
-            OutputVertex( {-1.0, -1.0}, {fb_x_start, fb_y_end} ),
-            OutputVertex( {1.0, -1.0}, {fb_x_end, fb_y_end} ),
-            OutputVertex( {-1.0, 1.0}, {fb_x_start, fb_y_start} ),
-            OutputVertex( {1.0, 1.0}, {fb_x_end, fb_y_start} )
+            { {-1.0, -1.0}, {fb_x_start,    fb_y_end}   },
+            { { 1.0, -1.0}, {fb_x_end,      fb_y_end}   },
+            { {-1.0,  1.0}, {fb_x_start,    fb_y_start} },
+            { { 1.0,  1.0}, {fb_x_end,      fb_y_start} }
         };
-    this->output_buffer.push_slice(slice, slice_len);
+    this->output_buffer->push_slice(slice, slice_len);
 
-    GLint depth_24bpp = (GLint) this->config.display_24bpp;
+    GLint depth_24bpp = (GLint) this->config->display_24bpp;
 
     //// TODO: Is this C++? Figure out these unfirom1i things
-    this->output_buffer->program().uniform1i("fb", 1);
-    this->output_buffer->program().uniform1i("depth_24bpp", depth_24bpp);
-    this->output_buffer->program().uniform1ui(   "internal_upscaling",
+    this->output_buffer->program()->uniform1i("fb", 1);
+    this->output_buffer->program()->uniform1i("depth_24bpp", depth_24bpp);
+    this->output_buffer->program()->uniform1ui( "internal_upscaling",
                                                 this->internal_upscaling);
-    this->output_buffer.draw(GL_TRIANGLE_STRIP);
+    this->output_buffer->draw(GL_TRIANGLE_STRIP);
 
     // Cleanup OpenGL context before returning to the frontend
     glDisable(GL_BLEND);
@@ -560,7 +569,7 @@ void GlRenderer::maybe_force_draw(  size_t nvertices, GLenum draw_mode,
 
     bool force_draw =
         // Check if we have enough room left in the buffer
-        this_>command_buffer.remaining_capacity() < nvertices ||
+        this->command_buffer->remaining_capacity() < nvertices ||
         semi_transparent_remaining_capacity < nvertices ||
         // Check if we're changing the draw mode (line <=> triangle)
         this->command_draw_mode != draw_mode ||
@@ -585,8 +594,8 @@ void GlRenderer::set_draw_area(int16_t x, int16_t y)
 {
     // Finish drawing anything with the current offset
     this->draw();
-    this->config.draw_offset.x = x;
-    this->config.draw_offset.y = y;
+    this->config->draw_offset.x = x;
+    this->config->draw_offset.y = y;
 }
 
 void GlRenderer::set_draw_area(TopLeft top_left, Dimensions dimensions)
@@ -594,10 +603,10 @@ void GlRenderer::set_draw_area(TopLeft top_left, Dimensions dimensions)
     // Finish drawing anything in the current area
     this->draw();
 
-    this->config.draw_area_top_left.x = top_left.x;
-    this->config.draw_area_top_left.y = top_left.y;
-    this->config.draw_area_dimensions.x = dimensions.x;
-    this->config.draw_area_dimensions.y = dimensions.y;
+    this->config->draw_area_top_left.x = top_left.x;
+    this->config->draw_area_top_left.y = top_left.y;
+    this->config->draw_area_dimensions.x = dimensions.x;
+    this->config->draw_area_dimensions.y = dimensions.y;
 
     this->apply_scissor();
 }
@@ -605,12 +614,12 @@ void GlRenderer::set_draw_area(TopLeft top_left, Dimensions dimensions)
 void GlRenderer::set_display_mode(  TopLeft top_left, 
                                     Resolution resolution, bool depth_24bpp)
 {
-    this->config.display_top_left.x = top_left.x;
-    this->config.display_top_left.y = top_left.y;
+    this->config->display_top_left.x = top_left.x;
+    this->config->display_top_left.y = top_left.y;
 
-    this->config.display_resolution.w = resolution.w;
-    this->config.display_resolution.h = resolution.h;
-    this->config.display_24bpp = depth_24bpp;
+    this->config->display_resolution.w = resolution.w;
+    this->config->display_resolution.h = resolution.h;
+    this->config->display_24bpp = depth_24bpp;
 }
 
 void GlRenderer::push_triangle( CommandVertex v[3], 
@@ -638,7 +647,7 @@ void GlRenderer::push_triangle( CommandVertex v[3],
         v[0].texture_blend_mode != 0;
 
     if (needs_opaque_draw) {
-        this->command_buffer.push_slice(v, slice_len);
+        this->command_buffer->push_slice(v, slice_len);
     }
 
     if (v[0].semi_transparent == 1) {
@@ -665,7 +674,7 @@ void GlRenderer::push_line( CommandVertex v[2],
     if (v[0].semi_transparent == 1) {
         this->semi_transparent_vertices.extend_from_slice(v, slice_len);
     } else {
-        this->command_buffer.push_slice(v, slice_len);
+        this->command_buffer->push_slice(v, slice_len);
     }
 }
 
@@ -677,11 +686,11 @@ void GlRenderer::fill_rect(Color color, TopLeft top_left, Dimensions dimensions)
     // Fill rect ignores the draw area. Save the previous value
     // and reconfigure the scissor box to the fill rectangle
     // instead.
-    auto draw_area_top_left = this->config.draw_area_top_left;
-    auto draw_area_dimensions = this->config.draw_area_dimensions;
+    auto draw_area_top_left = this->config->draw_area_top_left;
+    auto draw_area_dimensions = this->config->draw_area_dimensions;
 
-    this->config.draw_area_top_left = top_left;
-    this->config.draw_area_dimensions = dimensions;
+    this->config->draw_area_top_left = top_left;
+    this->config->draw_area_dimensions = dimensions;
 
     this->apply_scissor();
 
@@ -698,8 +707,8 @@ void GlRenderer::fill_rect(Color color, TopLeft top_left, Dimensions dimensions)
     glClear(GL_COLOR_BUFFER_BIT);
 
     // Reconfigure the draw area
-    this->config.draw_area_top_left = draw_area_top_left;
-    this->config.draw_area_dimensions = draw_area_dimensions;
+    this->config->draw_area_top_left = draw_area_top_left;
+    this->config->draw_area_dimensions = draw_area_dimensions;
 
     this->apply_scissor();
 }
@@ -723,8 +732,8 @@ void GlRenderer::copy_rect( TopLeft source_top_left,
     // XXX CopyImageSubData gives undefined results if the source
     // and target area overlap, this should be handled
     // explicitely
-    glCopyImageSubData( this->fb_out.id(), GL_TEXTURE_2D, 0, src_x, src_y, 0,
-                        this->fb_out.id(), GL_TEXTURE_2D, 0, dst_x, dst_y, 0,
+    glCopyImageSubData( this->fb_out->id(), GL_TEXTURE_2D, 0, src_x, src_y, 0,
+                        this->fb_out->id(), GL_TEXTURE_2D, 0, dst_x, dst_y, 0,
                         w, h, 1 );
 
     // get_error();
