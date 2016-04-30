@@ -116,8 +116,9 @@ GlRenderer::GlRenderer(DrawConfig& config)
     //// NOTE: r5 - I have no idea what a borrow checker is.
     // Yet an other copy of this 1MB array to make the borrow
     // checker happy...
-
-    this->upload_textures({0, 0}, {VRAM_WIDTH_PIXELS, VRAM_HEIGHT}, &this->config->vram);
+    TopLeft tl = {0, 0};
+    Dimensions d = {(uint16_t) VRAM_WIDTH_PIXELS, (uint16_t) VRAM_HEIGHT};
+    this->upload_textures(tl, d, &this->config->vram);
 }
 
 GlRenderer::~GlRenderer()
