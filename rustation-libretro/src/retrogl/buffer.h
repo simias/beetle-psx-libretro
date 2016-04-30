@@ -1,10 +1,9 @@
 #ifndef RETROGL_BUFFER_H
 #define RETROGL_BUFFER_H
 
-#include <gl>
 #include <stdlib.h> // size_t
+#include "../glmsym.h"
 
-#include "error.h"
 #include "vertex.h"
 #include "program.h"
 #include "types.h"
@@ -40,17 +39,17 @@ public:
     DrawBuffer(size_t capacity, Program* program, bool lifo);
     ~DrawBuffer();
     /* fn bind_attributes(&self)-> Result<(), Error> { */
-    void bind_attributes(); 
-    void enable_attribute(const char* attr);
-    void disable_attribute(const char* attr);
+    GLenum bind_attributes(); 
+    GLenum enable_attribute(const char* attr);
+    GLenum disable_attribute(const char* attr);
     bool empty();
 
     /* impl<T> DrawBuffer<T> { */
     Program* program();
-    void clear();
+    GLenum clear();
     /// Bind the buffer to the current VAO
     void bind();
-    void push_slice(T slice[], size_t n);
+    GLenum push_slice(T slice[], size_t n);
     void draw(GLenum mode);
     size_t remaining_capacity();
 

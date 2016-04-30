@@ -2,12 +2,10 @@
 #ifndef GL_RENDERER_H
 #define GL_RENDERER_H
 
-#include <gl>
 #include <vector>
 #include <stdint.h>
 
 #include "../retrogl/retrogl.h"
-#include "../retrogl/error.h"
 #include "../retrogl/buffer.h"
 #include "../retrogl/shader.h"
 #include "../retrogl/program.h"
@@ -16,6 +14,7 @@
 #include "../retrogl/framebuffer.h"
 
 #include "../libretro.h"
+#include "../glmsym.h"
 
 extern unsigned int VRAM_WIDTH_PIXELS
 extern unsigned int VRAM_HEIGHT
@@ -89,10 +88,10 @@ public:
     void draw();
     void apply_scissor();
     void bind_libretro_framebuffer();
-    void upload_textures( TopLeft topleft, Dimensions dimensions,
+    GLenum upload_textures( TopLeft topleft, Dimensions dimensions,
                           uint16_t pixel_buffer[VRAM_PIXELS]);
 
-    void upload_vram_window( TopLeft top_left, Dimensions dimensions,
+    GLenum upload_vram_window( TopLeft top_left, Dimensions dimensions,
                              uint16_t pixel_buffer[VRAM_PIXELS]);
 
     DrawConfig* draw_config();
@@ -116,8 +115,8 @@ public:
                     SemiTransparencyMode semi_transparency_mode);
 
     void fill_rect(Color color, TopLeft top_left, Dimensions dimensions);
-    void copy_rect( TopLeft source_top_left, 
-                    TopLeft target_top_left, Dimensions dimensions);
+    GLenum copy_rect(   TopLeft source_top_left, 
+                        TopLeft target_top_left, Dimensions dimensions);
 
 };
 

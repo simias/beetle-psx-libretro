@@ -3,7 +3,7 @@
 #define RETROGL_H
 
 #include "../libretro.h"
-#include <gl>
+#include "../glmsym.h"
 
 #include "../renderer/GlRenderer.h"
 

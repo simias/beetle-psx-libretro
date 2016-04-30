@@ -291,7 +291,7 @@ void GlRenderer::bind_libretro_framebuffer()
     glViewport(0, 0, (GLsizei)w, (GLsizei)h);
 }
 
-void GlRenderer::upload_textures( TopLeft top_left, Dimensions dimensions,
+GLenum GlRenderer::upload_textures( TopLeft top_left, Dimensions dimensions,
                                   uint16_t pixel_buffer[VRAM_PIXELS])
 {
     this->fb_texture->set_sub_image( top_left,
@@ -332,10 +332,12 @@ void GlRenderer::upload_textures( TopLeft top_left, Dimensions dimensions,
     glPolygonMode(GL_FRONT_AND_BACK, this->command_polygon_mode);
     glEnable(GL_SCISSOR_TEST);
 
-    //get_error();
+    /* get_error() */
+    return glGetError();
+
 }
 
-void GlRenderer::upload_vram_window( TopLeft top_left, Dimensions dimensions,
+GLenum GlRenderer::upload_vram_window( TopLeft top_left, Dimensions dimensions,
                                      uint16_t pixel_buffer[VRAM_PIXELS])
 {
     this->fb_texture->set_sub_image_window( top_left,
@@ -376,7 +378,8 @@ void GlRenderer::upload_vram_window( TopLeft top_left, Dimensions dimensions,
     glPolygonMode(GL_FRONT_AND_BACK, this->command_polygon_mode);
     glEnable(GL_SCISSOR_TEST);
 
-    // get_error()
+    /* get_error() */
+    return glGetError();
 }
 
 DrawConfig* GlRenderer::draw_config()
@@ -687,8 +690,8 @@ void GlRenderer::fill_rect(Color color, TopLeft top_left, Dimensions dimensions)
     // Fill rect ignores the draw area. Save the previous value
     // and reconfigure the scissor box to the fill rectangle
     // instead.
-    auto draw_area_top_left = this->config->draw_area_top_left;
-    auto draw_area_dimensions = this->config->draw_area_dimensions;
+    TopLeft draw_area_top_left = this->config->draw_area_top_left;
+    Dimensions draw_area_dimensions = this->config->draw_area_dimensions;
 
     this->config->draw_area_top_left = top_left;
     this->config->draw_area_dimensions = dimensions;
@@ -714,21 +717,21 @@ void GlRenderer::fill_rect(Color color, TopLeft top_left, Dimensions dimensions)
     this->apply_scissor();
 }
 
-void GlRenderer::copy_rect( TopLeft source_top_left, 
+GLenum GlRenderer::copy_rect( TopLeft source_top_left, 
                             TopLeft target_top_left, Dimensions dimensions)
 {
     // Draw pending commands
     this->draw();
 
-    auto upscale = this->internal_upscaling;
+    uint32_t upscale = this->internal_upscaling;
 
-    auto src_x = (GLint) source_top_left.x * (GLint) upscale;
-    auto src_y = (GLint) source_top_left.y * (GLint) upscale;
-    auto dst_x = (GLint) source_top_left.x * (GLint) upscale;
-    auto dst_y = (GLint) source_top_left.y * (GLint) upscale;
+    GLint src_x = (GLint) source_top_left.x * (GLint) upscale;
+    GLint src_y = (GLint) source_top_left.y * (GLint) upscale;
+    GLint dst_x = (GLint) source_top_left.x * (GLint) upscale;
+    GLint dst_y = (GLint) source_top_left.y * (GLint) upscale;
 
-    auto w = (GLsizei) dimensions.x * (GLsizei) upscale;
-    auto h = (GLsizei) dimensions.y * (GLsizei) upscale;
+    GLsizei w = (GLsizei) dimensions.x * (GLsizei) upscale;
+    GLsizei h = (GLsizei) dimensions.y * (GLsizei) upscale;
 
     // XXX CopyImageSubData gives undefined results if the source
     // and target area overlap, this should be handled
@@ -738,4 +741,5 @@ void GlRenderer::copy_rect( TopLeft source_top_left,
                         w, h, 1 );
 
     // get_error();
+    return glGetError();
 }

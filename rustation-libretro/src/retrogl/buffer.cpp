@@ -18,11 +18,10 @@ DrawBuffer::DrawBuffer(size_t capacity, Program* program, bool lifo)
     this->clear();
     this->bind_attributes();
 
-    /* 
-    if ( error_or(this) != this) {
-        exit(EXIT_FAILURE);
-    } 
-    */
+    /* error_or() */
+    GLenum error = glGetError();
+    if (error != GL_NO_ERROR)
+        printf("OpenGL error in DrawBuffer constructor: %d", (int) error);
 }
 
 DrawBuffer::~DrawBuffer()
@@ -32,7 +31,7 @@ DrawBuffer::~DrawBuffer()
     if (this->T != nullptr)         delete T;
 }
 
-void DrawBuffer::bind_attributes()
+GLenum DrawBuffer::bind_attributes()
 {
     this->vao->bind();
 
@@ -92,9 +91,10 @@ void DrawBuffer::bind_attributes()
     }
 
     /* get_error() */
+    return glGetError();
 }
 
-void DrawBuffer::enable_attribute(const char* attr)
+GLenum DrawBuffer::enable_attribute(const char* attr)
 {
     GLuint index = this->find_attribute(attr);
     this->vao->bind();
@@ -102,9 +102,10 @@ void DrawBuffer::enable_attribute(const char* attr)
     glEnableVertexAttribArray(index);
 
     /* get_error() */
+    return glGetError();
 }
 
-void DrawBuffer::disable_attribute(const char* attr)
+GLenum DrawBuffer::disable_attribute(const char* attr)
 {
     GLuint index = this->find_attribute(attr);
     this->vao->bind();
@@ -112,6 +113,7 @@ void DrawBuffer::disable_attribute(const char* attr)
     glDisableVertexAttribArray(index);
 
     /* get_error() */
+    return glGetError();
 }
 
 bool DrawBuffer::empty()
@@ -128,7 +130,7 @@ Program* DrawBuffer::program()
 /// new one.
 ///
 /// https://www.opengl.org/wiki/Buffer_Object_Streaming
-void DrawBuffer::clear()
+GLenum DrawBuffer::clear()
 {
     this->bind();
 
@@ -142,6 +144,7 @@ void DrawBuffer::clear()
     this->len = 0;
 
     /* get_error() */
+    return glGetError();
 }
 
 void DrawBuffer::bind()
@@ -149,7 +152,7 @@ void DrawBuffer::bind()
     glBindBuffer(GL_ARRAY_BUFFER, this->id);
 }
 
-void DrawBuffer::push_slice(T slice[], size_t n)
+GLenum DrawBuffer::push_slice(T slice[], size_t n)
 {
     if (n > this->remaining_capacity() ) {
         puts("Error::OutOfMemory\n");
@@ -177,7 +180,13 @@ void DrawBuffer::push_slice(T slice[], size_t n)
                         (void*) &slice);
 
     /* get_error() */
+    GLenum error = glGetError();
+    if (error != GL_NO_ERROR) {
+        return error;   /* return early */
+    
     this->len += n;
+    return error;
+
 }
 
 void DrawBuffer::draw(GLenum mode)
