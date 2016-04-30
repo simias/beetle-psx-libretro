@@ -89,10 +89,10 @@ public:
     void apply_scissor();
     void bind_libretro_framebuffer();
     GLenum upload_textures( TopLeft topleft, Dimensions dimensions,
-                          uint16_t pixel_buffer[VRAM_PIXELS]);
+                            uint16_t pixel_buffer[VRAM_PIXELS]);
 
-    GLenum upload_vram_window( TopLeft top_left, Dimensions dimensions,
-                             uint16_t pixel_buffer[VRAM_PIXELS]);
+    GLenum upload_vram_window(  TopLeft top_left, Dimensions dimensions,
+                                uint16_t pixel_buffer[VRAM_PIXELS]);
 
     DrawConfig* draw_config();
     void prepare_render();

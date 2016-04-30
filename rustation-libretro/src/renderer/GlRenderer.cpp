@@ -162,7 +162,7 @@ void GlRenderer::draw() {
     // Bind the out framebuffer
     // TODO: Ensure we have a Framebuffer ctor which receives a bool
     // to emulate Framebuffer::new_with_depth
-    auto& _fb = new Framebuffer(this->fb_out, this->fb_out_depth, true);
+    Framebuffer(this->fb_out, this->fb_out_depth);
 
     glClear(GL_DEPTH_BUFFER_BIT);
 
@@ -325,8 +325,7 @@ GLenum GlRenderer::upload_textures( TopLeft top_left, Dimensions dimensions,
 
     // Bind the output framebuffer
     // let _fb = Framebuffer::new(&self.fb_out);
-    //// r5 - Don't understand this, _fb is never used
-    let _fb = new Framebuffer(this->fb_out);
+    Framebuffer(this->fb_out);
 
     this->image_load_buffer->draw(GL_TRIANGLE_STRIP);
     glPolygonMode(GL_FRONT_AND_BACK, this->command_polygon_mode);
@@ -371,8 +370,7 @@ GLenum GlRenderer::upload_vram_window( TopLeft top_left, Dimensions dimensions,
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     // Bind the output framebuffer
-    /* TODO - What's happening here in the Rust code? This is a memleak in C */
-    let _fb = new Framebuffer(this->fb_out);
+    Framebuffer(this->fb_out);
 
     this->image_load_buffer->draw(GL_TRIANGLE_STRIP);
     glPolygonMode(GL_FRONT_AND_BACK, this->command_polygon_mode);
@@ -699,8 +697,7 @@ void GlRenderer::fill_rect(Color color, TopLeft top_left, Dimensions dimensions)
     this->apply_scissor();
 
     // Bind the out framebuffer
-    //// NOTE: What does this do? _fb is never used
-    auto _fb = new Framebuffer(this->fb_out);
+    Framebuffer(this->fb_out);
 
     glClearColor(   (float) color.r / 255.0,
                     (float) color.g / 255.0,
