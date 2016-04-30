@@ -160,8 +160,6 @@ void GlRenderer::draw() {
     this->command_buffer->program()->uniform1i("fb_texture", 0);
 
     // Bind the out framebuffer
-    // TODO: Ensure we have a Framebuffer ctor which receives a bool
-    // to emulate Framebuffer::new_with_depth
     Framebuffer(this->fb_out, this->fb_out_depth);
 
     glClear(GL_DEPTH_BUFFER_BIT);
@@ -315,8 +313,10 @@ GLenum GlRenderer::upload_textures( TopLeft top_left, Dimensions dimensions,
             {   {x_end,     y_end   }   }
         };
 
+    /* TODO - Handle the error, ifneq GL_NO_ERROR then exit */
     this->image_load_buffer->push_slice(slice, slice_len);
 
+    /* TODO - Handle the error, ifneq GL_NO_ERROR then exit */
     this->image_load_buffer->program()->uniform1i("fb_texture", 0);
 
     glDisable(GL_SCISSOR_TEST);
@@ -555,7 +555,6 @@ void GlRenderer::finalize_frame()
     glClearColor(0.0, 0.0, 0.0, 0.0);
 
     video_refresh(-1, this->frontend_resolution.x, this->frontend_resolution.y, 0);
-
 }
 
 void GlRenderer::maybe_force_draw(  size_t nvertices, GLenum draw_mode, 

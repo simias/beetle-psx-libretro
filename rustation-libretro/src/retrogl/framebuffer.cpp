@@ -1,3 +1,5 @@
+#include <stdlib.h> // exit()
+
 #include "framebuffer.h"
 
 Framebuffer::Framebuffer(Texture* color_texture)
@@ -23,8 +25,10 @@ Framebuffer::Framebuffer(Texture* color_texture)
 
     /* error_or(fb) */
     GLenum error = glGetError();
-    if (error != GL_NO_ERROR)
-        printf("OpenGL error in Framebuffer constructor: %d", (int) error);
+    if (error != GL_NO_ERROR) {
+        printf("GL error %d\n", (int) error);
+        exit(EXIT_FAILURE);
+    }
 }
 
 Framebuffer::Framebuffer(Texture* color_texture, Texture* depth_texture)
@@ -39,8 +43,13 @@ Framebuffer::Framebuffer(Texture* color_texture, Texture* depth_texture)
 
     /* error_or(fb) */
     GLenum error = glGetError();
-    if (error != GL_NO_ERROR)
-        printf("OpenGL error in Framebuffer depth constructor: %d", (int) error);
+    if (error != GL_NO_ERROR) {
+        printf("GL error %d\n", (int) error);
+        exit(EXIT_FAILURE);
+    }
+
+    /* Framebuffer owns this Texture*, make sure we clean it after being done */
+    if (depth_texture != nullptr) delete depth_texture;
 }
 
 Framebuffer::~Framebuffer()

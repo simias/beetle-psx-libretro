@@ -20,8 +20,10 @@ DrawBuffer::DrawBuffer(size_t capacity, Program* program, bool lifo)
 
     /* error_or() */
     GLenum error = glGetError();
-    if (error != GL_NO_ERROR)
-        printf("OpenGL error in DrawBuffer constructor: %d", (int) error);
+    if (error != GL_NO_ERROR) {
+        printf("GL error %d\n", (int) error);
+        exit(EXIT_FAILURE);
+    }
 }
 
 DrawBuffer::~DrawBuffer()
@@ -182,7 +184,7 @@ GLenum DrawBuffer::push_slice(T slice[], size_t n)
     /* get_error() */
     GLenum error = glGetError();
     if (error != GL_NO_ERROR) {
-        return error;   /* return early */
+        return error;   /* return from the function early */
     
     this->len += n;
     return error;
