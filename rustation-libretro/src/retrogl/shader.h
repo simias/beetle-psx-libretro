@@ -4,6 +4,7 @@
 #include <glsm/glsmsym.h>
 
 class Shader {
+public:
     GLuint id;
 
     Shader(const char** source, GLenum shader_type);
