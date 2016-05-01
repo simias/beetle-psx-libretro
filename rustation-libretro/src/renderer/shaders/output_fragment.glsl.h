@@ -1,4 +1,4 @@
-static const char *output_fragment =
+static const char *output_fragment[] =
 "#version 330 core\n"
 
 // We're sampling from the internal framebuffer texture

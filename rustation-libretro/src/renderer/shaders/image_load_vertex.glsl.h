@@ -1,4 +1,4 @@
-static const char *image_load_vertex =
+static const char *image_load_vertex[] =
 "#version 330 core\n"
 
 // Vertex shader for uploading textures from the VRAM texture buffer

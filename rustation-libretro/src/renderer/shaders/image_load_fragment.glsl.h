@@ -1,4 +1,4 @@
-static const char *image_load_fragment =
+static const char *image_load_fragment[] =
 "#version 330 core\n"
 
 "uniform sampler2D fb_texture;\n"

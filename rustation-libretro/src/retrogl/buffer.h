@@ -2,6 +2,7 @@
 #define RETROGL_BUFFER_H
 
 #include <stdlib.h> // size_t
+#include <stdint.h>
 #include <glsm/glsmsym.h>
 
 #include "vertex.h"

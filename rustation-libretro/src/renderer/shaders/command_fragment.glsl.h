@@ -1,4 +1,4 @@
-static const char *command_fragment =
+static const char *command_fragment[] =
 "#version 330 core\n"
 
 "uniform sampler2D fb_texture;\n"

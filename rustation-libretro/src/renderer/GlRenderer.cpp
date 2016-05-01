@@ -133,13 +133,13 @@ GlRenderer::~GlRenderer()
 }
 
 static template<typename T>
-DrawBuffer<T>* GlRenderer::build_buffer<T>( const char* vertex_shader,
-                                            const char* fragment_shader,
+DrawBuffer<T>* GlRenderer::build_buffer<T>( const char** vertex_shader,
+                                            const char** fragment_shader,
                                             size_t capacity,
                                             bool lifo  )
 {
-    Shader* vs = new Shader(vertex_shader, ShaderType::Vertex);
-    Shader* fs = new Shader(fragment_shader, ShaderType::Fragment);
+    Shader* vs = new Shader(vertex_shader, GL_VERTEX_SHADER);
+    Shader* fs = new Shader(fragment_shader, GL_FRAGMENT_SHADER);
     Program* program = new Program(vs, fs);
 
     return new DrawBuffer<T>(capacity, program, lifo);
