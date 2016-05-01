@@ -158,7 +158,8 @@ GLenum DrawBuffer::push_slice(T slice[], size_t n)
 {
     if (n > this->remaining_capacity() ) {
         puts("Error::OutOfMemory\n");
-        return;
+        /* TODO - Should I kill the program here and now or return a fake error? */
+        return GL_OUT_OF_MEMORY;
     }
 
     size_t element_size = sizeof( *(this->contains) );
