@@ -1,7 +1,7 @@
 #ifndef RETROGL_FRAMEBUFFER_H
 #define RETROGL_FRAMEBUFFER_H
 
-#include "../glmsym.h"
+#include <glsm/glsmsym.h>
 #include "texture.h"
 
 class Framebuffer {

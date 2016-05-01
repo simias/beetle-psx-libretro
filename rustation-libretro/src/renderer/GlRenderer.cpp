@@ -98,7 +98,7 @@ GlRenderer::GlRenderer(DrawConfig& config)
     // let mut state = GlRenderer {
     command_buffer = opaque_command_buffer;
     command_draw_mode = GL_TRIANGLES;
-    semi_transparent_vertices(VERTEX_BUFFER_LEN, nullptr);
+    /*semi_transparent_vertices(VERTEX_BUFFER_LEN, nullptr); */
     semi_transparency_mode =  SemiTransparencyMode::Average;
     command_polygon_mode = command_draw_mode;
     this->output_buffer = output_buffer;
@@ -138,7 +138,6 @@ DrawBuffer<T>* GlRenderer::build_buffer<T>( const char* vertex_shader,
                                             size_t capacity,
                                             bool lifo  )
 {
-    // TODO: Maybe allocate these on the stack instead of heap?
     Shader* vs = new Shader(vertex_shader, ShaderType::Vertex);
     Shader* fs = new Shader(fragment_shader, ShaderType::Fragment);
     Program* program = new Program(vs, fs);
@@ -169,7 +168,6 @@ void GlRenderer::draw() {
         glBlendFuncSeparate(GL_ONE, GL_ZERO, GL_ONE, GL_ZERO);
         glDisable(GL_BLEND);
 
-        // TODO: Is this C++? uniform1ui
         this->command_buffer->program()->uniform1ui("draw_semi_transparent", 0);
         this->command_buffer->draw(this->command_draw_mode);
         this->command_buffer->clear();
@@ -213,15 +211,11 @@ void GlRenderer::draw() {
         glBlendEquationSeparate(blend_func, GL_FUNC_ADD);
         glEnable(GL_BLEND);
 
-        //// TODO: Is the first  statement C++? uniform1ui
         this->command_buffer->program()->uniform1ui("draw_semi_transparent", 1);
         this->command_buffer->draw(this->command_draw_mode);
         
-        //// TODO: Memory leak? Maybe a for-each loop to 'delete' all items
         this->command_buffer->clear();
-        //this->semi_transparent_vertices.clear();
-        for (auto& stv : semi_transparent_vertices)
-            delete stv;       
+        this->semi_transparent_vertices.clear();     
     }
 
     this->primitive_ordering = 0;
@@ -534,7 +528,6 @@ void GlRenderer::finalize_frame()
 
     GLint depth_24bpp = (GLint) this->config->display_24bpp;
 
-    //// TODO: Is this C++? Figure out these unfirom1i things
     this->output_buffer->program()->uniform1i("fb", 1);
     this->output_buffer->program()->uniform1i("depth_24bpp", depth_24bpp);
     this->output_buffer->program()->uniform1ui( "internal_upscaling",
@@ -562,10 +555,17 @@ void GlRenderer::maybe_force_draw(  size_t nvertices, GLenum draw_mode,
                                     SemiTransparencyMode semi_transparency_mode)
 {
     
-    //// r5 - since these vertices are stored in a std::vector, worrying
-    //// about capacity might be unwarranted
-    auto semi_transparent_remaining_capacity =
-        this->semi_transparent_vertices.max_size()
+    /*
+    let semi_transparent_remaining_capacity =
+        self.semi_transparent_vertices.capacity()
+        - self.semi_transparent_vertices.len(); 
+    */
+
+    /* std::vector grows as much as we want. 'semi_transparent_vertices' is meant
+    to have a capacity of VERTEX_BUFFER_LEN. We'll use that constant in the
+    subtraction below. */
+    size_t semi_transparent_remaining_capacity =
+        (size_t) VERTEX_BUFFER_LEN
         - this->semi_transparent_vertices.size();
 
     bool force_draw =
@@ -636,7 +636,7 @@ void GlRenderer::push_triangle( CommandVertex v[3],
     size_t slice_len = 3;
     size_t i;
     for (i = 0; i < slice_len; ++i) {
-        v[i].position[2] = z; /* TODO: Is position an array or a struct? */
+        v[i].position[2] = z;
     }
 
     bool needs_opaque_draw =
@@ -652,7 +652,11 @@ void GlRenderer::push_triangle( CommandVertex v[3],
     }
 
     if (v[0].semi_transparent == 1) {
-        this->semi_transparent_vertices.extend_from_slice(v, slice_len);   
+        /*  self.semi_transparent_vertices.extend_from_slice(&v); */
+        size_t i;
+        for (i = 0; i < slice_len; ++i) {
+            this->semi_transparent_vertices.push_back(v[i]);
+        }   
     }
 }
 
@@ -673,7 +677,10 @@ void GlRenderer::push_line( CommandVertex v[2],
     }
 
     if (v[0].semi_transparent == 1) {
-        this->semi_transparent_vertices.extend_from_slice(v, slice_len);
+        size_t i;
+        for (i = 0; i < slice_len; ++i) {
+            this->semi_transparent_vertices.push_back(v[i]);
+        }   
     } else {
         this->command_buffer->push_slice(v, slice_len);
     }
@@ -713,8 +720,8 @@ void GlRenderer::fill_rect(Color color, TopLeft top_left, Dimensions dimensions)
     this->apply_scissor();
 }
 
-GLenum GlRenderer::copy_rect( TopLeft source_top_left, 
-                            TopLeft target_top_left, Dimensions dimensions)
+GLenum GlRenderer::copy_rect(   TopLeft source_top_left, 
+                                TopLeft target_top_left, Dimensions dimensions)
 {
     // Draw pending commands
     this->draw();

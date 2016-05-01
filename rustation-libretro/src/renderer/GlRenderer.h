@@ -13,8 +13,8 @@
 #include "../retrogl/texture.h"
 #include "../retrogl/framebuffer.h"
 
-#include "../libretro.h"
-#include "../glmsym.h"
+#include "libretro.h"
+#include <glsm/glsmsym.h>
 
 extern unsigned int VRAM_WIDTH_PIXELS
 extern unsigned int VRAM_HEIGHT
@@ -39,21 +39,21 @@ class GlRenderer
 {
 public:
     /// Buffer used to handle PlayStation GPU draw commands
-    DrawBuffer<CommandVertex*>* command_buffer;
+    DrawBuffer<CommandVertex>* command_buffer;
     /// Primitive type for the vertices in the command buffers
     /// (TRIANGLES or LINES)
     GLenum command_draw_mode;
     /// Temporary buffer holding vertices for semi-transparent draw
     /// commands.
-    std::vector<CommandVertex*> semi_transparent_vertices;
+    std::vector<CommandVertex> semi_transparent_vertices;
     /// Transparency mode for semi-transparent commands
     SemiTransparencyMode semi_transparency_mode;
     /// Polygon mode (for wireframe)
     GLenum command_polygon_mode;
     /// Buffer used to draw to the frontend's framebuffer
-    DrawBuffer<OutputVertex*>* output_buffer;
+    DrawBuffer<OutputVertex>* output_buffer;
     /// Buffer used to copy textures from `fb_texture` to `fb_out`
-    DrawBuffer<ImageLoadVertex*>* image_load_buffer;
+    DrawBuffer<ImageLoadVertex>* image_load_buffer;
     /// Texture used to store the VRAM for texture mapping
     DrawConfig* config;
     /// Framebuffer used as a shader input for texturing draw commands
@@ -72,9 +72,7 @@ public:
     /// since we draw semi-transparent primitives out-of-order.
     int16_t primitive_ordering;
 
-    GlRenderer();
-
-    //// pub fn from_config(config: DrawConfig) -> Result<GlRenderer, Error>
+    /* pub fn from_config(config: DrawConfig) -> Result<GlRenderer, Error> */
     GlRenderer(DrawConfig config);
 
     ~GlRenderer();

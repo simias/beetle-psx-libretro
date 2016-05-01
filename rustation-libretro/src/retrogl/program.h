@@ -2,7 +2,7 @@
 #define RETROGL_PROGRAM_H
 
 #include <map>
-#include "../glmsym.h"
+#include <glsm/glsmsym.h>
 
 #include "shader.h"
 
