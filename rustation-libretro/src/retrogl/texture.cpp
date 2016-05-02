@@ -69,7 +69,8 @@ GLenum Texture::set_sub_image_window(   uint16_t top_left[2],
 
    size_t index = ((size_t) y) * row_len + ((size_t) x);
 
-   uint16_t data = data[index];
+
+   uint16_t* data = &( data[index] );
 
    glPixelStoragei(GL_UNPACK_ROW_LENGTH, (GLint) row_len);
 
