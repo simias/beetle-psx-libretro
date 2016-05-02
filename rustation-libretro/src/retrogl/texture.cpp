@@ -32,11 +32,11 @@ void Texture::bind(GLenum texture_unit)
     glBindTexture(GL_TEXTURE_2D, this->id);
 }
 
-GLenum Texture::set_sub_image(   uint16_t top_left[2],
-                        uint16_t resolution[2],
-                        GLenum format,
-                        GLenum ty,
-                        uint16_t* data)
+GLenum Texture::set_sub_image(  uint16_t top_left[2],
+                                uint16_t resolution[2],
+                                GLenum format,
+                                GLenum ty,
+                                uint16_t* data)
 {
     // if data.len() != (resolution.0 as usize * resolution.1 as usize) {
     //     panic!("Invalid texture sub_image size");
@@ -57,12 +57,12 @@ GLenum Texture::set_sub_image(   uint16_t top_left[2],
     return glGetError();
 }
 
-GLenum Texture::set_sub_image_window(uint16_t top_left[2],
-                            uint16_t resolution[2],
-                            size_t row_len,
-                            GLenum format,
-                            GLenum ty,
-                            uint16_t* data)
+GLenum Texture::set_sub_image_window(   uint16_t top_left[2],
+                                        uint16_t resolution[2],
+                                        size_t row_len,
+                                        GLenum format,
+                                        GLenum ty,
+                                        uint16_t* data)
 {
    uint16_t x = top_left[0];
    uint16_t y = top_left[1];
