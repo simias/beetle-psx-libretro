@@ -7,7 +7,7 @@
 
 #include "vertex.h"
 #include "program.h"
-#include "types.h"
+/* #include "types.h" */
 
 template<typename T>
 class DrawBuffer 

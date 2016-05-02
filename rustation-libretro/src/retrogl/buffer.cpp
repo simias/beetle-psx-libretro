@@ -65,16 +65,20 @@ GLenum DrawBuffer::bind_attributes()
 
         // This captures the buffer so that we don't have to bind it
         // when we draw later on, we'll just have to bind the vao
-        switch (Kind::from_type(atrib.ty)) {
-        /* TODO - Make sure KindEnum exists, Rust allows enums to have funcs  */
-        case KindEnum::Integer:
+        switch (attr.ty)) {
+        case GL_BYTE:
+        case GL_UNSIGNED_BYTE:
+        case GL_SHORT:
+        case GL_UNSIGNED_SHORT:
+        case GL_INT:
+        case GL_UNSIGNED_INT:
             glEnableVertexAttribIPointer(   index,
                                             attr.components,
                                             attr.ty,
                                             element_size,
                                             attr.gl_offset());
             break;
-        case KindEnum::Float:
+        case GL_FLOAT:
             glEnableVertexAttribPointer(    index,
                                             attr.components,
                                             attr.ty,
@@ -82,7 +86,7 @@ GLenum DrawBuffer::bind_attributes()
                                             element_size,
                                             attr.gl_offset());
             break;
-        case KindEnum::Double:
+        case GL_DOUBLE:
             glEnableVertexAttribLPointer(   index,
                                             attr.components,
                                             attr.ty,
