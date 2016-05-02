@@ -747,8 +747,8 @@ GLenum GlRenderer::copy_rect(   uint16_t source_top_left[2],
 
     GLint src_x = (GLint) source_top_left[0] * (GLint) upscale;
     GLint src_y = (GLint) source_top_left[1] * (GLint) upscale;
-    GLint dst_x = (GLint) source_top_left[0] * (GLint) upscale;
-    GLint dst_y = (GLint) source_top_left[1] * (GLint) upscale;
+    GLint dst_x = (GLint) target_top_left[0] * (GLint) upscale;
+    GLint dst_y = (GLint) target_top_left[1] * (GLint) upscale;
 
     GLsizei w = (GLsizei) dimensions[0] * (GLsizei) upscale;
     GLsizei h = (GLsizei) dimensions[1] * (GLsizei) upscale;
