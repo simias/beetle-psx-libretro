@@ -37,10 +37,11 @@ GLenum DrawBuffer::bind_attributes()
 {
     this->vao->bind();
 
-    //ARRAY_BUFFER is captured by VertexAttribPointer
+    // ARRAY_BUFFER is captured by VertexAttribPointer
     this->bind();
 
-    /* What is this? Rust stuff? */
+    /* TODO - This might not work...every T is a struct. Maybe have every
+    struct have a UniformMap */
     auto attributes = T::attributes();
     GLint element_size = (GLint) sizeof( *(this->contains) );
 
@@ -59,7 +60,7 @@ GLenum DrawBuffer::bind_attributes()
     */
     for (attr : attributes) {
         /* TODO - I'm not doing any error checking here unlike the code above */
-        GLuint index = this->find_attribute(attr.name.c_str());
+        GLuint index = this->find_attribute(attr.name);
         glEnableVertexAttribArray(index);
 
         // This captures the buffer so that we don't have to bind it

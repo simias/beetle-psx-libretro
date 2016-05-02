@@ -26,12 +26,12 @@ RetroGl::RetroGl(VideoClock video_clock)
     }
 
     DrawConfig config = {
-        (0, 0),         // display_top_left
-        (1024, 512),    // display_resolution
+        {0, 0},         // display_top_left
+        {1024, 512},    // display_resolution
         false,          // display_24bpp
-        (0, 0),         // draw_area_top_left
-        (0, 0),         // draw_area_dimensions
-        (0, 0),         // draw_offset
+        {0, 0},         // draw_area_top_left
+        {0, 0},         // draw_area_dimensions
+        {0, 0},         // draw_offset
         vram
     };
 

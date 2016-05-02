@@ -2,9 +2,6 @@
 #ifndef GL_RENDERER_H
 #define GL_RENDERER_H
 
-#include <vector>
-#include <stdint.h>
-
 #include "../retrogl/retrogl.h"
 #include "../retrogl/buffer.h"
 #include "../retrogl/shader.h"
@@ -16,27 +13,16 @@
 #include "libretro.h"
 #include <glsm/glsmsym.h>
 
+#include <vector>
+#include <stdint.h>
+
 extern unsigned int VRAM_WIDTH_PIXELS
 extern unsigned int VRAM_HEIGHT
 
 /// How many vertices we buffer before forcing a draw
 unsigned int VERTEX_BUFFER_LEN = 2048;
 
-// Helper structs are used because C/C++ syntax doesn't allow
-// statements like e.g. (u32, u32) frontend_resolution = (640, 480); 
-struct FrontendResolution {
-    uint32_t w;
-    uint32_t h;
-};
-
-struct Color {
-    uint8_t r;
-    uint8_t g;
-    uint8_t b;
-};
-
-class GlRenderer
-{
+class GlRenderer {
 public:
     /// Buffer used to handle PlayStation GPU draw commands
     DrawBuffer<CommandVertex>* command_buffer;
@@ -63,7 +49,7 @@ public:
     /// Depth buffer for fb_out
     Texture* fb_out_depth;
     /// Current resolution of the frontend's framebuffer
-    FrontendResolution frontend_resolution;
+    uint32_t frontend_resolution[2];
     /// Current internal resolution upscaling factor
     uint32_t internal_upscaling;
     /// Current internal color depth
@@ -86,10 +72,10 @@ public:
     void draw();
     void apply_scissor();
     void bind_libretro_framebuffer();
-    GLenum upload_textures( TopLeft topleft, Dimensions dimensions,
+    GLenum upload_textures( uint16_t top_left[2], uint16_t dimensions[2],
                             uint16_t pixel_buffer[VRAM_PIXELS]);
 
-    GLenum upload_vram_window(  TopLeft top_left, Dimensions dimensions,
+    GLenum upload_vram_window(  uint16_t top_left[2], uint16_t dimensions[2],
                                 uint16_t pixel_buffer[VRAM_PIXELS]);
 
     DrawConfig* draw_config();
@@ -102,9 +88,10 @@ public:
 
     void set_draw_offset(int16_t x, int16_t y);
 
-    void set_draw_area(TopLeft top_left, Dimensions dimensions);
-    void set_display_mode(TopLeft top_left, 
-                          Resolution resolution, bool depth_24bpp);
+    void set_draw_area(uint16_t top_left[2], uint16_t dimensions[2]);
+    void set_display_mode(  uint16_t top_left[2], 
+                            uint16_t resolution[2],
+                            bool depth_24bpp);
 
     void push_triangle( CommandVertex v[3],
                         SemiTransparencyMode semi_transparency_mode);
@@ -112,9 +99,12 @@ public:
     void push_line( CommandVertex v[2],
                     SemiTransparencyMode semi_transparency_mode);
 
-    void fill_rect(Color color, TopLeft top_left, Dimensions dimensions);
-    GLenum copy_rect(   TopLeft source_top_left, 
-                        TopLeft target_top_left, Dimensions dimensions);
+    void fill_rect( uint8_t color[3], 
+                    uint16_t top_left[2], 
+                    uint16_t dimensions[2]);
+    GLenum copy_rect(   uint16_t source_top_left[2], 
+                        uint16_t target_top_left[2],
+                        uint16_t dimensions[2]);
 
 };
 

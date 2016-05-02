@@ -49,31 +49,13 @@ struct GlStateData {
     DrawConfig c;
 };
 
-struct Resolution {
-    uint16_t w;
-    uint16_t h;
-};
-
-struct Position {
-    uint16_t x;
-    uint16_t y;
-};
-
-struct Offset {
-    int16_t x;
-    int16_t y;
-};
-
-typedef Position TopLeft;
-typedef Position Dimensions;
-
 struct DrawConfig {
-    TopLeft display_top_left;
-    Resolution display_resolution;
+    uint16_t display_top_left[2];
+    uint16_t display_resolution[2];
     bool display_24bpp;
-    Offset draw_offset;
-    TopLeft draw_area_top_left;
-    Dimensions draw_area_dimensions;
+    int16_t draw_offset[2];
+    uint16_t draw_area_top_left[2];
+    uint16_t draw_area_dimensions[2];
     uint16_t vram[VRAM_PIXELS];
 };
 

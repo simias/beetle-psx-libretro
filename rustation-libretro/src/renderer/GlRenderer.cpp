@@ -53,13 +53,13 @@ GlRenderer::GlRenderer(DrawConfig& config)
             4,
             false);
 
-    auto native_width  = (uint32_t) VRAM_WIDTH_PIXELS;
-    auto native_height = (uint32_t) VRAM_HEIGHT;
+    uint32_t native_width  = (uint32_t) VRAM_WIDTH_PIXELS;
+    uint32_t native_height = (uint32_t) VRAM_HEIGHT;
 
     // Texture holding the raw VRAM texture contents. We can't
     // meaningfully upscale it since most games use paletted
     // textures.
-    auto fb_texture = new Texture(native_width, native_height, GL_RGB5_A1));
+    Texture* fb_texture = new Texture(native_width, native_height, GL_RGB5_A1));
 
     if (depth > 16) {
         // Dithering is superfluous when we increase the internal
@@ -67,7 +67,7 @@ GlRenderer::GlRenderer(DrawConfig& config)
         opaque_command_buffer->disable_attribute("dither");
     }
 
-    auto dither_scaling = scaling_dither ? upscaling : 1;
+    uint32_t dither_scaling = scaling_dither ? upscaling : 1;
     auto command_draw_mode = wireframe ? GL_LINE : GL_FILL;
 
     // TODO: This isn't C++ yet I think....
@@ -116,9 +116,9 @@ GlRenderer::GlRenderer(DrawConfig& config)
     //// NOTE: r5 - I have no idea what a borrow checker is.
     // Yet an other copy of this 1MB array to make the borrow
     // checker happy...
-    TopLeft tl = {0, 0};
-    Dimensions d = {(uint16_t) VRAM_WIDTH_PIXELS, (uint16_t) VRAM_HEIGHT};
-    this->upload_textures(tl, d, &this->config->vram);
+    uint16_t top_left[2] = {0, 0};
+    uint16_t dimensions[2] = {(uint16_t) VRAM_WIDTH_PIXELS, (uint16_t) VRAM_HEIGHT};
+    this->upload_textures(top_left, dimensions, &this->config->vram);
 }
 
 GlRenderer::~GlRenderer()
@@ -149,8 +149,8 @@ void GlRenderer::draw() {
     if (this->command_buffer->empty() && this->semi_transparent_vertices.empty())
         return; // Nothing to be done
 
-    int16_t x = this->config->draw_offset.x;
-    int16_t y = this->config->draw_offset.y;
+    int16_t x = this->config->draw_offset[0];
+    int16_t y = this->config->draw_offset[1];
 
     // TODO: Is this C++? Check what uniform2i is
     this->command_buffer->program()->uniform2i("offset", (GLint)x, (GLint)y);
@@ -223,10 +223,10 @@ void GlRenderer::draw() {
 
 void GlRenderer::apply_scissor()
 {
-    auto _x = this->config->draw_area_top_left.x;
-    auto _y = this->config->draw_area_top_left.y;
-    auto _w = this->config->draw_area_dimensions.w;
-    auto _h = this->config->draw_area_dimensions.h;
+    uint16_t _x = this->config->draw_area_top_left[0];
+    uint16_t _y = this->config->draw_area_top_left[1];
+    uint16_t _w = this->config->draw_area_dimensions[0];
+    uint16_t _h = this->config->draw_area_dimensions[1];
 
     GLsizei upscale = (GLsizei) this->internal_upscaling;
 
@@ -243,17 +243,17 @@ void GlRenderer::apply_scissor()
 
 void GlRenderer::bind_libretro_framebuffer()
 {
-    auto f_w = this->frontend_resolution.w;
-    auto f_h = this->frontend_resolution.h;
-    auto _w = this->config->display_resolution.w;
-    auto _h = this->config->display_resolution.h;
+    uint32_t f_w = this->frontend_resolution[0];
+    uint32_t f_h = this->frontend_resolution[1];
+    uint16_t _w = this->config->display_resolution[0];
+    uint16_t _h = this->config->display_resolution[1];
 
-    auto upscale = this->internal_upscaling;
+    uint32_t upscale = this->internal_upscaling;
 
     // XXX scale w and h when implementing increased internal
     // resolution
-    unsigned int w = (unsigned int) _w * upscale;
-    unsigned int h = (unsigned int) _h * upscale;
+    uint32_t w = (uint32_t) _w * upscale;
+    uint32_t h = (uint32_t) _h * upscale;
 
     if (w != f_w || h != f_h) {
         // We need to change the frontend's resolution
@@ -273,18 +273,18 @@ void GlRenderer::bind_libretro_framebuffer()
 
         environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &geometry);
 
-        this->frontend_resolution.w = w;
-        this->frontend_resolution.h = h;
+        this->frontend_resolution[0] = w;
+        this->frontend_resolution[1] = h;
     }
 
     // Bind the output framebuffer provided by the frontend
     GLuint fbo = retro_hw_render_callback.get_current_framebuffer();
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo);
-    glViewport(0, 0, (GLsizei)w, (GLsizei)h);
+    glViewport(0, 0, (GLsizei) w, (GLsizei) h);
 }
 
-GLenum GlRenderer::upload_textures( TopLeft top_left, Dimensions dimensions,
-                                  uint16_t pixel_buffer[VRAM_PIXELS])
+GLenum GlRenderer::upload_textures( uint16_t top_left[2], uint16_t dimensions[2],
+                                    uint16_t pixel_buffer[VRAM_PIXELS]);
 {
     this->fb_texture->set_sub_image( top_left,
                                     dimensions,
@@ -293,10 +293,10 @@ GLenum GlRenderer::upload_textures( TopLeft top_left, Dimensions dimensions,
                                     pixel_buffer);
     this->image_load_buffer->clear();
 
-    auto x_start    = top_left.x;
-    auto x_end      = x_start + dimensions.x;
-    auto y_start    = top_left.y;
-    auto y_end      = y_start + dimensions.y;
+    uint16_t x_start    = top_left[0];
+    uint16_t x_end      = x_start + dimensions[0];
+    uint16_t y_start    = top_left[1];
+    uint16_t y_end      = y_start + dimensions[1];
 
     size_t slice_len = 4
     ImageLoadVertex slice[slice_len] =  
@@ -330,8 +330,9 @@ GLenum GlRenderer::upload_textures( TopLeft top_left, Dimensions dimensions,
 
 }
 
-GLenum GlRenderer::upload_vram_window( TopLeft top_left, Dimensions dimensions,
-                                     uint16_t pixel_buffer[VRAM_PIXELS])
+GLenum GlRenderer::upload_vram_window(  uint16_t top_left[2], 
+                                        uint16_t dimensions[2],
+                                        uint16_t pixel_buffer[VRAM_PIXELS]);
 {
     this->fb_texture->set_sub_image_window( top_left,
                                             dimensions,
@@ -342,10 +343,10 @@ GLenum GlRenderer::upload_vram_window( TopLeft top_left, Dimensions dimensions,
 
     this->image_load_buffer->clear();
 
-    auto x_start    = top_left.x;
-    auto x_end      = x_start + dimensions.x;
-    auto y_start    = top_left.y;
-    auto y_end      = y_start + dimensions.y;
+    uint16_t x_start    = top_left[0];
+    uint16_t x_end      = x_start + dimensions[0];
+    uint16_t y_start    = top_left[1];
+    uint16_t y_end      = y_start + dimensions[1];
 
     size_t slice_len = 4
     ImageLoadVertex slice[slice_len] =
@@ -429,8 +430,8 @@ bool GlRenderer::refresh_variables()
         uint32_t native_width = (uint32_t) VRAM_WIDTH_PIXELS;
         uint32_t native_height = (uint32_t) VRAM_HEIGHT;
 
-        auto w = native_width * upscaling;
-        auto h = native_height * upscaling;
+        uint32_t w = native_width * upscaling;
+        uint32_t h = native_height * upscaling;
 
         auto texture_storage = GL_RGB5_A1;
         switch (depth) {
@@ -457,9 +458,9 @@ bool GlRenderer::refresh_variables()
         // to `fb_texture` even though we haven't touched it but
         // this code is not very performance-critical anyway.
         
-        TopLeft tl = {0, 0};
-        Dimensions d = {(uint16_t) VRAM_WIDTH_PIXELS, (uint16_t) VRAM_HEIGHT};
-        this->upload_textures(tl, d, &this->config->vram);
+        uint16_t top_left[2] = {0, 0};
+        uint16_t dimensions[2] = {(uint16_t) VRAM_WIDTH_PIXELS, (uint16_t) VRAM_HEIGHT};
+        this->upload_textures(top_left, dimensions, &this->config->vram);
 
         
         if (this->fb_out_depth != nullptr) { 
@@ -469,8 +470,8 @@ bool GlRenderer::refresh_variables()
         this->fb_out_depth = new Texture(w, h, GL_DEPTH_COMPONENT32F);
     }
 
-    auto dither_scaling = scale_dither ? upscaling : 1;
-    this->command_buffer->program()->uniform1ui("dither_scaling", dither_scaling);
+    uint32_t dither_scaling = scale_dither ? upscaling : 1;
+    this->command_buffer->program()->uniform1ui("dither_scaling", (GLuint) dither_scaling);
 
     this->command_polygon_mode = wireframe ? GL_LINE : GL_FILL;
 
@@ -505,13 +506,13 @@ void GlRenderer::finalize_frame()
     glDisable(GL_BLEND);
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-    auto fb_x_start = this->config->display_top_left.x;
-    auto fb_y_start = this->config->display_top_left.y;
-    auto fb_width = this->display_resolution.w;
-    auto fb_height = this->display_resolution.h;
+    uint16_t fb_x_start = this->config->display_top_left[0];
+    uint16_t fb_y_start = this->config->display_top_left[1];
+    uint16_t fb_width = this->config->display_resolution[0];
+    uint16_t fb_height = this->config->display_resolution[1];
 
-    auto fb_x_end = fb_x_start + fb_width;
-    auto fb_y_end = fb_y_start + fb_height;
+    uint16_t fb_x_end = fb_x_start + fb_width;
+    uint16_t fb_y_end = fb_y_start + fb_height;
 
     this->output_buffer->clear();
 
@@ -547,7 +548,7 @@ void GlRenderer::finalize_frame()
     glLineWidth(1.0);
     glClearColor(0.0, 0.0, 0.0, 0.0);
 
-    video_refresh(-1, this->frontend_resolution.x, this->frontend_resolution.y, 0);
+    video_refresh(-1, this->frontend_resolution[0], this->frontend_resolution[0], 0);
 }
 
 void GlRenderer::maybe_force_draw(  size_t nvertices, GLenum draw_mode, 
@@ -595,31 +596,32 @@ void GlRenderer::set_draw_area(int16_t x, int16_t y)
 {
     // Finish drawing anything with the current offset
     this->draw();
-    this->config->draw_offset.x = x;
-    this->config->draw_offset.y = y;
+    this->config->draw_offset[0] = x;
+    this->config->draw_offset[1] = y;
 }
 
-void GlRenderer::set_draw_area(TopLeft top_left, Dimensions dimensions)
+void GlRenderer::set_draw_area(uint16_t top_left[2], uint16_t dimensions[2])
 {
     // Finish drawing anything in the current area
     this->draw();
 
-    this->config->draw_area_top_left.x = top_left.x;
-    this->config->draw_area_top_left.y = top_left.y;
-    this->config->draw_area_dimensions.x = dimensions.x;
-    this->config->draw_area_dimensions.y = dimensions.y;
+    this->config->draw_area_top_left[0] = top_left[0];
+    this->config->draw_area_top_left[1] = top_left[1];
+    this->config->draw_area_dimensions[0] = dimensions[0];
+    this->config->draw_area_dimensions[1] = dimensions[1];
 
     this->apply_scissor();
 }
 
-void GlRenderer::set_display_mode(  TopLeft top_left, 
-                                    Resolution resolution, bool depth_24bpp)
+void GlRenderer::set_display_mode(  uint16_t top_left[2], 
+                                    uint16_t resolution[2], 
+                                    bool depth_24bpp)
 {
-    this->config->display_top_left.x = top_left.x;
-    this->config->display_top_left.y = top_left.y;
+    this->config->display_top_left[0] = top_left[0];
+    this->config->display_top_left[1] = top_left[1];
 
-    this->config->display_resolution.w = resolution.w;
-    this->config->display_resolution.h = resolution.h;
+    this->config->display_resolution[0] = resolution[0];
+    this->config->display_resolution[1] = resolution[1];
     this->config->display_24bpp = depth_24bpp;
 }
 
@@ -686,7 +688,9 @@ void GlRenderer::push_line( CommandVertex v[2],
     }
 }
 
-void GlRenderer::fill_rect(Color color, TopLeft top_left, Dimensions dimensions)
+void GlRenderer::fill_rect( uint8_t color[3], 
+                            uint16_t top_left[2],
+                            uint16_t dimensions[2])
 {
     // Draw pending commands
     this->draw();
@@ -694,47 +698,60 @@ void GlRenderer::fill_rect(Color color, TopLeft top_left, Dimensions dimensions)
     // Fill rect ignores the draw area. Save the previous value
     // and reconfigure the scissor box to the fill rectangle
     // instead.
-    TopLeft draw_area_top_left = this->config->draw_area_top_left;
-    Dimensions draw_area_dimensions = this->config->draw_area_dimensions;
 
-    this->config->draw_area_top_left = top_left;
-    this->config->draw_area_dimensions = dimensions;
+
+    uint16_t draw_area_top_left[2] = {
+        this->config->draw_area_top_left[0], 
+        this->config->draw_area_top_left[1] 
+    };
+    uint16_t draw_area_dimensions[2] = {
+        this->config->draw_area_dimensions[0],
+        this->config->draw_area_dimensions[1]
+    }; 
+
+    this->config->draw_area_top_left[0] = top_left[0];
+    this->config->draw_area_top_left[1] = top_left[1];
+    this->config->draw_area_dimensions[0] = dimensions[0];
+    this->config->draw_area_dimensions[1] = dimensions[1];
 
     this->apply_scissor();
 
     // Bind the out framebuffer
     Framebuffer(this->fb_out);
 
-    glClearColor(   (float) color.r / 255.0,
-                    (float) color.g / 255.0,
-                    (float) color.b / 255.0,
+    glClearColor(   (float) color[0] / 255.0,
+                    (float) color[1] / 255.0,
+                    (float) color[2] / 255.0,
                     // XXX Not entirely sure what happens to
                     // the mask bit in fill_rect commands
                     0.0);
     glClear(GL_COLOR_BUFFER_BIT);
 
     // Reconfigure the draw area
-    this->config->draw_area_top_left = draw_area_top_left;
-    this->config->draw_area_dimensions = draw_area_dimensions;
+    this->config->draw_area_top_left[0] = draw_area_top_left[0];
+    this->config->draw_area_top_left[1] = draw_area_top_left[1];
+    this->config->draw_area_dimensions[0] = draw_area_dimensions[0];
+    this->config->draw_area_dimensions[1] = draw_area_dimensions[1];
 
     this->apply_scissor();
 }
 
-GLenum GlRenderer::copy_rect(   TopLeft source_top_left, 
-                                TopLeft target_top_left, Dimensions dimensions)
+GLenum GlRenderer::copy_rect(   uint16_t source_top_left[2], 
+                                uint16_t target_top_left[2],  
+                                uint16_t dimensions[2])
 {
     // Draw pending commands
     this->draw();
 
     uint32_t upscale = this->internal_upscaling;
 
-    GLint src_x = (GLint) source_top_left.x * (GLint) upscale;
-    GLint src_y = (GLint) source_top_left.y * (GLint) upscale;
-    GLint dst_x = (GLint) source_top_left.x * (GLint) upscale;
-    GLint dst_y = (GLint) source_top_left.y * (GLint) upscale;
+    GLint src_x = (GLint) source_top_left[0] * (GLint) upscale;
+    GLint src_y = (GLint) source_top_left[1] * (GLint) upscale;
+    GLint dst_x = (GLint) source_top_left[0] * (GLint) upscale;
+    GLint dst_y = (GLint) source_top_left[1] * (GLint) upscale;
 
-    GLsizei w = (GLsizei) dimensions.x * (GLsizei) upscale;
-    GLsizei h = (GLsizei) dimensions.y * (GLsizei) upscale;
+    GLsizei w = (GLsizei) dimensions[0] * (GLsizei) upscale;
+    GLsizei h = (GLsizei) dimensions[1] * (GLsizei) upscale;
 
     // XXX CopyImageSubData gives undefined results if the source
     // and target area overlap, this should be handled
