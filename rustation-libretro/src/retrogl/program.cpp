@@ -163,13 +163,13 @@ UniformMap load_program_uniforms(GLuint program)
         // Retrieve the name of this uniform
         char name[max_name_len];
         size_t name_len = max_name_len;
-        size_t len = 0;
+        GLsizei len = 0;
         // XXX we might want to validate those at some point
-        size_t size = 0;
-        size_t ty = 0;
+        GLint size = 0;
+        GLenum ty = 0;
 
         glGetActiveUniform( program,
-                            u,
+                            (GLuint) u,
                             (GLsizei) name_len,
                             &len,
                             &size,
@@ -181,7 +181,7 @@ UniformMap load_program_uniforms(GLuint program)
         }
 
         // Retrieve the location of this uniform
-        GLint glGetUniformLocation(program, (const char*) name);
+        GLint location = glGetUniformLocation(program, (const char*) name);
 
         /* name.truncate(len as usize); */
         name[len - 1] = '\0';
