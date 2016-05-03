@@ -87,8 +87,8 @@ public:
                             SemiTransparencyMode semi_transparency_mode);
 
     void set_draw_offset(int16_t x, int16_t y);
-
     void set_draw_area(uint16_t top_left[2], uint16_t dimensions[2]);
+
     void set_display_mode(  uint16_t top_left[2], 
                             uint16_t resolution[2],
                             bool depth_24bpp);
@@ -102,6 +102,7 @@ public:
     void fill_rect( uint8_t color[3], 
                     uint16_t top_left[2], 
                     uint16_t dimensions[2]);
+
     GLenum copy_rect(   uint16_t source_top_left[2], 
                         uint16_t target_top_left[2],
                         uint16_t dimensions[2]);
@@ -152,5 +153,9 @@ enum class SemiTransparencyMode {
     /// Destination + source / 4
     AddQuarterSource = 3;
 };
+
+std::vector<Attribute> attributes(CommandVertex* v);
+std::vector<Attribute> attributes(OutputVertex* v);
+std::vector<Attribute> attributes(ImageLoadVertex* v);
 
 #endif

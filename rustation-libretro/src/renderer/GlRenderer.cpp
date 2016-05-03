@@ -9,6 +9,7 @@
 
 #include <stdio.h>   // printf()
 #include <stdlib.h> // size_t, EXIT_FAILURE
+#include <stddef.h> // offsetof()
 
 GlRenderer::GlRenderer(DrawConfig& config)
 {
@@ -762,4 +763,40 @@ GLenum GlRenderer::copy_rect(   uint16_t source_top_left[2],
 
     // get_error();
     return glGetError();
+}
+
+std::vector<Attribute> attributes(CommandVertex* v)
+{
+    std::vector<Attribute> result;
+
+    result.push_back( Attribute("position",             offsetof(CommandVertex, position),              GL_SHORT,           3) );
+    result.push_back( Attribute("color",                offsetof(CommandVertex, color),                 GL_UNSIGNED_BYTE,   3) );
+    result.push_back( Attribute("texture_coord",        offsetof(CommandVertex, texture_coord),         GL_UNSIGNED_SHORT,  2) );
+    result.push_back( Attribute("texture_page",         offsetof(CommandVertex, texture_page),          GL_UNSIGNED_SHORT,  2) );
+    result.push_back( Attribute("clut",                 offsetof(CommandVertex, clut),                  GL_UNSIGNED_SHORT,  2) );
+    result.push_back( Attribute("texture_blend_mode",   offsetof(CommandVertex, texture_blend_mode),    GL_UNSIGNED_BYTE,   1) );
+    result.push_back( Attribute("depth_shift",          offsetof(CommandVertex, depth_shift),           GL_UNSIGNED_BYTE,   1) );
+    result.push_back( Attribute("dither",               offsetof(CommandVertex, dither),                GL_UNSIGNED_BYTE,   1) );
+    result.push_back( Attribute("semi_transparent",     offsetof(CommandVertex, semi_transparent),      GL_UNSIGNED_BYTE,   1) );
+
+    return result;
+}
+
+std::vector<Attribute> attributes(OutputVertex* v)
+{
+    std::vector<Attribute> result;
+
+    result.push_back( Attribute("position", offsetof(OutputVertex, position), GL_FLOAT,             2) );
+    result.push_back( Attribute("fb_coord", offsetof(OutputVertex, fb_coord), GL_UNSIGNED_SHORT,    2) );
+
+    return result;
+}
+
+std::vector<Attribute> attributes(ImageLoadVertex* v)
+{
+    std::vector<Attribute> result;
+
+    result.push_back( Attribute("position", offsetof(ImageLoadVertex, position), GL_UNSIGNED_SHORT,    2) );
+
+    return result;
 }

@@ -1,4 +1,5 @@
 #include "buffer.h"
+#include <vector>
 
 DrawBuffer::DrawBuffer(size_t capacity, Program* program, bool lifo)
 {
@@ -40,9 +41,8 @@ GLenum DrawBuffer::bind_attributes()
     // ARRAY_BUFFER is captured by VertexAttribPointer
     this->bind();
 
-    /* TODO - This might not work...every T is a struct. Maybe have every
-    struct have a UniformMap */
-    auto attributes = T::attributes();
+    /* TODO - Ensure every Vertex-type extends from Vertex */
+    std::vector<Attribute> attributes = attributes(this->contains);
     GLint element_size = (GLint) sizeof( *(this->contains) );
 
     /* 
