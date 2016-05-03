@@ -97,21 +97,21 @@ GlRenderer::GlRenderer(DrawConfig& config)
 
 
     // let mut state = GlRenderer {
-    command_buffer = opaque_command_buffer;
-    command_draw_mode = GL_TRIANGLES;
+    this->command_buffer = opaque_command_buffer;
+    this->command_draw_mode = GL_TRIANGLES;
     /*semi_transparent_vertices(VERTEX_BUFFER_LEN, nullptr); */
-    semi_transparency_mode =  SemiTransparencyMode::Average;
-    command_polygon_mode = command_draw_mode;
+    this->semi_transparency_mode =  SemiTransparencyMode::Average;
+    this->command_polygon_mode = command_draw_mode;
     this->output_buffer = output_buffer;
     this->image_load_buffer = image_load_buffer;
     this->config = config;
     this->fb_texture = fb_texture;
     this->fb_out = fb_out;
     this->fb_out_depth = fb_out_depth;
-    frontend_resolution = {0, 0};
-    internal_upscaling = upscaling;
-    internal_color_depth = depth;
-    primitive_ordering = 0;
+    this->frontend_resolution = {0, 0};
+    this->internal_upscaling = upscaling;
+    this->internal_color_depth = depth;
+    this->primitive_ordering = 0;
     // }
 
     //// NOTE: r5 - I have no idea what a borrow checker is.

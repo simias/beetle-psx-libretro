@@ -41,7 +41,6 @@ GLenum DrawBuffer::bind_attributes()
     // ARRAY_BUFFER is captured by VertexAttribPointer
     this->bind();
 
-    /* TODO - Ensure every Vertex-type extends from Vertex */
     std::vector<Attribute> attributes = attributes(this->contains);
     GLint element_size = (GLint) sizeof( *(this->contains) );
 
