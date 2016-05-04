@@ -14,9 +14,9 @@
 
 GlRenderer::GlRenderer(DrawConfig* config)
 {
+
     struct retro_variable var = {0};
     
-
     var.key = "beetle_psx_internal_resolution";
     uint8_t upscaling = 1;
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value) {
@@ -86,7 +86,7 @@ GlRenderer::GlRenderer(DrawConfig* config)
     opaque_command_buffer->program->uniform1ui("dither_scaling", dither_scaling);
 
     GLenum texture_storage = GL_RGB5_A1;
-    switch (depth){
+    switch (depth) {
     case 16:
         texture_storage = GL_RGB5_A1;
         break;
@@ -160,7 +160,8 @@ static DrawBuffer<T>* GlRenderer::build_buffer( const char** vertex_shader,
 }
 */
 
-void GlRenderer::draw() {
+void GlRenderer::draw() 
+{
     if (this->command_buffer->empty() && this->semi_transparent_vertices.empty())
         return; // Nothing to be done
 
@@ -272,8 +273,6 @@ void GlRenderer::bind_libretro_framebuffer()
 
     if (w != f_w || h != f_h) {
         // We need to change the frontend's resolution
-        // TODO: Ask TwinAphex - do I use the retro_game_geometry from libretro.h
-        // or do I translate libretro.rs to libretro.hpp
         retro_game_geometry geometry;
         geometry.base_width  = w;
         geometry.base_height = h;
@@ -293,6 +292,7 @@ void GlRenderer::bind_libretro_framebuffer()
     }
 
     // Bind the output framebuffer provided by the frontend
+    /* TODO - How do I do this with libretro? */
     GLuint fbo = retro_hw_render_callback.get_current_framebuffer();
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo);
     glViewport(0, 0, (GLsizei) w, (GLsizei) h);
@@ -313,7 +313,7 @@ GLenum GlRenderer::upload_textures( uint16_t top_left[2], uint16_t dimensions[2]
     uint16_t y_start    = top_left[1];
     uint16_t y_end      = y_start + dimensions[1];
 
-    size_t slice_len = 4
+    size_t slice_len = 4;
     ImageLoadVertex slice[slice_len] =  
         {   
             {   {x_start,   y_start }   }, 
@@ -347,7 +347,7 @@ GLenum GlRenderer::upload_textures( uint16_t top_left[2], uint16_t dimensions[2]
 
 GLenum GlRenderer::upload_vram_window(  uint16_t top_left[2], 
                                         uint16_t dimensions[2],
-                                        uint16_t pixel_buffer[VRAM_PIXELS]);
+                                        uint16_t pixel_buffer[VRAM_PIXELS])
 {
     this->fb_texture->set_sub_image_window( top_left,
                                             dimensions,
@@ -363,7 +363,7 @@ GLenum GlRenderer::upload_vram_window(  uint16_t top_left[2],
     uint16_t y_start    = top_left[1];
     uint16_t y_end      = y_start + dimensions[1];
 
-    size_t slice_len = 4
+    size_t slice_len = 4;
     ImageLoadVertex slice[slice_len] =
         {   
             {   {x_start,   y_start }   }, 
@@ -417,20 +417,30 @@ bool GlRenderer::refresh_variables()
     struct retro_variable var = {0};
     
     var.key = "beetle_psx_internal_resolution";
-    environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var);
-    auto upscaling      = var.value;
+    uint8_t upscaling = 1;
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value) {
+        /* Same limitations as libretro.cpp */
+        upscaling = var.value[0] -'0';
+    }
     
     var.key = "beetle_psx_internal_color_depth";
-    environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var);
-    auto depth          = var.value;
+    uint8_t depth = 16;
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value) {
+        depth = strcmp(var.value, "32bpp") == 1 ? 32 : 16;
+    }
+    
     
     var.key = "beetle_psx_scale_dither";
-    environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var);
-    auto scale_dither   = var.value;
+    bool scale_dither = false;
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value) {
+        scale_dither = strcmp(var.value, "enabled") == 1 ? true : false;
+    }
 
     var.key = "beetle_psx_wireframe";
-    environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var);
-    auto wireframe      = var.value;
+    bool wireframe = false;
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value) {
+        wireframe = strcmp(var.value, "enabled") == 1 ? true : false;
+    }
 
     bool rebuild_fb_out =   upscaling != this->internal_upscaling ||
                             depth != this->internal_color_depth;
@@ -448,7 +458,7 @@ bool GlRenderer::refresh_variables()
         uint32_t w = native_width * upscaling;
         uint32_t h = native_height * upscaling;
 
-        auto texture_storage = GL_RGB5_A1;
+        GLenum texture_storage = GL_RGB5_A1;
         switch (depth) {
         case 16:
             texture_storage = GL_RGB5_A1;
@@ -475,7 +485,7 @@ bool GlRenderer::refresh_variables()
         
         uint16_t top_left[2] = {0, 0};
         uint16_t dimensions[2] = {(uint16_t) VRAM_WIDTH_PIXELS, (uint16_t) VRAM_HEIGHT};
-        this->upload_textures(top_left, dimensions, &this->config->vram);
+        this->upload_textures(top_left, dimensions, this->config->vram);
 
         
         if (this->fb_out_depth != nullptr) { 
@@ -496,7 +506,7 @@ bool GlRenderer::refresh_variables()
     // reconfigured. We can't do that here because it could
     // destroy the OpenGL context which would destroy `self`
     //// r5 - replace 'self' by 'this'
-    bool reconfigure_frontend = self.internal_upscaling != upscaling;
+    bool reconfigure_frontend = this->internal_upscaling != upscaling;
 
     this->internal_upscaling = upscaling;
     this->internal_color_depth = depth;
@@ -607,7 +617,7 @@ void GlRenderer::maybe_force_draw(  size_t nvertices, GLenum draw_mode,
     }
 }
 
-void GlRenderer::set_draw_area(int16_t x, int16_t y)
+void GlRenderer::set_draw_offset(int16_t x, int16_t y)
 {
     // Finish drawing anything with the current offset
     this->draw();

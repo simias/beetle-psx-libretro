@@ -15,8 +15,8 @@
 #include <vector>
 #include <stdint.h>
 
-extern unsigned int VRAM_WIDTH_PIXELS;
-extern unsigned int VRAM_HEIGHT;
+static const uint16_t VRAM_WIDTH_PIXELS = 1024;
+static const uint16_t VRAM_HEIGHT = 512;
 
 static const size_t VRAM_PIXELS = (size_t) VRAM_WIDTH_PIXELS * (size_t) VRAM_HEIGHT;
 
@@ -171,8 +171,6 @@ public:
                         uint16_t dimensions[2]);
 
 };
-
-
 
 std::vector<Attribute> attributes(CommandVertex* v);
 std::vector<Attribute> attributes(OutputVertex* v);
