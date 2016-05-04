@@ -17,7 +17,7 @@ public:
     Program(Shader* vertex_shader, Shader* fragment_shader);
     GLuint find_attribute(const char* attr);
     void bind();
-    Glint uniform(const char* name);
+    GLint uniform(const char* name);
     void uniform1i(const char* name, GLint i);
     void uniform1ui(const char* name, GLuint i);
     void uniform2i(const char* name, GLint a, GLint b);

@@ -42,7 +42,7 @@ GLenum Texture::set_sub_image(  uint16_t top_left[2],
     //     panic!("Invalid texture sub_image size");
     // }
 
-    glPixelStoragei(GL_UNPACK_ALIGNMENT, 1);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glBindTexture(GL_TEXTURE_2D, this->id);
     glTexSubImage2D(GL_TEXTURE_2D,
                     0,
@@ -72,11 +72,11 @@ GLenum Texture::set_sub_image_window(   uint16_t top_left[2],
 
    uint16_t* data = &( data[index] );
 
-   glPixelStoragei(GL_UNPACK_ROW_LENGTH, (GLint) row_len);
+   glPixelStorei(GL_UNPACK_ROW_LENGTH, (GLint) row_len);
 
    GLenum error = this->set_sub_image(top_left, resolution, format, ty, data);
 
-   glPixelStoragei(GL_UNPACK_ROW_LENGTH, 0);
+   glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 
    return error;
 }

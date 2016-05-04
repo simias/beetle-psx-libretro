@@ -1,5 +1,6 @@
 #include "program.h"
 #include <stdlib.h>
+#include <stdio.h>
 
 Program::Program(Shader* vertex_shader, Shader* fragment_shader)
 {
@@ -47,7 +48,7 @@ Program::Program(Shader* vertex_shader, Shader* fragment_shader)
 
 GLuint Program::find_attribute(const char* attr)
 {
-    auto index = glGetAttribLocation(this->id, attr);
+    GLint index = glGetAttribLocation(this->id, attr);
 
     if (index < 0) {
         printf("Couldn't find attribute \"%s\" in program\n", attr)
