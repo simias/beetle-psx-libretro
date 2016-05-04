@@ -6,6 +6,8 @@
 
 #include "shader.h"
 
+typedef std::map<const char*, GLint> UniformMap;
+
 class Program {
 public:
     GLuint id;
@@ -24,8 +26,6 @@ public:
 };
 
 const char* get_program_info_log(GLuint id);
-
-typedef std::map<const char*, GLint> UniformMap;
 
 // Return a hashmap of all uniform names contained in `program` with
 // their corresponding location.

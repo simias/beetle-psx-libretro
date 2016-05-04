@@ -19,8 +19,55 @@
 extern unsigned int VRAM_WIDTH_PIXELS
 extern unsigned int VRAM_HEIGHT
 
+static const size_t VRAM_PIXELS = (size_t) VRAM_WIDTH_PIXELS * (size_t) VRAM_HEIGHT;
+
 /// How many vertices we buffer before forcing a draw
 unsigned int VERTEX_BUFFER_LEN = 2048;
+
+struct CommandVertex {
+    /// Position in PlayStation VRAM coordinates
+    int16_t position[3];
+    /// RGB color, 8bits per component
+    uint8_t color[3];
+    /// Texture coordinates within the page
+    uint16_t texture_coord[2];
+    /// Texture page (base offset in VRAM used for texture lookup)
+    uint16_t texture_page[2];
+    /// Color Look-Up Table (palette) coordinates in VRAM
+    uint16_t clut[2];
+    /// Blending mode: 0: no texture, 1: raw-texture, 2: texture-blended
+    uint8_t texture_blend_mode;
+    /// Right shift from 16bits: 0 for 16bpp textures, 1 for 8bpp, 2
+    /// for 4bpp
+    uint8_t depth_shift;
+    /// True if dithering is enabled for this primitive
+    uint8_t dither;
+    /// 0: primitive is opaque, 1: primitive is semi-transparent
+    uint8_t semi_transparent;
+};
+
+struct OutputVertex {
+    /// Vertex position on the screen
+    float position[2];
+    /// Corresponding coordinate in the framebuffer
+    uint16_t fb_coord[2];
+};
+
+struct ImageLoadVertex {
+    // Vertex position in VRAM
+    uint16_t position[2];
+};
+
+enum class SemiTransparencyMode {
+    /// Source / 2 + destination / 2
+    Average = 0;
+    /// Source + destination
+    Add = 1;
+    /// Destination - source
+    SubstractSource = 2;
+    /// Destination + source / 4
+    AddQuarterSource = 3;
+};
 
 class GlRenderer {
 public:
@@ -109,50 +156,7 @@ public:
 
 };
 
-struct CommandVertex {
-    /// Position in PlayStation VRAM coordinates
-    int16_t position[3];
-    /// RGB color, 8bits per component
-    uint8_t color[3];
-    /// Texture coordinates within the page
-    uint16_t texture_coord[2];
-    /// Texture page (base offset in VRAM used for texture lookup)
-    uint16_t texture_page[2];
-    /// Color Look-Up Table (palette) coordinates in VRAM
-    uint16_t clut[2];
-    /// Blending mode: 0: no texture, 1: raw-texture, 2: texture-blended
-    uint8_t texture_blend_mode;
-    /// Right shift from 16bits: 0 for 16bpp textures, 1 for 8bpp, 2
-    /// for 4bpp
-    uint8_t depth_shift;
-    /// True if dithering is enabled for this primitive
-    uint8_t dither;
-    /// 0: primitive is opaque, 1: primitive is semi-transparent
-    uint8_t semi_transparent;
-};
 
-struct OutputVertex {
-    /// Vertex position on the screen
-    float position[2];
-    /// Corresponding coordinate in the framebuffer
-    uint16_t fb_coord[2];
-};
-
-struct ImageLoadVertex {
-    // Vertex position in VRAM
-    uint16_t position[2];
-};
-
-enum class SemiTransparencyMode {
-    /// Source / 2 + destination / 2
-    Average = 0;
-    /// Source + destination
-    Add = 1;
-    /// Destination - source
-    SubstractSource = 2;
-    /// Destination + source / 4
-    AddQuarterSource = 3;
-};
 
 std::vector<Attribute> attributes(CommandVertex* v);
 std::vector<Attribute> attributes(OutputVertex* v);
