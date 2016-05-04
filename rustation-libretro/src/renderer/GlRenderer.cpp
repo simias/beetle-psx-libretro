@@ -72,7 +72,7 @@ GlRenderer::GlRenderer(DrawConfig& config)
     auto command_draw_mode = wireframe ? GL_LINE : GL_FILL;
 
     // TODO: This isn't C++ yet I think....
-    opaque_command_buffer->program()->uniform1ui("dither_scaling", dither_scaling);
+    opaque_command_buffer->program->uniform1ui("dither_scaling", dither_scaling);
 
     auto texture_storage = GL_RGB5_A1;
     switch (depth){
@@ -91,8 +91,8 @@ GlRenderer::GlRenderer(DrawConfig& config)
                                    native_height * upscaling,
                                    texture_storage);
 
-    Texture* fb_out_depth = new Texture( fb_out.width(),
-                                         fb_out.height(),
+    Texture* fb_out_depth = new Texture( fb_out->width,
+                                         fb_out->height,
                                          GL_DEPTH_COMPONENT32F);
 
 
@@ -154,10 +154,10 @@ void GlRenderer::draw() {
     int16_t y = this->config->draw_offset[1];
 
     // TODO: Is this C++? Check what uniform2i is
-    this->command_buffer->program()->uniform2i("offset", (GLint)x, (GLint)y);
+    this->command_buffer->program->uniform2i("offset", (GLint)x, (GLint)y);
 
     // We use texture unit 0
-    this->command_buffer->program()->uniform1i("fb_texture", 0);
+    this->command_buffer->program->uniform1i("fb_texture", 0);
 
     // Bind the out framebuffer
     Framebuffer(this->fb_out, this->fb_out_depth);
@@ -169,7 +169,7 @@ void GlRenderer::draw() {
         glBlendFuncSeparate(GL_ONE, GL_ZERO, GL_ONE, GL_ZERO);
         glDisable(GL_BLEND);
 
-        this->command_buffer->program()->uniform1ui("draw_semi_transparent", 0);
+        this->command_buffer->program->uniform1ui("draw_semi_transparent", 0);
         this->command_buffer->draw(this->command_draw_mode);
         this->command_buffer->clear();
     }
@@ -212,7 +212,7 @@ void GlRenderer::draw() {
         glBlendEquationSeparate(blend_func, GL_FUNC_ADD);
         glEnable(GL_BLEND);
 
-        this->command_buffer->program()->uniform1ui("draw_semi_transparent", 1);
+        this->command_buffer->program->uniform1ui("draw_semi_transparent", 1);
         this->command_buffer->draw(this->command_draw_mode);
         
         this->command_buffer->clear();
@@ -312,7 +312,7 @@ GLenum GlRenderer::upload_textures( uint16_t top_left[2], uint16_t dimensions[2]
     this->image_load_buffer->push_slice(slice, slice_len);
 
     /* TODO - Handle the error, ifneq GL_NO_ERROR then exit */
-    this->image_load_buffer->program()->uniform1i("fb_texture", 0);
+    this->image_load_buffer->program->uniform1i("fb_texture", 0);
 
     glDisable(GL_SCISSOR_TEST);
     glDisable(GL_BLEND);
@@ -359,7 +359,7 @@ GLenum GlRenderer::upload_vram_window(  uint16_t top_left[2],
         };
     this->image_load_buffer->push_slice(slice, slice_len);
 
-    this->image_load_buffer->program()->uniform1i("fb_texture", 0);
+    this->image_load_buffer->program->uniform1i("fb_texture", 0);
 
     glDisable(GL_SCISSOR_TEST);
     glDisable(GL_BLEND);
@@ -472,7 +472,7 @@ bool GlRenderer::refresh_variables()
     }
 
     uint32_t dither_scaling = scale_dither ? upscaling : 1;
-    this->command_buffer->program()->uniform1ui("dither_scaling", (GLuint) dither_scaling);
+    this->command_buffer->program->uniform1ui("dither_scaling", (GLuint) dither_scaling);
 
     this->command_polygon_mode = wireframe ? GL_LINE : GL_FILL;
 
@@ -530,9 +530,9 @@ void GlRenderer::finalize_frame()
 
     GLint depth_24bpp = (GLint) this->config->display_24bpp;
 
-    this->output_buffer->program()->uniform1i("fb", 1);
-    this->output_buffer->program()->uniform1i("depth_24bpp", depth_24bpp);
-    this->output_buffer->program()->uniform1ui( "internal_upscaling",
+    this->output_buffer->program->uniform1i("fb", 1);
+    this->output_buffer->program->uniform1i("depth_24bpp", depth_24bpp);
+    this->output_buffer->program->uniform1ui( "internal_upscaling",
                                                 this->internal_upscaling);
     this->output_buffer->draw(GL_TRIANGLE_STRIP);
 
@@ -757,8 +757,8 @@ GLenum GlRenderer::copy_rect(   uint16_t source_top_left[2],
     // XXX CopyImageSubData gives undefined results if the source
     // and target area overlap, this should be handled
     // explicitely
-    glCopyImageSubData( this->fb_out->id(), GL_TEXTURE_2D, 0, src_x, src_y, 0,
-                        this->fb_out->id(), GL_TEXTURE_2D, 0, dst_x, dst_y, 0,
+    glCopyImageSubData( this->fb_out->id, GL_TEXTURE_2D, 0, src_x, src_y, 0,
+                        this->fb_out->id, GL_TEXTURE_2D, 0, dst_x, dst_y, 0,
                         w, h, 1 );
 
     // get_error();

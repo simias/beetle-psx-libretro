@@ -38,9 +38,6 @@ public:
                                 GLenum ty,
                                 uint16_t* data);
 
-    GLuint id();
-    uint32_t width();
-    uint32_t height();
     void drop();
 };
 

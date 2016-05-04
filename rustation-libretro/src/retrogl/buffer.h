@@ -46,7 +46,6 @@ public:
     bool empty();
 
     /* impl<T> DrawBuffer<T> { */
-    Program* program();
     GLenum clear();
     /// Bind the buffer to the current VAO
     void bind();

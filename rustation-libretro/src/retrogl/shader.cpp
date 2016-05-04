@@ -9,10 +9,12 @@ Shader::Shader(const char** source, GLenum shader_type)
 {
     GLuint id = glCreateShader(shader_type);
 
+    size_t src_size = ARRAY_SIZE(source);
+
     glShaderSource( id,
                     1,
                     source,
-                    (GLint) ARRAY_SIZE(source));
+                    (const GLint*) &src_size);
     glCompileShader(id);
 
     GLint status = (GLint) GL_FALSE;
@@ -27,7 +29,14 @@ Shader::Shader(const char** source, GLenum shader_type)
             exit(EXIT_FAILURE);
         }
     } else {
-        printf("Shader compilation failed:\n%s", source);
+        puts("Shader compilation failed:\n");
+
+        /* print shader source */
+        size_t i;
+        for (i = 0; i < src_size; ++i) {
+            puts( source[i] );
+        }
+
         puts("Shader info log:\n");
         puts( get_shader_info_log(id) );
 

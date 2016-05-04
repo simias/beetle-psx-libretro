@@ -81,21 +81,6 @@ GLenum Texture::set_sub_image_window(   uint16_t top_left[2],
    return error;
 }
 
-GLuint Texture::id()
-{
-    return this->id;
-}
-
-uint32_t Texture::width()
-{
-    this->width;
-}
-
-uint32_t Texture::height()
-{
-    this->height;
-}
-
 void Texture::drop()
 {
     glDeleteTextures(1, &this->id);

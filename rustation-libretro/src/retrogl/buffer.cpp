@@ -127,11 +127,6 @@ bool DrawBuffer::empty()
     return this->len == 0;
 }
 
-Program* DrawBuffer::program()
-{
-    return this->program;
-}
-
 /// Orphan the buffer (to avoid synchronization) and allocate a
 /// new one.
 ///
