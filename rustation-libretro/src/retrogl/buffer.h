@@ -39,6 +39,7 @@ public:
     */
     DrawBuffer(size_t capacity, Program* program, bool lifo);
     ~DrawBuffer();
+
     /* fn bind_attributes(&self)-> Result<(), Error> { */
     GLenum bind_attributes(); 
     GLenum enable_attribute(const char* attr);

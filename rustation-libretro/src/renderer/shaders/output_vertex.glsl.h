@@ -1,4 +1,4 @@
-static const char *output_vertex[] =
+static const char *output_vertex[] = {
 "#version 330 core\n"
 
 // Vertex shader for rendering GPU draw commands in the framebuffer
@@ -18,3 +18,4 @@ static const char *output_vertex[] =
 
 "  frag_fb_coord = vec2(fb_x_coord, fb_y_coord);\n"
 "}\n"
+};

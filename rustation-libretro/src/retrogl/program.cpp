@@ -51,7 +51,7 @@ GLuint Program::find_attribute(const char* attr)
     GLint index = glGetAttribLocation(this->id, attr);
 
     if (index < 0) {
-        printf("Couldn't find attribute \"%s\" in program\n", attr)
+        printf("Couldn't find attribute \"%s\" in program\n", attr);
         printf("GL error %d\n", (int) glGetError());
         exit(EXIT_FAILURE);
     }
@@ -138,11 +138,11 @@ const char* get_program_info_log(GLuint id)
 
 UniformMap load_program_uniforms(GLuint program)
 {
-    GLuint n_uniforms = 0;
+    size_t n_uniforms = 0;
 
     glGetProgramiv( program,
                     GL_ACTIVE_UNIFORMS,
-                    &n_uniforms );
+                    (GLint*) &n_uniforms );
 
     UniformMap uniforms;
 
@@ -151,7 +151,7 @@ UniformMap load_program_uniforms(GLuint program)
 
     glGetProgramiv( program,
                     GL_ACTIVE_UNIFORM_MAX_LENGTH,
-                    &max_name_len);
+                    (GLint*) &max_name_len);
 
     GLenum error = glGetError();
     if (error != GL_NO_ERROR) {
@@ -195,7 +195,7 @@ UniformMap load_program_uniforms(GLuint program)
         uniforms[name] = location;
     }
 
-    GLenum error = glGetError();
+    error = glGetError();
     if (error != GL_NO_ERROR) {
         printf("GL error %d\n", (int) error);
         exit(EXIT_FAILURE);

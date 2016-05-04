@@ -10,47 +10,59 @@
 #include <stdio.h>   // printf()
 #include <stdlib.h> // size_t, EXIT_FAILURE
 #include <stddef.h> // offsetof()
+#include <string.h>
 
-GlRenderer::GlRenderer(DrawConfig& config)
+GlRenderer::GlRenderer(DrawConfig* config)
 {
     struct retro_variable var = {0};
     
+
     var.key = "beetle_psx_internal_resolution";
-    environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var);
-    auto upscaling      = var.value;
+    uint8_t upscaling = 1;
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value) {
+        /* Same limitations as libretro.cpp */
+        upscaling = var.value[0] -'0';
+    }
     
     var.key = "beetle_psx_internal_color_depth";
-    environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var);
-    auto depth          = var.value;
+    uint8_t depth = 16;
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value) {
+        depth = strcmp(var.value, "32bpp") == 1 ? 32 : 16;
+    }
+    
     
     var.key = "beetle_psx_scale_dither";
-    environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var);
-    auto scale_dither   = var.value;
+    bool scale_dither = false;
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value) {
+        scale_dither = strcmp(var.value, "enabled") == 1 ? true : false;
+    }
 
     var.key = "beetle_psx_wireframe";
-    environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var);
-    auto wireframe      = var.value;
+    bool wireframe = false;
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value) {
+        wireframe = strcmp(var.value, "enabled") == 1 ? true : false;
+    }
 
     printf("Building OpenGL state (%dx internal res., %dbpp)\n", upscaling, depth);
 
-    auto opaque_command_buffer = 
+    DrawBuffer<CommandVertex>* opaque_command_buffer = 
         GlRenderer::build_buffer<CommandVertex>(
             command_vertex,
-            command_fragment),
+            command_fragment,
             VERTEX_BUFFER_LEN,
             true);
 
-    auto output_buffer = 
+    DrawBuffer<OutputVertex>* output_buffer = 
         GlRenderer::build_buffer<OutputVertex>(
-            output_vertex),
-            output_fragment.glsl,
+            output_vertex,
+            output_fragment,
             4,
             false);
 
-    auto image_load_buffer = 
+    DrawBuffer<ImageLoadVertex>* image_load_buffer = 
         GlRenderer::build_buffer<ImageLoadVertex>(
-            image_load_vertex.glsl,
-            image_load_fragment.glsl,
+            image_load_vertex,
+            image_load_fragment,
             4,
             false);
 
@@ -60,7 +72,7 @@ GlRenderer::GlRenderer(DrawConfig& config)
     // Texture holding the raw VRAM texture contents. We can't
     // meaningfully upscale it since most games use paletted
     // textures.
-    Texture* fb_texture = new Texture(native_width, native_height, GL_RGB5_A1));
+    Texture* fb_texture = new Texture(native_width, native_height, GL_RGB5_A1);
 
     if (depth > 16) {
         // Dithering is superfluous when we increase the internal
@@ -68,13 +80,12 @@ GlRenderer::GlRenderer(DrawConfig& config)
         opaque_command_buffer->disable_attribute("dither");
     }
 
-    uint32_t dither_scaling = scaling_dither ? upscaling : 1;
-    auto command_draw_mode = wireframe ? GL_LINE : GL_FILL;
+    uint32_t dither_scaling = scale_dither ? upscaling : 1;
+    GLenum command_draw_mode = wireframe ? GL_LINE : GL_FILL;
 
-    // TODO: This isn't C++ yet I think....
     opaque_command_buffer->program->uniform1ui("dither_scaling", dither_scaling);
 
-    auto texture_storage = GL_RGB5_A1;
+    GLenum texture_storage = GL_RGB5_A1;
     switch (depth){
     case 16:
         texture_storage = GL_RGB5_A1;
@@ -108,7 +119,8 @@ GlRenderer::GlRenderer(DrawConfig& config)
     this->fb_texture = fb_texture;
     this->fb_out = fb_out;
     this->fb_out_depth = fb_out_depth;
-    this->frontend_resolution = {0, 0};
+    this->frontend_resolution[0] = 0;
+    this->frontend_resolution[1] = 0;
     this->internal_upscaling = upscaling;
     this->internal_color_depth = depth;
     this->primitive_ordering = 0;
@@ -119,7 +131,7 @@ GlRenderer::GlRenderer(DrawConfig& config)
     // checker happy...
     uint16_t top_left[2] = {0, 0};
     uint16_t dimensions[2] = {(uint16_t) VRAM_WIDTH_PIXELS, (uint16_t) VRAM_HEIGHT};
-    this->upload_textures(top_left, dimensions, &this->config->vram);
+    this->upload_textures(top_left, dimensions, this->config->vram);
 }
 
 GlRenderer::~GlRenderer()
@@ -133,11 +145,12 @@ GlRenderer::~GlRenderer()
     if (config != nullptr)              delete config;
 }
 
-static template<typename T>
-DrawBuffer<T>* GlRenderer::build_buffer<T>( const char** vertex_shader,
-                                            const char** fragment_shader,
-                                            size_t capacity,
-                                            bool lifo  )
+/*
+template<typename T>
+static DrawBuffer<T>* GlRenderer::build_buffer( const char** vertex_shader,
+                                                const char** fragment_shader,
+                                                size_t capacity,
+                                                bool lifo  )
 {
     Shader* vs = new Shader(vertex_shader, GL_VERTEX_SHADER);
     Shader* fs = new Shader(fragment_shader, GL_FRAGMENT_SHADER);
@@ -145,6 +158,7 @@ DrawBuffer<T>* GlRenderer::build_buffer<T>( const char** vertex_shader,
 
     return new DrawBuffer<T>(capacity, program, lifo);
 }
+*/
 
 void GlRenderer::draw() {
     if (this->command_buffer->empty() && this->semi_transparent_vertices.empty())
@@ -267,7 +281,7 @@ void GlRenderer::bind_libretro_framebuffer()
         geometry.max_width  = 0;
         geometry.max_height = 0;
         // Is this accurate?
-        geometry.aspect_ratio: 4.0/3.0;
+        geometry.aspect_ratio = 4.0/3.0;
     
 
         printf("Target framebuffer size: %dx%d\n", w, h);
@@ -285,7 +299,7 @@ void GlRenderer::bind_libretro_framebuffer()
 }
 
 GLenum GlRenderer::upload_textures( uint16_t top_left[2], uint16_t dimensions[2],
-                                    uint16_t pixel_buffer[VRAM_PIXELS]);
+                                    uint16_t pixel_buffer[VRAM_PIXELS])
 {
     this->fb_texture->set_sub_image( top_left,
                                     dimensions,

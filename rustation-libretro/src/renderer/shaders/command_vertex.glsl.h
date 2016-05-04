@@ -1,4 +1,4 @@
-static const char *command_vertex[] =
+static const char *command_vertex[] = {
 "#version 330 core\n"
 
 // Vertex shader for rendering GPU draw commands in the framebuffer
@@ -52,3 +52,4 @@ static const char *command_vertex[] =
 "  frag_dither = dither;\n"
 "  frag_semi_transparent = semi_transparent;\n"
 "}\n"
+};

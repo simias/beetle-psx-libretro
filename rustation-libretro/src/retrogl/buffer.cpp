@@ -1,7 +1,7 @@
 #include "buffer.h"
 #include <vector>
 
-DrawBuffer::DrawBuffer(size_t capacity, Program* program, bool lifo)
+DrawBuffer<T>::DrawBuffer(size_t capacity, Program* program, bool lifo)
 {
     VertexArrayObject* vao = new VertexArrayObject();
 
@@ -27,14 +27,14 @@ DrawBuffer::DrawBuffer(size_t capacity, Program* program, bool lifo)
     }
 }
 
-DrawBuffer::~DrawBuffer()
+DrawBuffer<T>::~DrawBuffer()
 {
     if (this->vao != nullptr)       delete vao;
     if (this->program != nullptr)   delete program;
-    if (this->T != nullptr)         delete T;
+    if (this->contains != nullptr)  delete contains;
 }
 
-GLenum DrawBuffer::bind_attributes()
+GLenum DrawBuffer<T>::bind_attributes()
 {
     this->vao->bind();
 
@@ -153,7 +153,7 @@ void DrawBuffer::bind()
     glBindBuffer(GL_ARRAY_BUFFER, this->id);
 }
 
-GLenum DrawBuffer::push_slice(T slice[], size_t n)
+GLenum DrawBuffer<T>::push_slice(T slice[], size_t n)
 {
     if (n > this->remaining_capacity() ) {
         puts("Error::OutOfMemory\n");

@@ -1,4 +1,4 @@
-static const char *command_fragment[] =
+static const char *command_fragment[] = {
 "#version 330 core\n"
 
 "uniform sampler2D fb_texture;\n"
@@ -120,14 +120,14 @@ static const char *command_fragment[] =
 
       // Look up the real color for the texel in the CLUT\n"
 "      texel = vram_get_pixel(clut_x, clut_y);\n"
-    }
+"    }\n"
 
     // texel color 0x0000 is always fully transparent (even for opaque
     // draw commands)
 "    if (is_transparent(texel)) {\n"
       // Fully transparent texel, discard
 "      discard;\n"
-    }
+"    }\n"
 
     // Bit 15 (stored in the alpha) is used as a flag for
     // semi-transparency, but only if this is a semi-transparent draw
@@ -139,7 +139,7 @@ static const char *command_fragment[] =
 "    if (is_texel_semi_transparent != draw_semi_transparent) {\n"
       // We're not drawing those texels in this pass, discard\n"
 "      discard;\n"
-    }
+"    }\n"
 
 "    if (frag_texture_blend_mode == BLEND_MODE_RAW_TEXTURE) {\n"
 "      color = texel;\n"
@@ -168,3 +168,4 @@ static const char *command_fragment[] =
 
 "  frag_color = color + vec4(dither, dither, dither, 0.);\n"
 "}\n"
+};

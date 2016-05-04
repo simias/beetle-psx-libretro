@@ -1,4 +1,4 @@
-static const char *image_load_fragment[] =
+static const char *image_load_fragment[] = {
 "#version 330 core\n"
 
 "uniform sampler2D fb_texture;\n"
@@ -15,3 +15,4 @@ static const char *image_load_fragment[] =
 "void main() {\n"
 "  frag_color = vram_get_pixel(int(frag_fb_coord.x), int(frag_fb_coord.y));\n"
 "}\n"
+};

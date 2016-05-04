@@ -15,8 +15,8 @@
 #include <vector>
 #include <stdint.h>
 
-extern unsigned int VRAM_WIDTH_PIXELS
-extern unsigned int VRAM_HEIGHT
+extern unsigned int VRAM_WIDTH_PIXELS;
+extern unsigned int VRAM_HEIGHT;
 
 static const size_t VRAM_PIXELS = (size_t) VRAM_WIDTH_PIXELS * (size_t) VRAM_HEIGHT;
 
@@ -69,13 +69,13 @@ struct ImageLoadVertex {
 
 enum class SemiTransparencyMode {
     /// Source / 2 + destination / 2
-    Average = 0;
+    Average = 0,
     /// Source + destination
-    Add = 1;
+    Add = 1,
     /// Destination - source
-    SubstractSource = 2;
+    SubtractSource = 2,
     /// Destination + source / 4
-    AddQuarterSource = 3;
+    AddQuarterSource = 3,
 };
 
 class GlRenderer {
@@ -115,15 +115,22 @@ public:
     int16_t primitive_ordering;
 
     /* pub fn from_config(config: DrawConfig) -> Result<GlRenderer, Error> */
-    GlRenderer(DrawConfig config);
+    GlRenderer(DrawConfig* config);
 
     ~GlRenderer();
 
-    static template<typename T>
-    DrawBuffer<T>* build_buffer<T>( const char** vertex_shader,
-                                    const char** fragment_shader,
-                                    size_t capacity,
-                                    bool lifo  );
+    template<typename T>
+    static DrawBuffer<T>* build_buffer( const char** vertex_shader,
+                                        const char** fragment_shader,
+                                        size_t capacity,
+                                        bool lifo  )
+    {
+        Shader* vs = new Shader(vertex_shader, GL_VERTEX_SHADER);
+        Shader* fs = new Shader(fragment_shader, GL_FRAGMENT_SHADER);
+        Program* program = new Program(vs, fs);
+
+        return new DrawBuffer<T>(capacity, program, lifo);
+    }
 
     void draw();
     void apply_scissor();

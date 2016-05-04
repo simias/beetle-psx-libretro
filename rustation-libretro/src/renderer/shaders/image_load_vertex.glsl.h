@@ -1,4 +1,4 @@
-static const char *image_load_vertex[] =
+static const char *image_load_vertex[] = {
 "#version 330 core\n"
 
 // Vertex shader for uploading textures from the VRAM texture buffer
@@ -20,3 +20,4 @@ static const char *image_load_vertex[] =
   // texelFetch
 "  frag_fb_coord = vec2(position);\n"
 "}\n"
+};

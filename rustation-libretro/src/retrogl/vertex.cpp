@@ -28,10 +28,10 @@ void VertexArrayObject::drop()
     glDeleteBuffers(1, &this->id);
 }
 
-Attribute(const char* name, size_t offset, GLenum ty, GLint components)
+Attribute::Attribute(const char* name, size_t offset, GLenum ty, GLint components)
 {
     /* Not sure if safe */
-    strcopy(this->name, name);
+    strcpy(this->name, name);
     
     this->offset = offset;
     this->ty = ty;
