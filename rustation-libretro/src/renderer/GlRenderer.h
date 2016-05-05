@@ -5,7 +5,6 @@
 #include "../retrogl/buffer.h"
 #include "../retrogl/shader.h"
 #include "../retrogl/program.h"
-/*#include "../retrogl/types.h"*/
 #include "../retrogl/texture.h"
 #include "../retrogl/framebuffer.h"
 

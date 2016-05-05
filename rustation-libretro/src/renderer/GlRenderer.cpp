@@ -781,6 +781,7 @@ GLenum GlRenderer::copy_rect(   uint16_t source_top_left[2],
     // XXX CopyImageSubData gives undefined results if the source
     // and target area overlap, this should be handled
     // explicitely
+    /* TODO - OpenGL 4.3 and GLES 3.2 requirement! FIXME! */
     glCopyImageSubData( this->fb_out->id, GL_TEXTURE_2D, 0, src_x, src_y, 0,
                         this->fb_out->id, GL_TEXTURE_2D, 0, dst_x, dst_y, 0,
                         w, h, 1 );

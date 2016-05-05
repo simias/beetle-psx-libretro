@@ -2,8 +2,7 @@
 #define RETROGL_VERTEX_H
 
 #include <glsm/glsmsym.h>
-
-#include <stdint.h>
+#include <stdlib.h>
 
 class VertexArrayObject {
 public:
