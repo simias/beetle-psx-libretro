@@ -25,9 +25,9 @@
 
 #include <glsm/glsm.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <retro_common_api.h>
+
+RETRO_BEGIN_DECLS
 
 /* deprecated old FF-style GL symbols */
 #define glTexCoord2f                rglTexCoord2f
@@ -95,6 +95,11 @@ extern "C" {
 #define glUniform3fv                rglUniform3fv
 #define glUniform4f                 rglUniform4f
 #define glUniform4fv                rglUniform4fv
+#define glUniform1ui                rglUniform1ui
+#define glUniform2ui                rglUniform2ui
+#define glUniform3ui                rglUniform3ui
+#define glUniform4ui                rglUniform4ui
+#define glGetActiveUniform          rglGetActiveUniform
 #define glBlendFunc                 rglBlendFunc
 #define glBlendFuncSeparate         rglBlendFuncSeparate
 #define glDepthFunc                 rglDepthFunc
@@ -117,7 +122,13 @@ extern "C" {
 #define glDrawBuffers               rglDrawBuffers
 #define glGenVertexArrays           rglGenVertexArrays
 #define glBindVertexArray           rglBindVertexArray
+#define glBlendEquation             rglBlendEquation
+#define glBlendColor                rglBlendColor
+#define glBlendEquationSeparate     rglBlendEquationSeparate
+#define glCopyImageSubData          rglCopyImageSubData
 
+void rglBlendColor(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha);
+void rglBlendEquation(GLenum mode);
 void rglGenVertexArrays(GLsizei n, GLuint *arrays);
 void rglReadBuffer(GLenum mode);
 void rglPixelStorei(GLenum pname, GLint param);
@@ -227,8 +238,29 @@ GLint rglGetAttribLocation(GLuint program, const GLchar *name);
 void rglDrawBuffers(GLsizei n, const GLenum *bufs);
 void rglBindVertexArray(GLuint array);
 
-#ifdef __cplusplus
-}
-#endif
+void rglGetActiveUniform(GLuint program, GLuint index, GLsizei bufsize,
+      GLsizei *length, GLint *size, GLenum *type, GLchar *name);
+void rglUniform1ui(GLint location, GLuint v);
+void rglUniform2ui(GLint location, GLuint v0, GLuint v1);
+void rglUniform3ui(GLint location, GLuint v0, GLuint v1, GLuint v2);
+void rglUniform4ui(GLint location, GLuint v0, GLuint v1, GLuint v2, GLuint v3);
+void rglBlendEquationSeparate(GLenum modeRGB, GLenum modeAlpha);
+void rglCopyImageSubData( 	GLuint srcName,
+  	GLenum srcTarget,
+  	GLint srcLevel,
+  	GLint srcX,
+  	GLint srcY,
+  	GLint srcZ,
+  	GLuint dstName,
+  	GLenum dstTarget,
+  	GLint dstLevel,
+  	GLint dstX,
+  	GLint dstY,
+  	GLint dstZ,
+  	GLsizei srcWidth,
+  	GLsizei srcHeight,
+  	GLsizei srcDepth);
+
+RETRO_END_DECLS
 
 #endif
