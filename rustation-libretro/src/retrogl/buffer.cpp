@@ -1,7 +1,7 @@
 #include "buffer.h"
 #include <vector>
 
-DrawBuffer<T>::DrawBuffer(size_t capacity, Program* program, bool lifo)
+DrawBuffer::DrawBuffer(size_t capacity, Program* program, bool lifo)
 {
     VertexArrayObject* vao = new VertexArrayObject();
 
@@ -27,14 +27,14 @@ DrawBuffer<T>::DrawBuffer(size_t capacity, Program* program, bool lifo)
     }
 }
 
-DrawBuffer<T>::~DrawBuffer()
+DrawBuffer::~DrawBuffer()
 {
     if (this->vao != nullptr)       delete vao;
     if (this->program != nullptr)   delete program;
     if (this->contains != nullptr)  delete contains;
 }
 
-GLenum DrawBuffer<T>::bind_attributes()
+GLenum DrawBuffer::bind_attributes()
 {
     this->vao->bind();
 
@@ -57,8 +57,8 @@ GLenum DrawBuffer<T>::bind_attributes()
                 };
 
     */
-    for (attr : attributes) {
-        /* TODO - I'm not doing any error checking here unlike the code above */
+     /* TODO - I'm not doing any error checking here unlike the code above */
+    for (Attribute attr : attributes) {
         GLuint index = this->program->find_attribute(attr.name);
         glEnableVertexAttribArray(index);
 

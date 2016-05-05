@@ -15,6 +15,7 @@
 #include <stdint.h>
 
 extern retro_environment_t environ_cb;
+extern retro_video_refresh_t video_cb;
 
 static const uint16_t VRAM_WIDTH_PIXELS = 1024;
 static const uint16_t VRAM_HEIGHT = 512;

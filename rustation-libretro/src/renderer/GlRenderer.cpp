@@ -293,7 +293,7 @@ void GlRenderer::bind_libretro_framebuffer()
 
     // Bind the output framebuffer provided by the frontend
     /* TODO - How do I do this with libretro? */
-    GLuint fbo = retro_hw_render_callback.get_current_framebuffer();
+    GLuint fbo = glsm_get_current_framebuffer();
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo);
     glViewport(0, 0, (GLsizei) w, (GLsizei) h);
 }
@@ -573,7 +573,10 @@ void GlRenderer::finalize_frame()
     glLineWidth(1.0);
     glClearColor(0.0, 0.0, 0.0, 0.0);
 
-    video_refresh(-1, this->frontend_resolution[0], this->frontend_resolution[0], 0);
+    // When using a hardware renderer we set the data pointer to
+    // -1 to notify the frontend that the frame has been rendered
+    // in the framebuffer.
+    video_cb((void *) -1, this->frontend_resolution[0], this->frontend_resolution[1], 0);
 }
 
 void GlRenderer::maybe_force_draw(  size_t nvertices, GLenum draw_mode, 
