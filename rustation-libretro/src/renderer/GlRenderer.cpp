@@ -273,7 +273,7 @@ void GlRenderer::bind_libretro_framebuffer()
 
     if (w != f_w || h != f_h) {
         // We need to change the frontend's resolution
-        retro_game_geometry geometry;
+        struct retro_game_geometry geometry;
         geometry.base_width  = w;
         geometry.base_height = h;
         // Max parameters are ignored by this call
