@@ -6,9 +6,9 @@
 VertexArrayObject::VertexArrayObject()
 {
     GLuint id = 0;
-    glGenVertexArrays(1, &id);
+    rglGenVertexArrays(1, &id);
 
-    GLenum error = glGetError();
+    GLenum error = rglGetError();
     if (error != GL_NO_ERROR) {
         printf("GL error %d\n", (int) error);
         exit(EXIT_FAILURE);
@@ -19,12 +19,12 @@ VertexArrayObject::VertexArrayObject()
 
 void VertexArrayObject::bind()
 {
-    glBindVertexArray(this->id);
+    rglBindVertexArray(this->id);
 }
 
 void VertexArrayObject::drop()
 {
-    glDeleteBuffers(1, &this->id);
+    rglDeleteBuffers(1, &this->id);
 }
 
 Attribute::Attribute(const char* name, size_t offset, GLenum ty, GLint components)

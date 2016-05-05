@@ -177,12 +177,12 @@ void GlRenderer::draw()
     // Bind the out framebuffer
     Framebuffer(this->fb_out, this->fb_out_depth);
 
-    glClear(GL_DEPTH_BUFFER_BIT);
+    rglClear(GL_DEPTH_BUFFER_BIT);
 
     // First we draw the opaque vertices
     if (!this->command_buffer->empty()) {
-        glBlendFuncSeparate(GL_ONE, GL_ZERO, GL_ONE, GL_ZERO);
-        glDisable(GL_BLEND);
+        rglBlendFuncSeparate(GL_ONE, GL_ZERO, GL_ONE, GL_ZERO);
+        rglDisable(GL_BLEND);
 
         this->command_buffer->program->uniform1ui("draw_semi_transparent", 0);
         this->command_buffer->draw(this->command_draw_mode);
@@ -195,9 +195,9 @@ void GlRenderer::draw()
         // Emulation of the various PSX blending mode using a
         // combination of constant alpha/color (to emulate
         // constant 1/4 and 1/2 factors) and blending equation.
-        auto blend_func = GL_FUNC_ADD;
-        auto blend_src = GL_CONSTANT_ALPHA;
-        auto blend_dst = GL_CONSTANT_ALPHA;
+        GLenum blend_func = GL_FUNC_ADD;
+        GLenum blend_src = GL_CONSTANT_ALPHA;
+        GLenum blend_dst = GL_CONSTANT_ALPHA;
 
         switch (this->semi_transparency_mode) {
         case SemiTransparencyMode::Average:
@@ -223,9 +223,9 @@ void GlRenderer::draw()
             break;
         }
 
-        glBlendFuncSeparate(blend_src, blend_dst, GL_ONE, GL_ZERO);
-        glBlendEquationSeparate(blend_func, GL_FUNC_ADD);
-        glEnable(GL_BLEND);
+        rglBlendFuncSeparate(blend_src, blend_dst, GL_ONE, GL_ZERO);
+        rglBlendEquationSeparate(blend_func, GL_FUNC_ADD);
+        rglEnable(GL_BLEND);
 
         this->command_buffer->program->uniform1ui("draw_semi_transparent", 1);
         this->command_buffer->draw(this->command_draw_mode);
@@ -253,7 +253,7 @@ void GlRenderer::apply_scissor()
     GLsizei w = (GLsizei) _w * upscale;
     GLsizei h = (GLsizei) _h * upscale;
 
-    glScissor(x, y, w, h);
+    rglScissor(x, y, w, h);
 
 }
 
@@ -294,8 +294,8 @@ void GlRenderer::bind_libretro_framebuffer()
     // Bind the output framebuffer provided by the frontend
     /* TODO - How do I do this with libretro? */
     GLuint fbo = glsm_get_current_framebuffer();
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo);
-    glViewport(0, 0, (GLsizei) w, (GLsizei) h);
+    rglBindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo);
+    rglViewport(0, 0, (GLsizei) w, (GLsizei) h);
 }
 
 GLenum GlRenderer::upload_textures( uint16_t top_left[2], uint16_t dimensions[2],
@@ -328,17 +328,17 @@ GLenum GlRenderer::upload_textures( uint16_t top_left[2], uint16_t dimensions[2]
     /* TODO - Handle the error, ifneq GL_NO_ERROR then exit */
     this->image_load_buffer->program->uniform1i("fb_texture", 0);
 
-    glDisable(GL_SCISSOR_TEST);
-    glDisable(GL_BLEND);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    rglDisable(GL_SCISSOR_TEST);
+    rglDisable(GL_BLEND);
+    rglPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     // Bind the output framebuffer
     // let _fb = Framebuffer::new(&self.fb_out);
     Framebuffer(this->fb_out);
 
     this->image_load_buffer->draw(GL_TRIANGLE_STRIP);
-    glPolygonMode(GL_FRONT_AND_BACK, this->command_polygon_mode);
-    glEnable(GL_SCISSOR_TEST);
+    rglPolygonMode(GL_FRONT_AND_BACK, this->command_polygon_mode);
+    rglEnable(GL_SCISSOR_TEST);
 
     /* get_error() */
     return glGetError();
@@ -375,19 +375,19 @@ GLenum GlRenderer::upload_vram_window(  uint16_t top_left[2],
 
     this->image_load_buffer->program->uniform1i("fb_texture", 0);
 
-    glDisable(GL_SCISSOR_TEST);
-    glDisable(GL_BLEND);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    rglDisable(GL_SCISSOR_TEST);
+    rglDisable(GL_BLEND);
+    rglPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     // Bind the output framebuffer
     Framebuffer(this->fb_out);
 
     this->image_load_buffer->draw(GL_TRIANGLE_STRIP);
-    glPolygonMode(GL_FRONT_AND_BACK, this->command_polygon_mode);
-    glEnable(GL_SCISSOR_TEST);
+    rglPolygonMode(GL_FRONT_AND_BACK, this->command_polygon_mode);
+    rglEnable(GL_SCISSOR_TEST);
 
     /* get_error() */
-    return glGetError();
+    return rglGetError();
 }
 
 DrawConfig* GlRenderer::draw_config()
@@ -399,12 +399,12 @@ void GlRenderer::prepare_render()
 {
     // In case we're upscaling we need to increase the line width
     // proportionally
-    glLineWidth((GLfloat)this->internal_upscaling);
-    glPolygonMode(GL_FRONT_AND_BACK, this->command_polygon_mode);
-    glEnable(GL_SCISSOR_TEST);
-    glDepthFunc(GL_LEQUAL);
+    rglLineWidth((GLfloat)this->internal_upscaling);
+    rglPolygonMode(GL_FRONT_AND_BACK, this->command_polygon_mode);
+    rglEnable(GL_SCISSOR_TEST);
+    rglDepthFunc(GL_LEQUAL);
     // Used for PSX GPU command blending
-    glBlendColor(0.25, 0.25, 0.25, 0.5);
+    rglBlendColor(0.25, 0.25, 0.25, 0.5);
 
     this->apply_scissor();
 
@@ -500,7 +500,7 @@ bool GlRenderer::refresh_variables()
 
     this->command_polygon_mode = wireframe ? GL_LINE : GL_FILL;
 
-    glLineWidth((GLfloat) upscaling);
+    rglLineWidth((GLfloat) upscaling);
 
     // If the scaling factor has changed the frontend should be
     // reconfigured. We can't do that here because it could
@@ -526,10 +526,10 @@ void GlRenderer::finalize_frame()
     this->fb_out->bind(GL_TEXTURE1);
 
     // First we draw the visible part of fb_out
-    glDisable(GL_SCISSOR_TEST);
-    glDisable(GL_DEPTH_TEST);
-    glDisable(GL_BLEND);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    rglDisable(GL_SCISSOR_TEST);
+    rglDisable(GL_DEPTH_TEST);
+    rglDisable(GL_BLEND);
+    rglPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     uint16_t fb_x_start = this->config->display_top_left[0];
     uint16_t fb_y_start = this->config->display_top_left[1];
@@ -561,17 +561,17 @@ void GlRenderer::finalize_frame()
     this->output_buffer->draw(GL_TRIANGLE_STRIP);
 
     // Cleanup OpenGL context before returning to the frontend
-    glDisable(GL_BLEND);
-    glBlendColor(0.0, 0.0, 0.0, 0.0);
-    glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
-    glBlendFuncSeparate(GL_ONE, GL_ZERO, GL_ONE, GL_ZERO);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glUseProgram(0);
-    glBindVertexArray(0);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-    glLineWidth(1.0);
-    glClearColor(0.0, 0.0, 0.0, 0.0);
+    rglDisable(GL_BLEND);
+    rglBlendColor(0.0, 0.0, 0.0, 0.0);
+    rglBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
+    rglBlendFuncSeparate(GL_ONE, GL_ZERO, GL_ONE, GL_ZERO);
+    rglActiveTexture(GL_TEXTURE0);
+    rglBindTexture(GL_TEXTURE_2D, 0);
+    rglUseProgram(0);
+    rglBindVertexArray(0);
+    rglBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    rglLineWidth(1.0);
+    rglClearColor(0.0, 0.0, 0.0, 0.0);
 
     // When using a hardware renderer we set the data pointer to
     // -1 to notify the frontend that the frame has been rendered
@@ -747,13 +747,13 @@ void GlRenderer::fill_rect( uint8_t color[3],
     // Bind the out framebuffer
     Framebuffer(this->fb_out);
 
-    glClearColor(   (float) color[0] / 255.0,
+    rglClearColor(   (float) color[0] / 255.0,
                     (float) color[1] / 255.0,
                     (float) color[2] / 255.0,
                     // XXX Not entirely sure what happens to
                     // the mask bit in fill_rect commands
                     0.0);
-    glClear(GL_COLOR_BUFFER_BIT);
+    rglClear(GL_COLOR_BUFFER_BIT);
 
     // Reconfigure the draw area
     this->config->draw_area_top_left[0] = draw_area_top_left[0];
@@ -785,12 +785,12 @@ GLenum GlRenderer::copy_rect(   uint16_t source_top_left[2],
     // and target area overlap, this should be handled
     // explicitely
     /* TODO - OpenGL 4.3 and GLES 3.2 requirement! FIXME! */
-    glCopyImageSubData( this->fb_out->id, GL_TEXTURE_2D, 0, src_x, src_y, 0,
+    rglCopyImageSubData( this->fb_out->id, GL_TEXTURE_2D, 0, src_x, src_y, 0,
                         this->fb_out->id, GL_TEXTURE_2D, 0, dst_x, dst_y, 0,
                         w, h, 1 );
 
     // get_error();
-    return glGetError();
+    return rglGetError();
 }
 
 std::vector<Attribute> attributes(CommandVertex* v)

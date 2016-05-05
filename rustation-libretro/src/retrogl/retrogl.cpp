@@ -156,15 +156,19 @@ void refresh_variables()
         // The resolution has changed, we must tell the frontend
         // to change its format
         struct retro_variable var = {0};
+    
         var.key = "beetle_psx_internal_resolution";
-        environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var);
-        auto upscaling      = var.value;
+        uint8_t upscaling = 1;
+        if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value) {
+            /* Same limitations as libretro.cpp */
+            upscaling = var.value[0] -'0';
+        }
 
         /* TODO: Is get_av_info declared by libretro.h? 
         Also, check what the namespace operator is doing here,
         what get_av_info is this refering to? CoreVariables?
         */
-        auto av_info = ::get_av_info(this->video_clock, upscaling);
+        struct retro_system_av_info av_info = get_av_info(this->video_clock, upscaling);
 
         // This call can potentially (but not necessarily) call
         // `context_destroy` and `context_reset` to reinitialize
@@ -185,12 +189,16 @@ void refresh_variables()
     }
 }
 
-retro_system_av_info RetroGl::get_system_av_info()
+struct retro_system_av_info RetroGl::get_system_av_info()
 {
     struct retro_variable var = {0};
+    
     var.key = "beetle_psx_internal_resolution";
-    environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var);
-    auto upscaling      = var.value;
+    uint8_t upscaling = 1;
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value) {
+        /* Same limitations as libretro.cpp */
+        upscaling = var.value[0] -'0';
+    }
 
     /* What's with the namespace operator behind get_av_info()? */
     struct retro_system_av_info av_info = ::get_av_info(this->video_clock, upscaling);

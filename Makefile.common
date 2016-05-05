@@ -207,5 +207,4 @@ SOURCES_CXX += \
 	$(RSXGL_DIR)/retrogl/shader.cpp \
 	$(RSXGL_DIR)/retrogl/texture.cpp \
 	$(RSXGL_DIR)/retrogl/vertex.cpp \
-	$(RSXGL_DIR)/retrogl/buffer.cpp \
 	$(RSXGL_DIR)/retrogl/retrogl.cpp \

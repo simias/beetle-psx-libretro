@@ -45,7 +45,7 @@ public:
 
         GLuint id = 0;
         // Generate the buffer object
-        glGenBuffers(1, &id);
+        rglGenBuffers(1, &id);
 
         this->vao = vao;
         this->program = program;
@@ -58,7 +58,7 @@ public:
         this->bind_attributes();
 
         /* error_or() */
-        GLenum error = glGetError();
+        GLenum error = rglGetError();
         if (error != GL_NO_ERROR) {
             printf("GL error %d\n", (int) error);
             exit(EXIT_FAILURE);
@@ -99,25 +99,25 @@ public:
          /* TODO - I'm not doing any error checking here unlike the code above */
         for (Attribute attr : attributes) {
             GLuint index = this->program->find_attribute(attr.name);
-            glEnableVertexAttribArray(index);
+            rglEnableVertexAttribArray(index);
 
             // This captures the buffer so that we don't have to bind it
             // when we draw later on, we'll just have to bind the vao
-            switch (attr.ty)) {
+            switch (attr.ty) {
             case GL_BYTE:
             case GL_UNSIGNED_BYTE:
             case GL_SHORT:
             case GL_UNSIGNED_SHORT:
             case GL_INT:
             case GL_UNSIGNED_INT:
-                glEnableVertexAttribIPointer(   index,
+                rglVertexAttribIPointer(   index,
                                                 attr.components,
                                                 attr.ty,
                                                 element_size,
                                                 attr.gl_offset());
                 break;
             case GL_FLOAT:
-                glEnableVertexAttribPointer(    index,
+                rglVertexAttribPointer(    index,
                                                 attr.components,
                                                 attr.ty,
                                                 GL_FALSE,
@@ -125,37 +125,36 @@ public:
                                                 attr.gl_offset());
                 break;
             case GL_DOUBLE:
-                glEnableVertexAttribLPointer(   index,
+                rglVertexAttribLPointer(   index,
                                                 attr.components,
                                                 attr.ty,
                                                 element_size,
                                                 attr.gl_offset());
                 break;
             }
-
         }
 
         /* get_error() */
-        return glGetError();
+        return rglGetError();
     }
 
     GLenum enable_attribute(const char* attr)
     {
-        GLuint index = this->find_attribute(attr);
+        GLuint index = this->program->find_attribute(attr);
         this->vao->bind();
 
-        glEnableVertexAttribArray(index);
+        rglEnableVertexAttribArray(index);
 
         /* get_error() */
-        return glGetError();
+        return rglGetError();
     }
 
     GLenum disable_attribute(const char* attr)
     {
-        GLuint index = this->find_attribute(attr);
+        GLuint index = this->program->find_attribute(attr);
         this->vao->bind();
 
-        glDisableVertexAttribArray(index);
+        rglDisableVertexAttribArray(index);
 
         /* get_error() */
         return glGetError();
@@ -179,7 +178,7 @@ public:
 
         size_t element_size = sizeof( *(this->contains) );
         GLsizeiptr storage_size = (GLsizeiptr) (this->capacity * element_size);
-        glBufferData(   GL_ARRAY_BUFFER,
+        rglBufferData(   GL_ARRAY_BUFFER,
                         storage_size,
                         NULL,
                         GL_DYNAMIC_DRAW);
@@ -187,13 +186,13 @@ public:
         this->len = 0;
 
         /* get_error() */
-        return glGetError();
+        return rglGetError();
     }
 
     /// Bind the buffer to the current VAO
     void bind()
     {
-        glBindBuffer(GL_ARRAY_BUFFER, this->id);
+        rglBindBuffer(GL_ARRAY_BUFFER, this->id);
     }
 
     GLenum push_slice(T slice[], size_t n)
@@ -219,13 +218,13 @@ public:
         this->bind();
 
         /* TODO - Is the last argument supposed to be cast to void* or GLvoid*? */
-        glBufferSubData(GL_ARRAY_BUFFER,
+        rglBufferSubData(GL_ARRAY_BUFFER,
                         (GLintptr) offset_bytes,
                         (GLintptr) size_bytes,
                         (void*) &slice);
 
         /* get_error() */
-        GLenum error = glGetError();
+        GLenum error = rglGetError();
         if (error != GL_NO_ERROR)
             return error;   /* return from the function early */
         
@@ -240,7 +239,7 @@ public:
 
         GLint first = this->lifo ? (GLint) this->remaining_capacity() : 0;
 
-        glDrawArrays(mode, first, (GLsizei) this->len);
+        rglDrawArrays(mode, first, (GLsizei) this->len);
     }
     
     size_t remaining_capacity()
@@ -251,7 +250,7 @@ public:
     /* impl<T> Drop for DrawBuffer<T> { */
     void drop()
     {
-        glDeleteBuffers(1, &this->id);
+        rglDeleteBuffers(1, &this->id);
     }
 };
 

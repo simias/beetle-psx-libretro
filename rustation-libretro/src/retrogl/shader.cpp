@@ -7,18 +7,18 @@
 
 Shader::Shader(const char** source, GLenum shader_type)
 {
-    GLuint id = glCreateShader(shader_type);
+    GLuint id = rglCreateShader(shader_type);
 
     size_t src_size = ARRAY_SIZE(source);
 
-    glShaderSource( id,
+    rglShaderSource( id,
                     1,
                     source,
                     (const GLint*) &src_size);
-    glCompileShader(id);
+    rglCompileShader(id);
 
     GLint status = (GLint) GL_FALSE;
-    glGetShaderiv(id, GL_COMPILE_STATUS, &status);
+    rglGetShaderiv(id, GL_COMPILE_STATUS, &status);
 
     if (status == (GLint) GL_TRUE) {
         // There shouldn't be anything in glGetError but let's
@@ -46,24 +46,24 @@ Shader::Shader(const char** source, GLenum shader_type)
 
 void Shader::attach_to(GLuint program)
 {
-    glAttachShader(program, this->id);
+    rglAttachShader(program, this->id);
 }
 
 void Shader::detach_from(GLuint program)
 {
-    glDetachShader(program, this->id);
+    rglDetachShader(program, this->id);
 }
 
 void Shader::drop()
 {
-    glDeleteShader(this->id);
+    rglDeleteShader(this->id);
 }
 
 const char* get_shader_info_log(GLuint id)
 {
     GLint log_len = 0;
 
-    glGetShaderiv(id, GL_INFO_LOG_LENGTH, &log_len);
+    rglGetShaderiv(id, GL_INFO_LOG_LENGTH, &log_len);
 
     if (log_len <= 0) {
         return " ";
@@ -71,7 +71,7 @@ const char* get_shader_info_log(GLuint id)
 
     char log[(size_t) log_len];
     GLsizei len = (GLsizei) log_len;
-    glGetShaderInfoLog(id,
+    rglGetShaderInfoLog(id,
                         len,
                         &log_len,
                         (char*) log);
