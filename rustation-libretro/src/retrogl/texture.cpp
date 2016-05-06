@@ -10,7 +10,7 @@ Texture::Texture(uint32_t width, uint32_t height, GLenum internal_format)
 
     rglGenTextures(1, &id);
     rglBindTexture(GL_TEXTURE_2D, id);
-    rglTexStorage2D( GL_TEXTURE_2D,
+    rglTexStorage2D(GL_TEXTURE_2D,
                     1,
                     internal_format,
                     (GLsizei) width,
