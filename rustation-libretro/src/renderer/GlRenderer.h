@@ -17,9 +17,9 @@
 extern retro_environment_t environ_cb;
 extern retro_video_refresh_t video_cb;
 
-static const uint16_t VRAM_WIDTH_PIXELS = 1024;
-static const uint16_t VRAM_HEIGHT = 512;
-static const size_t VRAM_PIXELS = (size_t) VRAM_WIDTH_PIXELS * (size_t) VRAM_HEIGHT;
+const uint16_t VRAM_WIDTH_PIXELS = 1024;
+const uint16_t VRAM_HEIGHT = 512;
+const size_t VRAM_PIXELS = (size_t) VRAM_WIDTH_PIXELS * (size_t) VRAM_HEIGHT;
 
 /// How many vertices we buffer before forcing a draw
 unsigned int VERTEX_BUFFER_LEN = 2048;

@@ -1,7 +1,6 @@
 #include "texture.h"
 
 #include <stdlib.h>
-#include <stdio.h>
 #include <assert.h>
 
 Texture::Texture(uint32_t width, uint32_t height, GLenum internal_format)

@@ -7,10 +7,6 @@
 
 #include "../renderer/GlRenderer.h"
 
-static const uint16_t VRAM_WIDTH_PIXELS = 1024;
-static const uint16_t VRAM_HEIGHT = 512;
-static const size_t VRAM_PIXELS = (size_t) VRAM_WIDTH_PIXELS * (size_t) VRAM_HEIGHT;
-
 enum class VideoClock {
     Ntsc,
     Pal
@@ -28,18 +24,6 @@ enum class GlState {
 struct GlStateData {
     GlRenderer* r;
     DrawConfig c;
-};
-
-/* Also declared in GlRenderer.h, reason is that initinally retrogl.h and
-GlRenderer.h included each other. TODO: fixme  */
-struct DrawConfig {
-    uint16_t display_top_left[2];
-    uint16_t display_resolution[2];
-    bool     display_24bpp;
-    int16_t  draw_offset[2];
-    uint16_t draw_area_top_left[2];
-    uint16_t draw_area_dimensions[2];
-    uint16_t vram[VRAM_PIXELS];
 };
 
 class RetroGl {
