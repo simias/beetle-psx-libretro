@@ -1,6 +1,8 @@
 #include "program.h"
+
 #include <stdlib.h>
 #include <stdio.h>
+#include <assert.h>
 
 Program::Program(Shader* vertex_shader, Shader* fragment_shader)
 {

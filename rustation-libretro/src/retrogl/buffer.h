@@ -72,12 +72,12 @@ public:
     /* fn bind_attributes(&self)-> Result<(), Error> { */
     void bind_attributes()
     {
-            this->vao->bind();
+        this->vao->bind();
 
         // ARRAY_BUFFER is captured by VertexAttribPointer
         this->bind();
 
-        std::vector<Attribute> attributes = attributes(this->contains);
+        std::vector<Attribute> attrs = attributes(this->contains);
         GLint element_size = (GLint) sizeof( *(this->contains) );
 
         /* 
@@ -94,7 +94,7 @@ public:
 
         */
          /* TODO - I'm not doing any error checking here unlike the code above */
-        for (Attribute attr : attributes) {
+        for (Attribute attr : attrs) {
             GLuint index = this->program->find_attribute(attr.name);
             rglEnableVertexAttribArray(index);
 
@@ -195,9 +195,8 @@ public:
     void push_slice(T slice[], size_t n)
     {
         if (n > this->remaining_capacity() ) {
-            puts("Error::OutOfMemory\n");
-            /* TODO - Should I kill the program here and now or return a fake error? */
-            return GL_OUT_OF_MEMORY;
+            puts("DrawBuffer::push_slice() - Out of memory\n");
+            return;
         }
 
         size_t element_size = sizeof( *(this->contains) );
