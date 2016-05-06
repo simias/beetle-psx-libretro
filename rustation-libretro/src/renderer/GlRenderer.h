@@ -136,11 +136,13 @@ public:
     void draw();
     void apply_scissor();
     void bind_libretro_framebuffer();
-    GLenum upload_textures( uint16_t top_left[2], uint16_t dimensions[2],
+    void upload_textures(   uint16_t top_left[2], 
+                            uint16_t dimensions[2],
                             uint16_t pixel_buffer[VRAM_PIXELS]);
 
-    GLenum upload_vram_window(  uint16_t top_left[2], uint16_t dimensions[2],
-                                uint16_t pixel_buffer[VRAM_PIXELS]);
+    void upload_vram_window(uint16_t top_left[2], 
+                            uint16_t dimensions[2],
+                            uint16_t pixel_buffer[VRAM_PIXELS]);
 
     DrawConfig* draw_config();
     void prepare_render();
@@ -167,9 +169,9 @@ public:
                     uint16_t top_left[2], 
                     uint16_t dimensions[2]);
 
-    GLenum copy_rect(   uint16_t source_top_left[2], 
-                        uint16_t target_top_left[2],
-                        uint16_t dimensions[2]);
+    void copy_rect( uint16_t source_top_left[2], 
+                    uint16_t target_top_left[2],
+                    uint16_t dimensions[2]);
 
 };
 

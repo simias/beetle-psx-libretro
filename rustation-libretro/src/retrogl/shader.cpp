@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <assert.h>
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 
@@ -23,11 +24,7 @@ Shader::Shader(const char** source, GLenum shader_type)
     if (status == (GLint) GL_TRUE) {
         // There shouldn't be anything in glGetError but let's
         // check to make sure.
-        GLenum error = glGetError();
-        if (error != GL_NO_ERROR) {
-            printf("GL error %d", (int) error);
-            exit(EXIT_FAILURE);
-        }
+        assert( !rglGetError() );
     } else {
         puts("Shader compilation failed:\n");
 

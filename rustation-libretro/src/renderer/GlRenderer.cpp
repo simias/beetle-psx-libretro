@@ -11,6 +11,7 @@
 #include <stdlib.h> // size_t, EXIT_FAILURE
 #include <stddef.h> // offsetof()
 #include <string.h>
+#include <assert.h>
 
 GlRenderer::GlRenderer(DrawConfig* config)
 {
@@ -298,7 +299,8 @@ void GlRenderer::bind_libretro_framebuffer()
     rglViewport(0, 0, (GLsizei) w, (GLsizei) h);
 }
 
-GLenum GlRenderer::upload_textures( uint16_t top_left[2], uint16_t dimensions[2],
+void GlRenderer::upload_textures(   uint16_t top_left[2], 
+                                    uint16_t dimensions[2],
                                     uint16_t pixel_buffer[VRAM_PIXELS])
 {
     this->fb_texture->set_sub_image( top_left,
@@ -341,11 +343,10 @@ GLenum GlRenderer::upload_textures( uint16_t top_left[2], uint16_t dimensions[2]
     rglEnable(GL_SCISSOR_TEST);
 
     /* get_error() */
-    return glGetError();
-
+    assert(!rglGetError());
 }
 
-GLenum GlRenderer::upload_vram_window(  uint16_t top_left[2], 
+void GlRenderer::upload_vram_window(  uint16_t top_left[2], 
                                         uint16_t dimensions[2],
                                         uint16_t pixel_buffer[VRAM_PIXELS])
 {
@@ -387,7 +388,7 @@ GLenum GlRenderer::upload_vram_window(  uint16_t top_left[2],
     rglEnable(GL_SCISSOR_TEST);
 
     /* get_error() */
-    return rglGetError();
+    assert(!rglGetError());
 }
 
 DrawConfig* GlRenderer::draw_config()
@@ -756,17 +757,17 @@ void GlRenderer::fill_rect( uint8_t color[3],
     rglClear(GL_COLOR_BUFFER_BIT);
 
     // Reconfigure the draw area
-    this->config->draw_area_top_left[0] = draw_area_top_left[0];
-    this->config->draw_area_top_left[1] = draw_area_top_left[1];
-    this->config->draw_area_dimensions[0] = draw_area_dimensions[0];
-    this->config->draw_area_dimensions[1] = draw_area_dimensions[1];
+    this->config->draw_area_top_left[0]     = draw_area_top_left[0];
+    this->config->draw_area_top_left[1]     = draw_area_top_left[1];
+    this->config->draw_area_dimensions[0]   = draw_area_dimensions[0];
+    this->config->draw_area_dimensions[1]   = draw_area_dimensions[1];
 
     this->apply_scissor();
 }
 
-GLenum GlRenderer::copy_rect(   uint16_t source_top_left[2], 
-                                uint16_t target_top_left[2],  
-                                uint16_t dimensions[2])
+void GlRenderer::copy_rect( uint16_t source_top_left[2], 
+                            uint16_t target_top_left[2],  
+                            uint16_t dimensions[2])
 {
     // Draw pending commands
     this->draw();
@@ -785,12 +786,12 @@ GLenum GlRenderer::copy_rect(   uint16_t source_top_left[2],
     // and target area overlap, this should be handled
     // explicitely
     /* TODO - OpenGL 4.3 and GLES 3.2 requirement! FIXME! */
-    rglCopyImageSubData( this->fb_out->id, GL_TEXTURE_2D, 0, src_x, src_y, 0,
+    rglCopyImageSubData(this->fb_out->id, GL_TEXTURE_2D, 0, src_x, src_y, 0,
                         this->fb_out->id, GL_TEXTURE_2D, 0, dst_x, dst_y, 0,
                         w, h, 1 );
 
     // get_error();
-    return rglGetError();
+    assert(!rglGetError());
 }
 
 std::vector<Attribute> attributes(CommandVertex* v)

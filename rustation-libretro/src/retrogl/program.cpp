@@ -29,11 +29,7 @@ Program::Program(Shader* vertex_shader, Shader* fragment_shader)
 
         // There shouldn't be anything in glGetError but let's
         // check to make sure.
-        GLenum error = glGetError();
-        if (error != GL_NO_ERROR) {
-            printf("GL error %d\n", (int) error);
-            exit(EXIT_FAILURE);
-        }
+        assert( !rglGetError() );
 
         this->id = id;
         this->uniforms = uniforms;
@@ -153,11 +149,7 @@ UniformMap load_program_uniforms(GLuint program)
                     GL_ACTIVE_UNIFORM_MAX_LENGTH,
                     (GLint*) &max_name_len);
 
-    GLenum error = glGetError();
-    if (error != GL_NO_ERROR) {
-        printf("GL error %d\n", (int) error);
-        exit(EXIT_FAILURE);
-    }
+    assert( !rglGetError() );
 
     size_t u;
     for (u = 0; u < n_uniforms; ++u) {
@@ -195,11 +187,7 @@ UniformMap load_program_uniforms(GLuint program)
         uniforms[name] = location;
     }
 
-    error = rglGetError();
-    if (error != GL_NO_ERROR) {
-        printf("GL error %d\n", (int) error);
-        exit(EXIT_FAILURE);
-    }
+    assert( !rglGetError() );
 
     return uniforms;
 }

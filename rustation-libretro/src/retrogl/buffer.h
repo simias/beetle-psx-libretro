@@ -1,15 +1,16 @@
 #ifndef RETROGL_BUFFER_H
 #define RETROGL_BUFFER_H
 
-#include <stdlib.h> // size_t
-#include <stdint.h>
-#include <glsm/glsmsym.h>
-
-#include <vector>
-
 #include "vertex.h"
 #include "program.h"
-/* #include "types.h" */
+
+#include <glsm/glsmsym.h>
+
+#include <stdlib.h> // size_t
+#include <stdint.h>
+#include <assert.h>
+
+#include <vector>
 
 template<typename T>
 class DrawBuffer 
@@ -58,11 +59,7 @@ public:
         this->bind_attributes();
 
         /* error_or() */
-        GLenum error = rglGetError();
-        if (error != GL_NO_ERROR) {
-            printf("GL error %d\n", (int) error);
-            exit(EXIT_FAILURE);
-        }
+        assert( !rglGetError() );
     }
 
     ~DrawBuffer()
@@ -73,7 +70,7 @@ public:
     }
 
     /* fn bind_attributes(&self)-> Result<(), Error> { */
-    GLenum bind_attributes()
+    void bind_attributes()
     {
             this->vao->bind();
 
@@ -135,10 +132,10 @@ public:
         }
 
         /* get_error() */
-        return rglGetError();
+        assert( !rglGetError() );
     }
 
-    GLenum enable_attribute(const char* attr)
+    void enable_attribute(const char* attr)
     {
         GLuint index = this->program->find_attribute(attr);
         this->vao->bind();
@@ -146,10 +143,10 @@ public:
         rglEnableVertexAttribArray(index);
 
         /* get_error() */
-        return rglGetError();
+        assert( !rglGetError() );
     }
 
-    GLenum disable_attribute(const char* attr)
+    void disable_attribute(const char* attr)
     {
         GLuint index = this->program->find_attribute(attr);
         this->vao->bind();
@@ -157,7 +154,7 @@ public:
         rglDisableVertexAttribArray(index);
 
         /* get_error() */
-        return glGetError();
+        return assert( !glGetError() );
 
     }
 
@@ -172,13 +169,13 @@ public:
     /// new one.
     ///
     /// https://www.opengl.org/wiki/Buffer_Object_Streaming
-    GLenum clear()
+    void clear()
     {
         this->bind();
 
         size_t element_size = sizeof( *(this->contains) );
         GLsizeiptr storage_size = (GLsizeiptr) (this->capacity * element_size);
-        rglBufferData(   GL_ARRAY_BUFFER,
+        rglBufferData(  GL_ARRAY_BUFFER,
                         storage_size,
                         NULL,
                         GL_DYNAMIC_DRAW);
@@ -186,7 +183,7 @@ public:
         this->len = 0;
 
         /* get_error() */
-        return rglGetError();
+        assert( !rglGetError() );
     }
 
     /// Bind the buffer to the current VAO
@@ -195,7 +192,7 @@ public:
         rglBindBuffer(GL_ARRAY_BUFFER, this->id);
     }
 
-    GLenum push_slice(T slice[], size_t n)
+    void push_slice(T slice[], size_t n)
     {
         if (n > this->remaining_capacity() ) {
             puts("Error::OutOfMemory\n");
@@ -224,12 +221,9 @@ public:
                         (void*) &slice);
 
         /* get_error() */
-        GLenum error = rglGetError();
-        if (error != GL_NO_ERROR)
-            return error;   /* return from the function early */
+        assert( !rglGetError() );
         
         this->len += n;
-        return error;
     }
 
     void draw(GLenum mode)

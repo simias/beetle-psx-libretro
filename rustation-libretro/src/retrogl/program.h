@@ -1,10 +1,11 @@
 #ifndef RETROGL_PROGRAM_H
 #define RETROGL_PROGRAM_H
 
-#include <map>
+#include "shader.h"
+
 #include <glsm/glsmsym.h>
 
-#include "shader.h"
+#include <map>
 
 typedef std::map<const char*, GLint> UniformMap;
 

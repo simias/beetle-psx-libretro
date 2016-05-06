@@ -8,11 +8,7 @@ VertexArrayObject::VertexArrayObject()
     GLuint id = 0;
     rglGenVertexArrays(1, &id);
 
-    GLenum error = rglGetError();
-    if (error != GL_NO_ERROR) {
-        printf("GL error %d\n", (int) error);
-        exit(EXIT_FAILURE);
-    }
+    assert( !rglGetError() );
 
     this->id = id;
 }

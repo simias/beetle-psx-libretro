@@ -2,6 +2,7 @@
 #define RETROGL_TEXTURE_H
 
 #include <glsm/glsmsym.h>
+
 #include <stdint.h>
 
 class Texture {
@@ -24,14 +25,14 @@ public:
     /* This method was supposed to receive a generic parameter 'data'.
     In GlRenderer.cpp, I only see 'data' be an array of u16
     so I'll make it accept only that instead */
-    GLenum set_sub_image(   uint16_t top_left[2],
+    void set_sub_image(   uint16_t top_left[2],
                             uint16_t resolution[2],
                             GLenum format,
                             GLenum ty,
                             uint16_t* data);
 
     /* Same comment as above */
-    GLenum set_sub_image_window(uint16_t top_left[2],
+    void set_sub_image_window(uint16_t top_left[2],
                                 uint16_t resolution[2],
                                 size_t row_len,
                                 GLenum format,
