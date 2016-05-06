@@ -6,7 +6,7 @@
 RetroGl::RetroGl(VideoClock video_clock)
 {
     // TODO: Is bool set_pixel_format() declared by including libretro.h?
-    if ( !set_pixel_format(RETRO_PIXEL_FORMAT_XRGB8888) ) {
+    if ( !environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, RETRO_PIXEL_FORMAT_XRGB8888) ) {
         puts("Can't set pixel format\n");
         exit(EXIT_FAILURE);
     }
@@ -18,7 +18,7 @@ RetroGl::RetroGl(VideoClock video_clock)
     }
 
     // The VRAM's bootup contents are undefined
-    int16_t vram[VRAM_PIXELS];
+    uint16_t vram[VRAM_PIXELS];
     size_t i;
     for (i = 0; i < VRAM_PIXELS; ++i)
     {
