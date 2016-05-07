@@ -47,9 +47,11 @@ RetroGl::~RetroGl() {
 void RetroGl::context_reset() {
     puts("OpenGL context reset\n");
 
-    // Should I call this at every reset? Does it matter?
-    //// TODO: I don't know how to translate this into C++
+   
+    /* TODO: I don't know how to translate this into C++ */
+
     /*
+    // Should I call this at every reset? Does it matter?
     gl::load_with(|s| {
             libretro::hw_context::get_proc_address(s) as *const _
     });
@@ -103,7 +105,7 @@ void GlRenderer::context_destroy()
     }
 
     this->state = GlState::Invalid;
-    this->state_data.c = config;
+    this->state_data.c = &config;
 }
 
 void GlRenderer::prepare_render() 
