@@ -47,6 +47,12 @@ public:
     void finalize_frame();
     void refresh_variables();
     retro_system_av_info get_system_av_info();
+
+    /* This was stolen from rsx_lib_gl */
+    bool context_framebuffer_lock(void *data);
 };
+
+/* This was originally in rustation-libretro/lib.rs */
+retro_system_av_info get_av_info(VideoClock std, uint32_t upscaling);
 
 #endif

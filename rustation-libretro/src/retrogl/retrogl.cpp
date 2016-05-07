@@ -2,27 +2,31 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h> // memcpy()
 
 RetroGl::RetroGl(VideoClock video_clock)
 {
-    // TODO: Is bool set_pixel_format() declared by including libretro.h?
-    if ( !environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, RETRO_PIXEL_FORMAT_XRGB8888) ) {
+    retro_pixel_format f = RETRO_PIXEL_FORMAT_XRGB8888;
+    if ( !environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &f) ) {
         puts("Can't set pixel format\n");
         exit(EXIT_FAILURE);
     }
 
+    /* glsm related setup */
+    glsm_ctx_params_t params = {0};
+
+    params.context_reset         = context_reset;
+    params.context_destroy       = context_destroy;
+    params.environ_cb            = environ_cb;
+    params.stencil               = false;
+    params.imm_vbo_draw          = NULL;
+    params.imm_vbo_disable       = NULL;
+    params.framebuffer_lock      = context_framebuffer_lock;
+
     // TODO: Is bool hw_context_init() declared by including libretro.h?
-    if ( !hw_context_init() ) {
+    if ( !glsm_ctl(GLSM_CTL_STATE_CONTEXT_INIT, &params) ) {
         puts("Failed to init hardware context\n");
         exit(EXIT_FAILURE);
-    }
-
-    // The VRAM's bootup contents are undefined
-    uint16_t vram[VRAM_PIXELS];
-    size_t i;
-    for (i = 0; i < VRAM_PIXELS; ++i)
-    {
-        vram[i] = 0xdead;
     }
 
     DrawConfig config = {
@@ -32,8 +36,15 @@ RetroGl::RetroGl(VideoClock video_clock)
         {0, 0},         // draw_area_top_left
         {0, 0},         // draw_area_dimensions
         {0, 0},         // draw_offset
-        vram
+        {}              // vram
     };
+
+    // The VRAM's bootup contents are undefined
+    size_t i;
+    for (i = 0; i < VRAM_PIXELS; ++i)
+    {
+        config.vram[i] = 0xdead;
+    }
 
     this->state = GlState::Invalid;
     this->state_data.c = config;
@@ -46,6 +57,10 @@ RetroGl::~RetroGl() {
 
 void RetroGl::context_reset() {
     puts("OpenGL context reset\n");
+    glsm_ctl(GLSM_CTL_STATE_CONTEXT_RESET, NULL);
+
+    if (!glsm_ctl(GLSM_CTL_STATE_SETUP, NULL))
+        return;
 
    
     /* TODO: I don't know how to translate this into C++ */
@@ -64,16 +79,19 @@ void RetroGl::context_reset() {
     switch (this->state)
     {
     case GlState::Valid:
-        config = *( this->state_data.r.draw_config() );
+        config = *this->state_data.r->draw_config();
         break;
     case GlState::Invalid:
-        config = *( this->state_data.c );
+        config = this->state_data.c;
         break;
     }
 
-    /* TODO - Not checking Ok() or Err() */
     delete this->state_data.r;
-    this->state_data.r = new GlRenderer(&config);
+    
+    /* GlRenderer will own this copy and delete it in its dtor */
+    DrawConfig* copy_of_config  = new DrawConfig;
+    memcpy(copy_of_config, &config, sizeof(config));
+    this->state_data.r = new GlRenderer(copy_of_config);
     this->state = GlState::Valid;
 }
 
@@ -89,7 +107,7 @@ GlRenderer* RetroGl::gl_renderer()
     }
 }
 
-void GlRenderer::context_destroy()
+void RetroGl::context_destroy()
 {
     puts("OpenGL context destroy\n");
 
@@ -98,17 +116,17 @@ void GlRenderer::context_destroy()
     switch (this->state)
     {
     case GlState::Valid:
-        config = *( this->state_data.r.draw_config() );
+        config = *this->state_data.r->draw_config();
         break;
     case GlState::Invalid:
         return;
     }
 
     this->state = GlState::Invalid;
-    this->state_data.c = &config;
+    this->state_data.c = config;
 }
 
-void GlRenderer::prepare_render() 
+void RetroGl::prepare_render() 
 {
     GlRenderer* renderer = nullptr;
     switch (this->state)
@@ -121,10 +139,11 @@ void GlRenderer::prepare_render()
         exit(EXIT_FAILURE);
     }
 
+    glsm_ctl(GLSM_CTL_STATE_BIND, NULL);
     renderer->prepare_render();
 }
 
-void GlRenderer::finalize_frame()
+void RetroGl::finalize_frame()
 {
     GlRenderer* renderer = nullptr;
     switch (this->state)
@@ -138,9 +157,10 @@ void GlRenderer::finalize_frame()
     }
 
     renderer->finalize_frame();
+    glsm_ctl(GLSM_CTL_STATE_UNBIND, NULL);
 }
 
-void refresh_variables()
+void RetroGl::refresh_variables()
 {
     GlRenderer* renderer = nullptr;
     switch (this->state)
@@ -166,10 +186,7 @@ void refresh_variables()
             upscaling = var.value[0] -'0';
         }
 
-        /* TODO: Is get_av_info declared by libretro.h? 
-        Also, check what the namespace operator is doing here,
-        what get_av_info is this refering to? CoreVariables?
-        */
+        /* TODO: Am I doing this right? */
         struct retro_system_av_info av_info = get_av_info(this->video_clock, upscaling);
 
         // This call can potentially (but not necessarily) call
@@ -202,8 +219,67 @@ struct retro_system_av_info RetroGl::get_system_av_info()
         upscaling = var.value[0] -'0';
     }
 
-    /* What's with the namespace operator behind get_av_info()? */
-    struct retro_system_av_info av_info = ::get_av_info(this->video_clock, upscaling);
+    struct retro_system_av_info av_info = get_av_info(this->video_clock, upscaling);
 
     return av_info;
+}
+
+bool context_framebuffer_lock(void *data)
+{
+    switch (this->state) {
+    case GlState::Valid:
+        return true;
+    case GlState::Invalid:
+        return false;
+    }
+}
+
+
+struct retro_system_av_info get_av_info(VideoClock std, uint32_t upscaling)
+{
+    // Maximum resolution supported by the PlayStation video
+    // output is 640x480
+    unsigned int max_width  = (unsigned int) (640 * upscaling);
+    unsigned int max_height = (unsigned int) (480 * upscaling);
+    bool widescreen_hack = false;
+
+    struct retro_variable var = {0};
+    var.key = "beetle_psx_widescreen_hack";
+
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value) {
+        if (strcmp(var.value, "enabled") == 0)
+            widescreen_hack = true;
+        else if (strcmp(var.value, "disabled") == 0)
+            widescreen_hack = false;
+    }
+    
+    struct retro_system_av_info info;
+    memset(&info, 0, sizeof(info));
+    
+    // The base resolution will be overriden using
+    // ENVIRONMENT_SET_GEOMETRY before rendering a frame so
+    // this base value is not really important
+    info.geometry.base_width    = max_width;
+    info.geometry.base_height   = max_height;
+    info.geometry.max_width     = max_width;
+    info.geometry.max_height    = max_height;
+    /* TODO: Replace 4/3 with MEDNAFEN_CORE_GEOMETRY_ASPECT_RATIO */
+    info.geometry.aspect_ratio  = widescreen_hack ? 16.0/9.0 : 4.0/3.0;
+    info.timing.sample_rate     = 44100;
+
+    // Precise FPS values for the video output for the given
+    // VideoClock. It's actually possible to configure the PlayStation GPU
+    // to output with NTSC timings with the PAL clock (and vice-versa)
+    // which would make this code invalid but it wouldn't make a lot of
+    // sense for a game to do that.
+    switch (std) {
+    case VideoClock::Ntsc:
+        info.timing.fps = 59.81;
+        break;
+    case VideoClock::Pal:
+        info.timing.fps = 49.76;
+        break;
+    }    
+
+    return info;
 }

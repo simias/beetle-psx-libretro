@@ -201,17 +201,20 @@ void GlRenderer::draw()
         GLenum blend_dst = GL_CONSTANT_ALPHA;
 
         switch (this->semi_transparency_mode) {
+        /* 0.5xB + 0.5 x F */
         case SemiTransparencyMode::Average:
             blend_func = GL_FUNC_ADD;
             // Set to 0.5 with glBlendColor
             blend_src = GL_CONSTANT_ALPHA;
             blend_dst = GL_CONSTANT_ALPHA;
             break;
+        /* 1.0xB + 1.0 x F */
         case SemiTransparencyMode::Add:
             blend_func = GL_FUNC_ADD;
             blend_src = GL_ONE;
             blend_dst = GL_ONE;
             break;
+        /* 1.0xB - 1.0 x F */
         case SemiTransparencyMode::SubtractSource:
             blend_func = GL_FUNC_REVERSE_SUBTRACT;
             blend_src = GL_ONE;
@@ -346,9 +349,9 @@ void GlRenderer::upload_textures(   uint16_t top_left[2],
     assert(!rglGetError());
 }
 
-void GlRenderer::upload_vram_window(  uint16_t top_left[2], 
-                                        uint16_t dimensions[2],
-                                        uint16_t pixel_buffer[VRAM_PIXELS])
+void GlRenderer::upload_vram_window(uint16_t top_left[2], 
+                                    uint16_t dimensions[2],
+                                    uint16_t pixel_buffer[VRAM_PIXELS])
 {
     this->fb_texture->set_sub_image_window( top_left,
                                             dimensions,
@@ -577,7 +580,8 @@ void GlRenderer::finalize_frame()
     // When using a hardware renderer we set the data pointer to
     // -1 to notify the frontend that the frame has been rendered
     // in the framebuffer.
-    video_cb((void *) -1, this->frontend_resolution[0], this->frontend_resolution[1], 0);
+    video_cb(   RETRO_HW_FRAME_BUFFER_VALID, this->frontend_resolution[0],
+                this->frontend_resolution[1], 0);
 }
 
 void GlRenderer::maybe_force_draw(  size_t nvertices, GLenum draw_mode, 
