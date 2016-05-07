@@ -22,7 +22,7 @@ const uint16_t VRAM_HEIGHT = 512;
 const size_t VRAM_PIXELS = (size_t) VRAM_WIDTH_PIXELS * (size_t) VRAM_HEIGHT;
 
 /// How many vertices we buffer before forcing a draw
-unsigned int VERTEX_BUFFER_LEN = 2048;
+static const unsigned int VERTEX_BUFFER_LEN = 2048;
 
 struct DrawConfig {
     uint16_t display_top_left[2];

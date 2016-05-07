@@ -4,6 +4,39 @@
 #include <stdlib.h>
 #include <string.h> // memcpy()
 
+/*
+*
+*   THIS CLASS IS A SINGLETON!
+*   TODO: Fix the above.
+*
+*/
+
+bool RetroGl::isCreated = false;
+
+RetroGl* RetroGl::getInstance(VideoClock video_clock)
+{
+    if (single != nullptr && isCreated)
+    {
+        return single;
+    } else {
+        single = new RetroGl(video_clock);
+        isCreated = true;
+        return single;
+    }
+}
+
+RetroGl* RetroGl::getInstance()
+{
+    if (single != nullptr && isCreated)
+    {
+        return single;
+    } else {
+        single = new RetroGl(VideoClock::Ntsc);
+        isCreated = true;
+        return single;
+    }
+}
+
 RetroGl::RetroGl(VideoClock video_clock)
 {
     retro_pixel_format f = RETRO_PIXEL_FORMAT_XRGB8888;
@@ -15,15 +48,14 @@ RetroGl::RetroGl(VideoClock video_clock)
     /* glsm related setup */
     glsm_ctx_params_t params = {0};
 
-    params.context_reset         = context_reset;
-    params.context_destroy       = context_destroy;
+    params.context_reset         = shim_context_reset;
+    params.context_destroy       = shim_context_destroy;
+    params.framebuffer_lock      = shim_context_framebuffer_lock;
     params.environ_cb            = environ_cb;
     params.stencil               = false;
     params.imm_vbo_draw          = NULL;
     params.imm_vbo_disable       = NULL;
-    params.framebuffer_lock      = context_framebuffer_lock;
-
-    // TODO: Is bool hw_context_init() declared by including libretro.h?
+   
     if ( !glsm_ctl(GLSM_CTL_STATE_CONTEXT_INIT, &params) ) {
         puts("Failed to init hardware context\n");
         exit(EXIT_FAILURE);
@@ -224,7 +256,7 @@ struct retro_system_av_info RetroGl::get_system_av_info()
     return av_info;
 }
 
-bool context_framebuffer_lock(void *data)
+bool RetroGl::context_framebuffer_lock(void *data)
 {
     switch (this->state) {
     case GlState::Valid:
@@ -282,4 +314,19 @@ struct retro_system_av_info get_av_info(VideoClock std, uint32_t upscaling)
     }    
 
     return info;
+}
+
+static void shim_context_reset()
+{
+    RetroGl::getInstance()->context_reset();
+}
+
+static void shim_context_destroy()
+{
+    RetroGl::getInstance()->context_destroy();
+}
+
+static bool shim_context_framebuffer_lock(void* data)
+{
+    return RetroGl::getInstance()->context_framebuffer_lock(data);
 }

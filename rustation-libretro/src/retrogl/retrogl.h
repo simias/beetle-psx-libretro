@@ -27,7 +27,15 @@ struct GlStateData {
 };
 
 class RetroGl {
+/* Everything private is the singleton requirements... */
+private:
+     // new(video_clock: VideoClock)
+    RetroGl(VideoClock video_clock);
+    static bool isCreated;
+    static RetroGl *single;
 public:
+    static RetroGl* getInstance(VideoClock video_clock);
+    static RetroGl* getInstance();
     /* 
     Rust's enums members can contain data. To emulate that,
     I'll use a helper struct to save the data.  
@@ -36,8 +44,6 @@ public:
     GlState state;
     VideoClock video_clock;
 
-    // new(video_clock: VideoClock)
-    RetroGl(VideoClock video_clock);
     ~RetroGl();
 
     void context_reset();
@@ -54,5 +60,10 @@ public:
 
 /* This was originally in rustation-libretro/lib.rs */
 retro_system_av_info get_av_info(VideoClock std, uint32_t upscaling);
+
+/* TODO - Get rid of these shims */
+static void shim_context_reset();
+static void shim_context_destroy();
+static bool shim_context_framebuffer_lock(void* data);
 
 #endif
