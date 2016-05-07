@@ -27,14 +27,7 @@ RetroGl* RetroGl::getInstance(VideoClock video_clock)
 
 RetroGl* RetroGl::getInstance()
 {
-    if (single != nullptr && isCreated)
-    {
-        return single;
-    } else {
-        single = new RetroGl(VideoClock::Ntsc);
-        isCreated = true;
-        return single;
-    }
+    return RetroGl::getInstance(VideoClock::Ntsc);
 }
 
 RetroGl::RetroGl(VideoClock video_clock)

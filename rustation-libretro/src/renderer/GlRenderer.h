@@ -27,8 +27,8 @@ static const unsigned int VERTEX_BUFFER_LEN = 2048;
 struct DrawConfig {
     uint16_t display_top_left[2];
     uint16_t display_resolution[2];
-    bool display_24bpp;
-    int16_t draw_offset[2];
+    bool     display_24bpp;
+    int16_t  draw_offset[2];
     uint16_t draw_area_top_left[2];
     uint16_t draw_area_dimensions[2];
     uint16_t vram[VRAM_PIXELS];

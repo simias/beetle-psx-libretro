@@ -93,7 +93,6 @@ public:
                     };
 
         */
-         /* TODO - I'm not doing any error checking here unlike the code above */
         for (Attribute attr : attrs) {
             GLuint index = this->program->find_attribute(attr.name);
             rglEnableVertexAttribArray(index);
@@ -107,26 +106,26 @@ public:
             case GL_UNSIGNED_SHORT:
             case GL_INT:
             case GL_UNSIGNED_INT:
-                rglVertexAttribIPointer(   index,
-                                                attr.components,
-                                                attr.ty,
-                                                element_size,
-                                                attr.gl_offset());
+                rglVertexAttribIPointer(index,
+                                        attr.components,
+                                        attr.ty,
+                                        element_size,
+                                        attr.gl_offset());
                 break;
             case GL_FLOAT:
-                rglVertexAttribPointer(    index,
-                                                attr.components,
-                                                attr.ty,
-                                                GL_FALSE,
-                                                element_size,
-                                                attr.gl_offset());
+                rglVertexAttribPointer( index,
+                                        attr.components,
+                                        attr.ty,
+                                        GL_FALSE,
+                                        element_size,
+                                        attr.gl_offset());
                 break;
             case GL_DOUBLE:
-                rglVertexAttribLPointer(   index,
-                                                attr.components,
-                                                attr.ty,
-                                                element_size,
-                                                attr.gl_offset());
+                rglVertexAttribLPointer(index,
+                                        attr.components,
+                                        attr.ty,
+                                        element_size,
+                                        attr.gl_offset());
                 break;
             }
         }
@@ -213,7 +212,6 @@ public:
 
         this->bind();
 
-        /* TODO - Is the last argument supposed to be cast to void* or GLvoid*? */
         rglBufferSubData(GL_ARRAY_BUFFER,
                         (GLintptr) offset_bytes,
                         (GLintptr) size_bytes,

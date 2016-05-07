@@ -49,7 +49,7 @@ void Texture::set_sub_image(uint16_t top_left[2],
                     (GLsizei) resolution[1],
                     format,
                     ty,
-                    (const void*) data);
+                    (void*) data);
 
     assert( !rglGetError() );
 }

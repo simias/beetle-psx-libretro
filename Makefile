@@ -255,8 +255,6 @@ else
    SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
    LDFLAGS += -static-libgcc -static-libstdc++ -lwinmm
    FLAGS += -DHAVE__MKDIR
-   ## Enable C++11 mode to allow me to debug things
-   FLAGS += -std=c++11
 
 ifeq ($(HAVE_OPENGL),1)
 	GL_LIB := -lopengl32

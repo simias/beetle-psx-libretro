@@ -208,3 +208,6 @@ SOURCES_CXX += \
 	$(RSXGL_DIR)/retrogl/texture.cpp \
 	$(RSXGL_DIR)/retrogl/vertex.cpp \
 	$(RSXGL_DIR)/retrogl/retrogl.cpp \
+
+### The translated stuff needs C++11 for now
+CXXFLAGS += -std=c++11
