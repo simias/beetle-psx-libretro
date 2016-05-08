@@ -6,26 +6,26 @@
 VertexArrayObject::VertexArrayObject()
 {
     GLuint id = 0;
-    rglGenVertexArrays(1, &id);
+    glGenVertexArrays(1, &id);
 
-    assert( !rglGetError() );
+    assert( !glGetError() );
 
     this->id = id;
 }
 
 void VertexArrayObject::bind()
 {
-    rglBindVertexArray(this->id);
+    glBindVertexArray(this->id);
 }
 
 void VertexArrayObject::drop()
 {
-    rglDeleteBuffers(1, &this->id);
+    glDeleteBuffers(1, &this->id);
 }
 
 Attribute::Attribute(const char* name, size_t offset, GLenum ty, GLint components)
 {
-    /* Not sure if safe */
+    /* TODO - Not sure if safe */
     strcpy(this->name, name);
     
     this->offset = offset;

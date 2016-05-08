@@ -8,23 +8,23 @@
 
 Shader::Shader(const char** source, GLenum shader_type)
 {
-    GLuint id = rglCreateShader(shader_type);
+    GLuint id = glCreateShader(shader_type);
 
     size_t src_size = ARRAY_SIZE(source);
 
-    rglShaderSource( id,
+    glShaderSource( id,
                     1,
                     source,
                     (const GLint*) &src_size);
-    rglCompileShader(id);
+    glCompileShader(id);
 
     GLint status = (GLint) GL_FALSE;
-    rglGetShaderiv(id, GL_COMPILE_STATUS, &status);
+    glGetShaderiv(id, GL_COMPILE_STATUS, &status);
 
     if (status == (GLint) GL_TRUE) {
         // There shouldn't be anything in glGetError but let's
         // check to make sure.
-        assert( !rglGetError() );
+        assert( !glGetError() );
     } else {
         puts("Shader compilation failed:\n");
 
@@ -43,24 +43,24 @@ Shader::Shader(const char** source, GLenum shader_type)
 
 void Shader::attach_to(GLuint program)
 {
-    rglAttachShader(program, this->id);
+    glAttachShader(program, this->id);
 }
 
 void Shader::detach_from(GLuint program)
 {
-    rglDetachShader(program, this->id);
+    glDetachShader(program, this->id);
 }
 
 void Shader::drop()
 {
-    rglDeleteShader(this->id);
+    glDeleteShader(this->id);
 }
 
 const char* get_shader_info_log(GLuint id)
 {
     GLint log_len = 0;
 
-    rglGetShaderiv(id, GL_INFO_LOG_LENGTH, &log_len);
+    glGetShaderiv(id, GL_INFO_LOG_LENGTH, &log_len);
 
     if (log_len <= 0) {
         return " ";
@@ -68,7 +68,7 @@ const char* get_shader_info_log(GLuint id)
 
     char log[(size_t) log_len];
     GLsizei len = (GLsizei) log_len;
-    rglGetShaderInfoLog(id,
+    glGetShaderInfoLog(id,
                         len,
                         &log_len,
                         (char*) log);

@@ -6,33 +6,33 @@
 Framebuffer::Framebuffer(Texture* color_texture)
 {
     GLuint id = 0;
-    rglGenFramebuffers(1, &id);
+    glGenFramebuffers(1, &id);
 
     this->id = id;
     this->_color_texture = color_texture;
 
     this->bind();
 
-    rglFramebufferTexture(  GL_DRAW_FRAMEBUFFER,
+    glFramebufferTexture(  GL_DRAW_FRAMEBUFFER,
                             GL_COLOR_ATTACHMENT0,
                             color_texture->id,
                             0);
 
     GLenum col_attach_0 = GL_COLOR_ATTACHMENT0;
-    rglDrawBuffers(1, &col_attach_0);
-    rglViewport(0,
+    glDrawBuffers(1, &col_attach_0);
+    glViewport(0,
                 0,
                 (GLsizei) color_texture->width,
                 (GLsizei) color_texture->height);
 
     /* error_or(fb) */
-    assert( !rglGetError() );
+    assert( !glGetError() );
 }
 
 Framebuffer::Framebuffer(Texture* color_texture, Texture* depth_texture)
 : Framebuffer(color_texture) /* C++11 delegating constructor */
 {
-    rglFramebufferTexture(  GL_DRAW_FRAMEBUFFER,
+    glFramebufferTexture(  GL_DRAW_FRAMEBUFFER,
                             GL_DEPTH_ATTACHMENT,
                             depth_texture->id,
                             0);
@@ -41,7 +41,7 @@ Framebuffer::Framebuffer(Texture* color_texture, Texture* depth_texture)
     if (depth_texture != nullptr) delete depth_texture;
 
     /* error_or(fb) */
-    assert( !rglGetError() );
+    assert( !glGetError() );
 }
 
 Framebuffer::~Framebuffer()
@@ -51,12 +51,12 @@ Framebuffer::~Framebuffer()
 
 void Framebuffer::bind()
 {
-    rglBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->id);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->id);
 }
 
 void Framebuffer::drop()
 {
-    rglDeleteFramebuffers(1, &this->id);
+    glDeleteFramebuffers(1, &this->id);
 }
 
 

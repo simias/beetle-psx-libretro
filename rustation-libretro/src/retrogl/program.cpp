@@ -6,12 +6,12 @@
 
 Program::Program(Shader* vertex_shader, Shader* fragment_shader)
 {
-    GLuint id = rglCreateProgram();
+    GLuint id = glCreateProgram();
 
     vertex_shader->attach_to(id);
     fragment_shader->attach_to(id);
 
-    rglLinkProgram(id);
+    glLinkProgram(id);
 
     vertex_shader->detach_from(id);
     fragment_shader->detach_from(id);
@@ -22,7 +22,7 @@ Program::Program(Shader* vertex_shader, Shader* fragment_shader)
 
     // Check if the program linking was successful
     GLint status = (GLint) GL_FALSE;
-    rglGetProgramiv(id, GL_LINK_STATUS, &status);
+    glGetProgramiv(id, GL_LINK_STATUS, &status);
 
     if (status == (GLint) GL_TRUE) {
         /* Rust code has a try statement here, perhaps we should fail fast with
@@ -31,7 +31,7 @@ Program::Program(Shader* vertex_shader, Shader* fragment_shader)
 
         // There shouldn't be anything in glGetError but let's
         // check to make sure.
-        assert( !rglGetError() );
+        assert( !glGetError() );
 
         this->id = id;
         this->uniforms = uniforms;
@@ -46,11 +46,11 @@ Program::Program(Shader* vertex_shader, Shader* fragment_shader)
 
 GLuint Program::find_attribute(const char* attr)
 {
-    GLint index = rglGetAttribLocation(this->id, attr);
+    GLint index = glGetAttribLocation(this->id, attr);
 
     if (index < 0) {
         printf("Couldn't find attribute \"%s\" in program\n", attr);
-        printf("GL error %d\n", (int) rglGetError());
+        printf("GL error %d\n", (int) glGetError());
         exit(EXIT_FAILURE);
     }
 
@@ -59,7 +59,7 @@ GLuint Program::find_attribute(const char* attr)
 
 void Program::bind()
 {
-    rglUseProgram(this->id);
+    glUseProgram(this->id);
 }
 
 GLint Program::uniform(const char* name)
@@ -78,7 +78,7 @@ void Program::uniform1i(const char* name, GLint i)
     this->bind();
 
     GLint u = this->uniform(name);
-    rglUniform1i(u, i);
+    glUniform1i(u, i);
 }
 
 void Program::uniform1ui(const char* name, GLuint i)
@@ -86,7 +86,7 @@ void Program::uniform1ui(const char* name, GLuint i)
     this->bind();
 
     GLint u = this->uniform(name);
-    rglUniform1ui(u, i);
+    glUniform1ui(u, i);
 }
 
 void Program::uniform2i(const char* name, GLint a, GLint b)
@@ -94,19 +94,19 @@ void Program::uniform2i(const char* name, GLint a, GLint b)
     this->bind();
 
     GLint u = this->uniform(name);
-    rglUniform2i(u, a, b); 
+    glUniform2i(u, a, b); 
 }
 
 void Program::drop()
 {
-    rglDeleteProgram(this->id);
+    glDeleteProgram(this->id);
 }
 
 const char* get_program_info_log(GLuint id)
 {
     GLint log_len = 0;
 
-    rglGetProgramiv(id, GL_INFO_LOG_LENGTH, &log_len);
+    glGetProgramiv(id, GL_INFO_LOG_LENGTH, &log_len);
 
     if (log_len <= 0) {
         return " ";
@@ -114,7 +114,7 @@ const char* get_program_info_log(GLuint id)
 
     char log[(size_t) log_len];
     GLsizei len = (GLsizei) log_len;
-    rglGetProgramInfoLog(id,
+    glGetProgramInfoLog(id,
                         len,
                         &log_len,
                         (char*) log);
@@ -138,7 +138,7 @@ UniformMap load_program_uniforms(GLuint program)
 {
     size_t n_uniforms = 0;
 
-    rglGetProgramiv( program,
+    glGetProgramiv( program,
                     GL_ACTIVE_UNIFORMS,
                     (GLint*) &n_uniforms );
 
@@ -147,11 +147,11 @@ UniformMap load_program_uniforms(GLuint program)
     // Figure out how long a uniform name can be
     size_t max_name_len = 0;
 
-    rglGetProgramiv( program,
+    glGetProgramiv( program,
                     GL_ACTIVE_UNIFORM_MAX_LENGTH,
                     (GLint*) &max_name_len);
 
-    assert( !rglGetError() );
+    assert( !glGetError() );
 
     size_t u;
     for (u = 0; u < n_uniforms; ++u) {
@@ -163,7 +163,7 @@ UniformMap load_program_uniforms(GLuint program)
         GLint size = 0;
         GLenum ty = 0;
 
-        rglGetActiveUniform( program,
+        glGetActiveUniform( program,
                             (GLuint) u,
                             (GLsizei) name_len,
                             &len,
@@ -176,7 +176,7 @@ UniformMap load_program_uniforms(GLuint program)
         }
 
         // Retrieve the location of this uniform
-        GLint location = rglGetUniformLocation(program, (const char*) name);
+        GLint location = glGetUniformLocation(program, (const char*) name);
 
         /* name.truncate(len as usize); */
         name[len - 1] = '\0';
@@ -189,7 +189,7 @@ UniformMap load_program_uniforms(GLuint program)
         uniforms[name] = location;
     }
 
-    assert( !rglGetError() );
+    assert( !glGetError() );
 
     return uniforms;
 }

@@ -211,7 +211,6 @@ void RetroGl::refresh_variables()
             upscaling = var.value[0] -'0';
         }
 
-        /* TODO: Am I doing this right? */
         struct retro_system_av_info av_info = get_av_info(this->video_clock, upscaling);
 
         // This call can potentially (but not necessarily) call
@@ -220,7 +219,7 @@ void RetroGl::refresh_variables()
         
         /* The above comment may not be applicable anymore since we're
         calling environ_cb directly.
-        TODO - This callback can only be used in retro_run(), what should
+        TODO - This callback should only be used in retro_run(), what should
         be done instead? 
          */
         bool ok = environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &av_info);

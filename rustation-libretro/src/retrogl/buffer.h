@@ -46,7 +46,7 @@ public:
 
         GLuint id = 0;
         // Generate the buffer object
-        rglGenBuffers(1, &id);
+        glGenBuffers(1, &id);
 
         this->vao = vao;
         this->program = program;
@@ -59,7 +59,7 @@ public:
         this->bind_attributes();
 
         /* error_or() */
-        assert( !rglGetError() );
+        assert( !glGetError() );
     }
 
     ~DrawBuffer()
@@ -95,7 +95,7 @@ public:
         */
         for (Attribute attr : attrs) {
             GLuint index = this->program->find_attribute(attr.name);
-            rglEnableVertexAttribArray(index);
+            glEnableVertexAttribArray(index);
 
             // This captures the buffer so that we don't have to bind it
             // when we draw later on, we'll just have to bind the vao
@@ -106,14 +106,14 @@ public:
             case GL_UNSIGNED_SHORT:
             case GL_INT:
             case GL_UNSIGNED_INT:
-                rglVertexAttribIPointer(index,
+                glVertexAttribIPointer(index,
                                         attr.components,
                                         attr.ty,
                                         element_size,
                                         attr.gl_offset());
                 break;
             case GL_FLOAT:
-                rglVertexAttribPointer( index,
+                glVertexAttribPointer( index,
                                         attr.components,
                                         attr.ty,
                                         GL_FALSE,
@@ -121,7 +121,7 @@ public:
                                         attr.gl_offset());
                 break;
             case GL_DOUBLE:
-                rglVertexAttribLPointer(index,
+                glVertexAttribLPointer(index,
                                         attr.components,
                                         attr.ty,
                                         element_size,
@@ -131,7 +131,7 @@ public:
         }
 
         /* get_error() */
-        assert( !rglGetError() );
+        assert( !glGetError() );
     }
 
     void enable_attribute(const char* attr)
@@ -139,10 +139,10 @@ public:
         GLuint index = this->program->find_attribute(attr);
         this->vao->bind();
 
-        rglEnableVertexAttribArray(index);
+        glEnableVertexAttribArray(index);
 
         /* get_error() */
-        assert( !rglGetError() );
+        assert( !glGetError() );
     }
 
     void disable_attribute(const char* attr)
@@ -150,7 +150,7 @@ public:
         GLuint index = this->program->find_attribute(attr);
         this->vao->bind();
 
-        rglDisableVertexAttribArray(index);
+        glDisableVertexAttribArray(index);
 
         /* get_error() */
         return assert( !glGetError() );
@@ -174,7 +174,7 @@ public:
 
         size_t element_size = sizeof( *(this->contains) );
         GLsizeiptr storage_size = (GLsizeiptr) (this->capacity * element_size);
-        rglBufferData(  GL_ARRAY_BUFFER,
+        glBufferData(  GL_ARRAY_BUFFER,
                         storage_size,
                         NULL,
                         GL_DYNAMIC_DRAW);
@@ -182,13 +182,13 @@ public:
         this->len = 0;
 
         /* get_error() */
-        assert( !rglGetError() );
+        assert( !glGetError() );
     }
 
     /// Bind the buffer to the current VAO
     void bind()
     {
-        rglBindBuffer(GL_ARRAY_BUFFER, this->id);
+        glBindBuffer(GL_ARRAY_BUFFER, this->id);
     }
 
     void push_slice(T slice[], size_t n)
@@ -212,13 +212,13 @@ public:
 
         this->bind();
 
-        rglBufferSubData(GL_ARRAY_BUFFER,
+        glBufferSubData(GL_ARRAY_BUFFER,
                         (GLintptr) offset_bytes,
                         (GLintptr) size_bytes,
                         (void*) &slice);
 
         /* get_error() */
-        assert( !rglGetError() );
+        assert( !glGetError() );
         
         this->len += n;
     }
@@ -230,7 +230,7 @@ public:
 
         GLint first = this->lifo ? (GLint) this->remaining_capacity() : 0;
 
-        rglDrawArrays(mode, first, (GLsizei) this->len);
+        glDrawArrays(mode, first, (GLsizei) this->len);
     }
     
     size_t remaining_capacity()
@@ -241,7 +241,7 @@ public:
     /* impl<T> Drop for DrawBuffer<T> { */
     void drop()
     {
-        rglDeleteBuffers(1, &this->id);
+        glDeleteBuffers(1, &this->id);
     }
 };
 
