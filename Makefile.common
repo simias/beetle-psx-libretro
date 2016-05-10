@@ -1,3 +1,4 @@
+HAVE_OPENGL := 1
 SOURCES_CXX :=
 SOURCES_C   :=
 
@@ -211,3 +212,9 @@ SOURCES_CXX += \
 
 ### The translated stuff needs C++11 for now
 CXXFLAGS += -std=c++11
+
+### Force glsm and rlgen to be compiled
+SOURCES_C += \
+	$(LIBRETRO_DIR)/glsym/glsym_gl.c \
+	$(LIBRETRO_DIR)/glsm/glsm.c \
+	$(LIBRETRO_DIR)/glsym/rglgen.c \
