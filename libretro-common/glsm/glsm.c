@@ -20,9 +20,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <stdio.h>
 #include <glsym/glsym.h>
 #include <glsm/glsm.h>
-
 
 struct gl_cached_state
 {
@@ -177,8 +177,6 @@ struct gl_cached_state
 };
 
 static glsm_framebuffer_lock glsm_fb_lock = NULL;
-static glsm_imm_vbo_draw imm_vbo_draw     = NULL;
-static glsm_imm_vbo_draw imm_vbo_disable  = NULL;
 static struct retro_hw_render_callback hw_render;
 static struct gl_cached_state gl_state;
 
@@ -189,7 +187,7 @@ static struct gl_cached_state gl_state;
  * Core in:
  * OpenGL    : 1.0
  */
-GLenum GLenum rglGetError(void)
+GLenum rglGetError(void)
 {
    return glGetError();
 }
@@ -208,10 +206,13 @@ void rglClear(GLbitfield mask)
  *
  * Core in:
  * OpenGL    : 1.0
+ * OpenGLES  : N/A
  */
 void rglPolygonMode(GLenum face, GLenum mode)
 {
+#ifndef HAVE_OPENGLES
    glPolygonMode(face, mode);
+#endif
 }
 
 void rglTexSubImage2D(
@@ -640,7 +641,7 @@ void rglFramebufferTexture2D(GLenum target, GLenum attachment,
 void rglFramebufferTexture(GLenum target, GLenum attachment,
   	GLuint texture, GLint level)
 {
-#if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES) && defined(HAVE_OPENGLES32)
+#if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES) && defined(HAVE_OPENGLES_3_2)
    glFramebufferTexture(target, attachment, texture, level);
 #endif
 }
@@ -804,7 +805,7 @@ void rglProgramParameteri( 	GLuint program,
   	GLenum pname,
   	GLint value)
 {
-#if !defined(HAVE_OPENGLES) || defined(HAVE_OPENGLES) && (defined(HAVE_OPENGLES3) || defined(HAVE_OPENGLES31))
+#if !defined(HAVE_OPENGLES) || defined(HAVE_OPENGLES) && (defined(HAVE_OPENGLES3) || defined(HAVE_OPENGLES_3_1))
    glProgramParameteri(program, pname, value);
 #else
    printf("WARNING! Not implemented.\n");
@@ -891,7 +892,7 @@ void rglBindBufferBase( 	GLenum target,
   	GLuint index,
   	GLuint buffer)
 {
-#if defined(HAVE_OPENG) || defined(HAVE_OPENGLES) && defined(HAVE_OPENGLES3)
+#if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES) && defined(HAVE_OPENGLES3)
    glBindBufferBase(target, index, buffer);
 #else
    printf("WARNING! Not implemented.\n");
@@ -937,25 +938,52 @@ void rglUniformBlockBinding( 	GLuint program,
  *
  * Core in:
  * OpenGL    : 2.0 
+ * OpenGLES  : 3.0
  */
 void rglUniform1ui(GLint location, GLuint v)
 {
+#if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES) && defined(HAVE_OPENGLES3)
    glUniform1ui(location ,v);
+#endif
 }
 
+/*
+ *
+ * Core in:
+ * OpenGL    : 2.0 
+ * OpenGLES  : 3.0
+ */
 void rglUniform2ui(GLint location, GLuint v0, GLuint v1)
 {
+#if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES) && defined(HAVE_OPENGLES3)
    glUniform2ui(location, v0, v1);
+#endif
 }
 
+/*
+ *
+ * Core in:
+ * OpenGL    : 2.0 
+ * OpenGLES  : 3.0
+ */
 void rglUniform3ui(GLint location, GLuint v0, GLuint v1, GLuint v2)
 {
+#if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES) && defined(HAVE_OPENGLES3)
    glUniform3ui(location, v0, v1, v2);
+#endif
 }
 
+/*
+ *
+ * Core in:
+ * OpenGL    : 2.0 
+ * OpenGLES  : 3.0
+ */
 void rglUniform4ui(GLint location, GLuint v0, GLuint v1, GLuint v2, GLuint v3)
 {
+#if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES) && defined(HAVE_OPENGLES3)
    glUniform4ui(location, v0, v1, v2, v3);
+#endif
 }
 
 /*
@@ -1140,7 +1168,7 @@ void rglVertexAttribLPointer(
       GLsizei stride,
       const GLvoid * pointer)
 {
-#if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES) && defined(HAVE_OPENGLES3)
+#if defined(HAVE_OPENGL)
    glVertexAttribLPointer(index, size, type, stride, pointer);
 #endif
 }
@@ -1355,11 +1383,6 @@ void rglUniform4fv(GLint location, GLsizei count, const GLfloat *value)
    glUniform4fv(location, count, value);
 }
 
-void rglTexStorage2D(GLenum target, GLsizei levels, GLenum internalFormat,
-      GLsizei width, GLsizei height)
-{
-   glTexStorage2D(target, levels, internalFormat, width, height);
-}
 
 /*
  *
@@ -1446,9 +1469,22 @@ void rglTexStorage2DMultisample(GLenum target, GLsizei samples,
       GLenum internalformat, GLsizei width, GLsizei height,
       GLboolean fixedsamplelocations)
 {
-#if defined(HAVE_OPENGLES) && defined(HAVE_OPENGLES31)
+#if defined(HAVE_OPENGLES) && defined(HAVE_OPENGLES_3_1)
    glTexStorage2DMultisample(target, samples, internalformat,
          width, height, fixedsamplelocations);
+#endif
+}
+
+/*
+ *
+ * Core in:
+ * OpenGLES  : 3.0
+ */
+void rglTexStorage2D(GLenum target, GLsizei levels, GLenum internalFormat,
+      GLsizei width, GLsizei height)
+{
+#if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES) && defined(HAVE_OPENGLES3)
+   glTexStorage2D(target, levels, internalFormat, width, height);
 #endif
 }
 
@@ -1460,7 +1496,7 @@ void rglTexStorage2DMultisample(GLenum target, GLsizei samples,
  */
 void rglMemoryBarrier( 	GLbitfield barriers)
 {
-#if !defined(HAVE_OPENGLES) || defined(HAVE_OPENGLES3) && defined(HAVE_OPENGLES31)
+#if !defined(HAVE_OPENGLES) || defined(HAVE_OPENGLES3) && defined(HAVE_OPENGLES_3_1)
    glMemoryBarrier(barriers);
 #else
    printf("WARNING! Not implemented.\n");
@@ -1481,7 +1517,7 @@ void rglBindImageTexture( 	GLuint unit,
   	GLenum access,
   	GLenum format)
 {
-#if !defined(HAVE_OPENGLES) || defined(HAVE_OPENGLES3) && defined(HAVE_OPENGLES31)
+#if !defined(HAVE_OPENGLES) || defined(HAVE_OPENGLES3) && defined(HAVE_OPENGLES_3_1)
    glBindImageTexture(unit, texture, level, layered, layer, access, format);
 #else
    printf("WARNING! Not implemented.\n");
@@ -1518,7 +1554,7 @@ void rglProgramBinary(GLuint program,
   	const void *binary,
   	GLsizei length)
 {
-#if !defined(HAVE_OPENGLES) || defined(HAVE_OPENGLES) && defined(HAVE_OPENGLES31)
+#if !defined(HAVE_OPENGLES) || defined(HAVE_OPENGLES) && defined(HAVE_OPENGLES_3_1)
    glProgramBinary(program, binaryFormat, binary, length);
 #else
    printf("WARNING! Not implemented.\n");
@@ -1597,9 +1633,10 @@ void rglCopyImageSubData( 	GLuint srcName,
   	GLsizei srcHeight,
   	GLsizei srcDepth)
 {
-#if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES) && defined(HAVE_OPENGLES32)
+#if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES) && defined(HAVE_OPENGLES_3_2)
    glCopyImageSubData(srcName,
          srcTarget,
+         srcLevel,
          srcX,
          srcY,
          srcZ,
@@ -1620,11 +1657,11 @@ void rglCopyImageSubData( 	GLuint srcName,
  *
  * Core in:
  * OpenGL    : 3.0 
+ * OpenGLES  : 3.0
  */
 void rglBindVertexArray(GLuint array)
 {
-#if defined(HAVE_OPENGLES) && !defined(HAVE_OPENGLES3) && !defined(HAVE_OPENGLES31)
-#else
+#if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES) && defined(HAVE_OPENGLES3)
    glBindVertexArray(array);
 #endif
 }
@@ -1634,12 +1671,26 @@ void rglBindVertexArray(GLuint array)
  *
  * Core in:
  * OpenGL    : 3.0 
+ * OpenGLES  : 3.0
  */
 void rglGenVertexArrays(GLsizei n, GLuint *arrays)
 {
-#if defined(HAVE_OPENGLES) && !defined(HAVE_OPENGLES3) && !defined(HAVE_OPENGLES31)
-#else
+#if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES) && defined(HAVE_OPENGLES3)
    glGenVertexArrays(n, arrays);
+#endif
+}
+
+/*
+ * Category: VAO
+ *
+ * Core in:
+ * OpenGL    : 3.0 
+ * OpenGLES  : 3.0
+ */
+void rglDeleteVertexArrays(GLsizei n, const GLuint *arrays)
+{
+#if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES) && defined(HAVE_OPENGLES3)
+   glDeleteVertexArrays(n, arrays);
 #endif
 }
 
@@ -1876,7 +1927,7 @@ static bool glsm_state_ctx_init(void *data)
       return false;
 
 #ifdef HAVE_OPENGLES
-#if defined(HAVE_OPENGLES31)
+#if defined(HAVE_OPENGLES_3_1)
    hw_render.context_type       = RETRO_HW_CONTEXT_OPENGLES_VERSION;
    hw_render.version_major      = 3;
    hw_render.version_minor      = 1;
@@ -1901,20 +1952,9 @@ static bool glsm_state_ctx_init(void *data)
    hw_render.bottom_left_origin = true;
    hw_render.cache_context      = true;
 
-   imm_vbo_draw                 = NULL;
-   imm_vbo_disable              = NULL;
-
-   if (params->imm_vbo_draw != NULL)
-      imm_vbo_draw                 = params->imm_vbo_draw;
-   if (params->imm_vbo_disable != NULL)
-      imm_vbo_disable              = params->imm_vbo_disable;
-
    glsm_fb_lock                    = dummy_framebuffer_lock;
    if (params->framebuffer_lock != NULL)
       glsm_fb_lock                 = params->framebuffer_lock;
-
-   if (imm_vbo_draw != NULL && imm_vbo_disable != NULL)
-      glsm_ctl(GLSM_CTL_SET_IMM_VBO, NULL);
 
    if (!params->environ_cb(RETRO_ENVIRONMENT_SET_HW_RENDER, &hw_render))
       return false;
@@ -1929,29 +1969,19 @@ GLuint glsm_get_current_framebuffer(void)
 
 bool glsm_ctl(enum glsm_state_ctl state, void *data)
 {
-   static bool imm_vbo_enable        = false;
-
    switch (state)
    {
       case GLSM_CTL_IS_FRAMEBUFFER_LOCKED:
          return glsm_fb_lock(NULL);
       case GLSM_CTL_IMM_VBO_DRAW:
-         if (imm_vbo_draw == NULL || !imm_vbo_enable)
-            return false;
-         imm_vbo_draw(NULL);
-         break;
+         return false;
       case GLSM_CTL_IMM_VBO_DISABLE:
-         if (imm_vbo_disable == NULL || !imm_vbo_enable)
-            return false;
-         imm_vbo_disable(NULL);
-         break;
+         return false;
       case GLSM_CTL_IS_IMM_VBO:
-         return imm_vbo_enable;
+         return false;
       case GLSM_CTL_SET_IMM_VBO:
-         imm_vbo_enable = true;
          break;
       case GLSM_CTL_UNSET_IMM_VBO:
-         imm_vbo_enable = false;
          break;
       case GLSM_CTL_PROC_ADDRESS_GET:
          {
