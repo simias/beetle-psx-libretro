@@ -15,7 +15,7 @@ bool RetroGl::isCreated = false;
 
 RetroGl* RetroGl::getInstance(VideoClock video_clock)
 {
-   static RetroGl *single = nullptr;
+    static RetroGl *single = nullptr;
     if (single != nullptr && isCreated)
     {
         return single;

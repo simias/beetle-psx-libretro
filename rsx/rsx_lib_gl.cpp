@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdlib.h> /* exit() */
 
 #include <boolean.h>
 
@@ -16,9 +17,7 @@ static retro_environment_t   rsx_gl_environ_cb;
 extern uint8_t widescreen_hack;
 extern uint8_t psx_gpu_upscale_shift;
 
-#if 0
-static mut static_renderer: *mut retrogl::RetroGl = 0 as *mut _;
-#endif
+static RetroGl* static_renderer; 
 
 /* Width of the VRAM in 16bit pixels */
 static const uint16_t VRAM_WIDTH_PIXELS = 1024;
@@ -30,11 +29,15 @@ static bool rsx_gl_is_pal = false;
 
 /* The are a few hardware differences between PAL and NTSC consoles,
  * in particular the pixelclock runs slightly slower on PAL consoles. */
+
+/* The translated code already has an enum class named VideoClock */
+#if 0
 enum VideoClock
 {
    Ntsc,
    Pal,
 };
+#endif
 
 static bool fb_ready = false;
 
@@ -71,35 +74,30 @@ void renderer_gl_free(void)
 #endif
 }
 
-#if 0
-fn set_renderer(renderer: RetroGl) {
-    let r = Box::new(renderer);
-
-    drop_renderer();
-
-    unsafe {
-        static_renderer = Box::into_raw(r);
-    }
+RetroGl* maybe_renderer()
+{
+  return static_renderer;
+}
+RetroGl* renderer()
+{
+  RetroGl* r = maybe_renderer();
+  if (r != nullptr) {
+    return r;
+  } else {
+    printf("Attempted to use a NULL renderer\n");
+    exit(EXIT_FAILURE);
+  }
 }
 
-fn maybe_renderer() -> Option<&'static mut RetroGl> {
-    unsafe {
-        if static_renderer.is_null() {
-            None
-        } else {
-            Some(&mut *static_renderer)
-        }
-    }
-
+void set_renderer(RetroGl* renderer)
+{
+  static_renderer = renderer;
 }
 
-fn renderer() -> &'static mut RetroGl {
-    match maybe_renderer() {
-        Some(r) => r,
-        None => panic!("Attempted to use a NULL renderer"),
-    }
+void drop_renderer()
+{
+  static_renderer = nullptr;  
 }
-#endif
 
 void rsx_gl_init(void)
 {
@@ -132,32 +130,22 @@ bool rsx_gl_open(bool is_pal)
 
    rsx_gl_is_pal = is_pal;
 
-#if 0
-   match RetroGl::new(clock) {
-      Ok(r) => {
-         set_renderer(r);
-         true
-      }
-      Err(_) => false,
-   }
-#endif
+   VideoClock clock = is_pal ? VideoClock::Pal : VideoClock::Ntsc;
+   set_renderer( RetroGl::getInstance(clock) );
 
    return true;
 }
 
 void rsx_gl_close(void)
 {
-#if 0
     drop_renderer();
-#endif
 }
 
 void rsx_gl_refresh_variables(void)
 {
-#if 0
-   if let Some(renderer) = maybe_renderer()
-      renderer.refresh_variables();
-#endif
+    if (static_renderer != nullptr) {
+      renderer->refresh_variables();
+    }
 }
 
 void rsx_gl_prepare_frame(void)
@@ -166,9 +154,8 @@ void rsx_gl_prepare_frame(void)
       return;
 
    glsm_ctl(GLSM_CTL_STATE_BIND, NULL);
-#if 0
-   renderer().prepare_render();
-#endif
+
+   renderer()->prepare_render();
 }
 
 void rsx_gl_finalize_frame(const void *fb, unsigned width,
@@ -181,9 +168,9 @@ void rsx_gl_finalize_frame(const void *fb, unsigned width,
          width, height, pitch);
 
    glsm_ctl(GLSM_CTL_STATE_UNBIND, NULL);
-#if 0
-   renderer().finalize_frame();
-#endif
+
+   renderer()->finalize_frame();
+
 }
 
 void rsx_gl_set_environment(retro_environment_t callback)
@@ -226,9 +213,7 @@ void rsx_gl_get_system_av_info(struct retro_system_av_info *info)
    info->geometry.max_height   = MEDNAFEN_CORE_GEOMETRY_MAX_H << psx_gpu_upscale_shift;
    info->geometry.aspect_ratio = !widescreen_hack ? MEDNAFEN_CORE_GEOMETRY_ASPECT_RATIO : (float)16/9;
 #if 0
-    let info = ptr_as_mut_ref(info).unwrap();
-
-    *info = renderer().get_system_av_info();
+    struct retro_system_av_info info = renderer->get_system_av_info();
 #endif
 }
 
@@ -236,9 +221,7 @@ void rsx_gl_get_system_av_info(struct retro_system_av_info *info)
 
 void rsx_gl_set_draw_offset(int16_t x, int16_t y)
 {
-#if 0
-   renderer().gl_renderer().set_draw_offset(x as i16, y as i16);
-#endif
+   renderer()->gl_renderer()->set_draw_offset(x, y);
 }
 
 void  rsx_gl_set_draw_area(uint16_t x,
@@ -246,10 +229,9 @@ void  rsx_gl_set_draw_area(uint16_t x,
       uint16_t w,
       uint16_t h)
 {
-#if 0
-   renderer().gl_renderer().set_draw_area((x as u16, y as u16),
-         (w as u16, h as u16));
-#endif
+   uint16_t top_left[2]   = {x, y};
+   uint16_t dimensions[2] = {w, h};
+   renderer()->gl_renderer()->set_draw_area(top_left, dimensions);
 }
 
 void rsx_gl_set_display_mode(uint16_t x,
@@ -258,11 +240,9 @@ void rsx_gl_set_display_mode(uint16_t x,
       uint16_t h,
       bool depth_24bpp)
 {
-#if 0
-   renderer().gl_renderer().set_display_mode((x as u16, y as u16),
-         (w as u16, h as u16),
-         depth_24bpp);
-#endif
+   uint16_t top_left[2]   = {x, y};
+   uint16_t dimensions[2] = {w, h};
+   renderer()->gl_renderer()->set_display_mode(top_left, dimensions, depth_24bpp);
 }
 
 void rsx_gl_push_triangle(
@@ -290,58 +270,82 @@ void rsx_gl_push_triangle(
       bool dither,
       int blend_mode)
 {
-#if 0
-   let texture_page = [texpage_x as u16, texpage_y as u16];
-   let clut = [clut_x as u16, clut_y as u16];
-   let depth_shift = depth_shift as u8;
-   let texture_blend_mode = texture_blend_mode as u8;
+   uint16_t texture_page[2] = {texpage_x, texpage_y};
+   uint16_t clut[2] = {clut_x, clut_y};
 
-   let v = [
-      CommandVertex {
-position: [p0x as i16, p0y as i16],
-          color: [c0 as u8, (c0 >> 8) as u8, (c0 >> 16) as u8],
-          texture_coord: [t0x as u16, t0y as u16],
-          texture_page: texture_page,
-          clut: clut,
-          texture_blend_mode: texture_blend_mode,
-          depth_shift: depth_shift,
-          dither: dither as u8,
+   SemiTransparencyMode semi_transparency_mode = SemiTransparencyMode::Add;
+   bool semi_transparent = false;
+   switch (blend_mode) {
+   case -1:
+      semi_transparent = false;
+      semi_transparency_mode = SemiTransparencyMode::Add;
+      break;
+   case 0:
+      semi_transparent = true;
+      semi_transparency_mode = SemiTransparencyMode::Average;
+      break;
+   case 1:
+      semi_transparent = true;
+      semi_transparency_mode = SemiTransparencyMode::Add;
+      break;
+   case 2:
+      semi_transparent = true;
+      semi_transparency_mode = SemiTransparencyMode::SubtractSource;
+      break;
+   case 3:
+      semi_transparent = true;
+      semi_transparency_mode = SemiTransparencyMode::AddQuarterSource;
+      break;
+   default:
+      exit(EXIT_FAILURE);
+   }
+
+   CommandVertex v[3] = {
+      {
+          {p0x, p0y}, /* position */
+          {(uint8_t) c0, (uint8_t) (c0 >> 8), (uint8_t) (c0 >> 16)}, /* color */
+          {t0x, t0y}, /* texture_coord */
+          texture_page, /* texture_page */
+          clut, /* clut */
+          texture_blend_mode,
+          depth_shift,
+          (uint8_t) dither
       },
-                    CommandVertex {
-position: [p1x as i16, p1y as i16],
-          color: [c1 as u8, (c1 >> 8) as u8, (c1 >> 16) as u8],
-          texture_coord: [t1x as u16, t1y as u16],
-          texture_page: texture_page,
-          clut: clut,
-          texture_blend_mode: texture_blend_mode,
-          depth_shift: depth_shift,
-          dither: dither as u8,
-                    },
-                    CommandVertex {
-position: [p2x as i16, p2y as i16],
-          color: [c2 as u8, (c2 >> 8) as u8, (c2 >> 16) as u8],
-          texture_coord: [t2x as u16, t2y as u16],
-          texture_page: texture_page,
-          clut: clut,
-          texture_blend_mode: texture_blend_mode,
-          depth_shift: depth_shift,
-          dither: dither as u8,
-                    }];
+      {
+          {p1x, p1y}, /* position */
+          {(uint8_t) c1, (uint8_t) (c1 >> 8), (uint8_t) (c1 >> 16)}, /* color */
+          {t1x, t1y}, /* texture_coord */
+          texture_page, /* texture_page */
+          clut, /* clut */
+          texture_blend_mode,
+          depth_shift,
+          (uint8_t) dither
+      },
+      {
+          {p2x, p2y}, /* position */
+          {(uint8_t) c2, (uint8_t) (c2 >> 8), (uint8_t) (c2 >> 16)}, /* color */
+          {t2x, t2y}, /* texture_coord */
+          texture_page, /* texture_page */
+          clut, /* clut */
+          texture_blend_mode,
+          depth_shift,
+          (uint8_t) dither
+      }
+   };
 
-   renderer().gl_renderer().push_triangle(&v);
-#endif
+   renderer()->gl_renderer()->push_triangle(v, semi_transparency_mode);
 }
 
 void rsx_gl_fill_rect(uint32_t color,
       uint16_t x, uint16_t y,
       uint16_t w, uint16_t h)
 {
-#if 0
-   renderer().gl_renderer()
-      .fill_rect([color as u8, (color >> 8) as u8, (color >> 16) as u8],
-            (x as u16, y as u16),
-            (w as u16, h as u16));
-#endif
+
+   uint16_t top_left[2]   = {x, y};
+   uint16_t dimensions[2] = {w, h};
+   uint8_t col[3] = {(uint8_t) color, (uint8_t) (color >> 8), (uint8_t) (color >> 16)};  
+
+   renderer()->gl_renderer()->fill_rect(col, top_left, dimensions);
 }
 
 void rsx_gl_copy_rect(
@@ -349,12 +353,11 @@ void rsx_gl_copy_rect(
       uint16_t dst_x, uint16_t dst_y,
       uint16_t w, uint16_t h)
 {
-#if 0
-    renderer().gl_renderer()
-        .copy_rect((src_x as u16, src_y as u16),
-                   (dst_x as u16, dst_y as u16),
-                   (w as u16, h as u16));
-#endif
+    uint16_t src_pos[2] = {src_x, src_y};
+    uint16_t dst_pos[2] = {dst_x, dst_y};
+    uint16_t dimensions[2] = {w, h}; 
+
+    renderer()->gl_renderer()->copy_rect(src_pos, dst_pos, dimensions);
 }
 
 void rsx_gl_push_line(int16_t p0x,
@@ -366,16 +369,46 @@ void rsx_gl_push_line(int16_t p0x,
       bool dither,
       int blend_mode)
 {
+   CommandVertex v[3] = {
+      {
+          {p0x, p0y}, /* position */
+          {(uint8_t) c0, (uint8_t) (c0 >> 8), (uint8_t) (c0 >> 16)}, /* color */
+          {0, 0}, /* texture_coord */
+          {0, 0}, /* texture_page */
+          {0, 0}, /* clut */
+          0,      /* texture_blend_mode */
+          0,      /* depth_shift */
+          (uint8_t) dither
+      },
+      {
+          {p1x, p1y}, /* position */
+          {(uint8_t) c1, (uint8_t) (c1 >> 8), (uint8_t) (c1 >> 16)}, /* color */
+          {0, 0}, /* texture_coord */
+          {0, 0}, /* texture_page */
+          {0, 0}, /* clut */
+          0,      /* texture_blend_mode */
+          0,      /* depth_shift */
+          (uint8_t) dither
+      }
+   };
+
+   renderer()->gl_renderer()->push_line(v, SemiTransparencyMode::Add);
 }
 
 void rsx_gl_load_image(uint16_t x, uint16_t y,
       uint16_t w, uint16_t h,
       uint16_t *vram)
 {
+   uint16_t top_left[2]   = {x, y};
+   uint16_t dimensions[2] = {w, h};
+
+   /* TODO FIXME - upload_vram_window expects a 
+  uint16_t[VRAM_HEIGHT*VRAM_WIDTH_PIXELS] array arg instead of a ptr */
+   renderer()->gl_renderer()->upload_vram_window(top_left, dimensions, vram);
 }
-
-
 
 void rsx_gl_set_blend_mode(enum blending_modes mode)
 {
 }
+
+

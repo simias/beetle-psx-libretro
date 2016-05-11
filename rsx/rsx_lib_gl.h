@@ -3,6 +3,7 @@
 
 #include "libretro.h"
 #include "rsx.h"
+#include "rustation-libretro/src/retrogl/retrogl.h"
 
   void rsx_gl_set_blend_mode(enum blending_modes mode);
   void rsx_gl_set_environment(retro_environment_t);
@@ -57,6 +58,14 @@
   void rsx_gl_copy_rect(uint16_t src_x, uint16_t src_y,
 		     uint16_t dst_x, uint16_t dst_y,
 		     uint16_t w, uint16_t h);
+
+  /* Functions from simias's rustation-libretro/lib.rs */
+  RetroGl* maybe_renderer();
+  RetroGl* renderer();
+  void set_renderer(RetroGl* renderer);
+  void drop_renderer();
+
+
 
 
 #endif /*__RSX_GL_H__ */
