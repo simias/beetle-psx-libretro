@@ -1,3 +1,5 @@
+#include "rsx_lib_gl.h"
+
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
@@ -9,10 +11,6 @@
 #include <glsm/glsm.h>
 #endif
 
-#include "rsx_lib_gl.h"
-#include "rsx_intf.h"
-#include "rsx.h"
-
 static retro_video_refresh_t rsx_gl_video_cb;
 static retro_environment_t   rsx_gl_environ_cb;
 extern uint8_t widescreen_hack;
@@ -20,11 +18,15 @@ extern uint8_t psx_gpu_upscale_shift;
 
 static RetroGl* static_renderer; 
 
+
+/* Already defined in rustation-libretro/GlRenderer.h */
+#if 0
 /* Width of the VRAM in 16bit pixels */
 static const uint16_t VRAM_WIDTH_PIXELS = 1024;
 
 /* Height of the VRAM in lines */
 static const uint16_t VRAM_HEIGHT = 512;
+#endif
 
 static bool rsx_gl_is_pal = false;
 
@@ -145,7 +147,7 @@ void rsx_gl_close(void)
 void rsx_gl_refresh_variables(void)
 {
     if (static_renderer != nullptr) {
-      renderer->refresh_variables();
+      static_renderer->refresh_variables();
     }
 }
 
@@ -303,11 +305,11 @@ void rsx_gl_push_triangle(
 
    CommandVertex v[3] = {
       {
-          {p0x, p0y}, /* position */
+          {p0x, p0y},   /* position */
           {(uint8_t) c0, (uint8_t) (c0 >> 8), (uint8_t) (c0 >> 16)}, /* color */
-          {t0x, t0y}, /* texture_coord */
-          texture_page, /* texture_page */
-          clut, /* clut */
+          {t0x, t0y},   /* texture_coord */
+          texture_page, 
+          clut,         
           texture_blend_mode,
           depth_shift,
           (uint8_t) dither
@@ -316,8 +318,8 @@ void rsx_gl_push_triangle(
           {p1x, p1y}, /* position */
           {(uint8_t) c1, (uint8_t) (c1 >> 8), (uint8_t) (c1 >> 16)}, /* color */
           {t1x, t1y}, /* texture_coord */
-          texture_page, /* texture_page */
-          clut, /* clut */
+          texture_page, 
+          clut, 
           texture_blend_mode,
           depth_shift,
           (uint8_t) dither
@@ -326,8 +328,8 @@ void rsx_gl_push_triangle(
           {p2x, p2y}, /* position */
           {(uint8_t) c2, (uint8_t) (c2 >> 8), (uint8_t) (c2 >> 16)}, /* color */
           {t2x, t2y}, /* texture_coord */
-          texture_page, /* texture_page */
-          clut, /* clut */
+          texture_page,
+          clut, 
           texture_blend_mode,
           depth_shift,
           (uint8_t) dither
@@ -370,7 +372,7 @@ void rsx_gl_push_line(int16_t p0x,
       bool dither,
       int blend_mode)
 {
-   CommandVertex v[3] = {
+   CommandVertex v[2] = {
       {
           {p0x, p0y}, /* position */
           {(uint8_t) c0, (uint8_t) (c0 >> 8), (uint8_t) (c0 >> 16)}, /* color */
