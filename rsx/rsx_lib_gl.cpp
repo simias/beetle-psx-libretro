@@ -273,9 +273,6 @@ void rsx_gl_push_triangle(
       bool dither,
       int blend_mode)
 {
-   uint16_t texture_page[2] = {texpage_x, texpage_y};
-   uint16_t clut[2] = {clut_x, clut_y};
-
    SemiTransparencyMode semi_transparency_mode = SemiTransparencyMode::Add;
    bool semi_transparent = false;
    switch (blend_mode) {
@@ -303,13 +300,14 @@ void rsx_gl_push_triangle(
       exit(EXIT_FAILURE);
    }
 
-   CommandVertex v[3] = {
+   CommandVertex v[3] = 
+   {
       {
           {p0x, p0y},   /* position */
           {(uint8_t) c0, (uint8_t) (c0 >> 8), (uint8_t) (c0 >> 16)}, /* color */
           {t0x, t0y},   /* texture_coord */
-          texture_page, 
-          clut,         
+          {texpage_x, texpage_y}, 
+          {clut_x, clut_y},         
           texture_blend_mode,
           depth_shift,
           (uint8_t) dither
@@ -318,8 +316,8 @@ void rsx_gl_push_triangle(
           {p1x, p1y}, /* position */
           {(uint8_t) c1, (uint8_t) (c1 >> 8), (uint8_t) (c1 >> 16)}, /* color */
           {t1x, t1y}, /* texture_coord */
-          texture_page, 
-          clut, 
+          {texpage_x, texpage_y}, 
+          {clut_x, clut_y},   
           texture_blend_mode,
           depth_shift,
           (uint8_t) dither
@@ -328,8 +326,8 @@ void rsx_gl_push_triangle(
           {p2x, p2y}, /* position */
           {(uint8_t) c2, (uint8_t) (c2 >> 8), (uint8_t) (c2 >> 16)}, /* color */
           {t2x, t2y}, /* texture_coord */
-          texture_page,
-          clut, 
+          {texpage_x, texpage_y}, 
+          {clut_x, clut_y},   
           texture_blend_mode,
           depth_shift,
           (uint8_t) dither
