@@ -1,7 +1,7 @@
 DEBUG = 0
 FRONTEND_SUPPORTS_RGB565 = 1
 HAVE_RUST=0
-HAVE_OPENGL=0
+HAVE_OPENGL=1
 
 CORE_DIR := .
 HAVE_GRIFFIN = 0
@@ -36,16 +36,6 @@ NEED_THREADING = 1
 CORE_DEFINE := -DWANT_PSX_EMU
 TARGET_NAME := mednafen_psx_libretro
 
-ifeq ($(platform), unix)
-   TARGET := $(TARGET_NAME).so
-   fpic := -fPIC
-   SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
-   ifneq ($(shell uname -p | grep -E '((i.|x)86|amd64)'),)
-      IS_X86 = 1
-   endif
-   LDFLAGS += $(PTHREAD_FLAGS)
-   FLAGS += $(PTHREAD_FLAGS) -DHAVE_MKDIR
-
 ifeq ($(HAVE_OPENGL),1)
 	ifneq (,$(findstring gles,$(platform)))
 		GLES = 1
@@ -55,11 +45,24 @@ ifeq ($(HAVE_OPENGL),1)
 	endif
 endif
 
+ifeq ($(platform), unix)
+   TARGET := $(TARGET_NAME).so
+   fpic := -fPIC
+   SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
+   ifneq ($(shell uname -p | grep -E '((i.|x)86|amd64)'),)
+      IS_X86 = 1
+   endif
+   LDFLAGS += $(PTHREAD_FLAGS) $(GL_LIB)
+   FLAGS += $(PTHREAD_FLAGS) -DHAVE_MKDIR
+
 else ifeq ($(platform), osx)
    TARGET := $(TARGET_NAME).dylib
    fpic := -fPIC
    SHARED := -dynamiclib
-   LDFLAGS += $(PTHREAD_FLAGS)
+ifeq ($(HAVE_OPENGL),1)
+	GL_LIB = -framework OpenGL
+endif
+   LDFLAGS += $(PTHREAD_FLAGS) $(GL_LIB)
    FLAGS += $(PTHREAD_FLAGS) -DHAVE_MKDIR
 ifeq ($(arch),ppc)
    ENDIANNESS_DEFINES := -DMSB_FIRST
@@ -72,25 +75,20 @@ ifeq ($(OSX_LT_MAVERICKS),"YES")
    fpic += -mmacosx-version-min=10.5
 endif
 
-ifeq ($(HAVE_OPENGL),1)
-	GL_LIB := -framework OpenGL
-endif
-
 # iOS
 else ifneq (,$(findstring ios,$(platform)))
 
    TARGET := $(TARGET_NAME)_ios.dylib
    fpic := -fPIC
    SHARED := -dynamiclib
-   LDFLAGS += $(PTHREAD_FLAGS)
+ifeq ($(HAVE_OPENGL),1)
+	GL_LIB := -framework OpenGLES
+endif
+   LDFLAGS += $(PTHREAD_FLAGS) $(GL_LIB)
    FLAGS += $(PTHREAD_FLAGS)
 
 ifeq ($(IOSSDK),)
    IOSSDK := $(shell xcrun -sdk iphoneos -show-sdk-path)
-endif
-
-ifeq ($(HAVE_OPENGL),1)
-	GL_LIB := -framework OpenGLES
 endif
 
    CC = cc -arch armv7 -isysroot $(IOSSDK)
@@ -101,13 +99,13 @@ ifeq ($(platform),ios9)
 else
 	IPHONEMINVER = -miphoneos-version-min=5.0
 endif
-   LDFLAGS += $(IPHONEMINVER)
-   FLAGS += $(IPHONEMINVER)
-   CC += $(IPHONEMINVER)
-   CXX += $(IPHONEMINVER)
 ifeq ($(HAVE_OPENGL),1)
 	GL_LIB := -framework OpenGLES
 endif
+   LDFLAGS += $(IPHONEMINVER) $(GL_LIB)
+   FLAGS += $(IPHONEMINVER)
+   CC += $(IPHONEMINVER)
+   CXX += $(IPHONEMINVER)
 
 else ifeq ($(platform), qnx)
    TARGET := $(TARGET_NAME)_qnx.so

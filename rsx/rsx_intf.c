@@ -305,13 +305,7 @@ void rsx_intf_push_triangle(int16_t p0x, int16_t p0y,
          break;
       case RSX_OPENGL:
 #if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
-         rsx_gl_push_triangle(p0x, p0y, p1x, p1y, p2x, p2y,
-               c0, c1, c2, t0x, t0y, t1x, t1y, t2x, t2y,
-               texpage_x, texpage_y, clut_x, clut_y,
-               texture_blend_mode,
-               depth_shift,
-               dither,
-               blend_mode);
+         /* TODO/FIXME */
 #endif
          break;
       case RSX_EXTERNAL_RUST:
@@ -341,7 +335,7 @@ void rsx_intf_push_line(int16_t p0x, int16_t p0y,
          break;
       case RSX_OPENGL:
 #if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
-         rsx_gl_push_line(p0x, p0y, p1x, p1y, c0, c1, dither, blend_mode);
+         /* TODO/FIXME */
 #endif
          break;
       case RSX_EXTERNAL_RUST:
