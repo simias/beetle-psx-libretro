@@ -32,7 +32,6 @@ private:
      // new(video_clock: VideoClock)
     RetroGl(VideoClock video_clock);
     static bool isCreated;
-    static RetroGl *single;
 public:
     static RetroGl* getInstance(VideoClock video_clock);
     static RetroGl* getInstance();
