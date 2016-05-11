@@ -3,7 +3,7 @@
 
 #include "libretro.h"
 #include "rsx.h"
-#include "rustation-libretro/src/retrogl/retrogl.h"
+#include "../rustation-libretro/src/retrogl/retrogl.h"
 
   void rsx_gl_set_blend_mode(enum blending_modes mode);
   void rsx_gl_set_environment(retro_environment_t);

@@ -9,6 +9,7 @@
 #include <glsm/glsm.h>
 #endif
 
+#include "rsx_lib_gl.h"
 #include "rsx_intf.h"
 #include "rsx.h"
 
