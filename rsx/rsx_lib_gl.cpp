@@ -287,7 +287,8 @@ void rsx_gl_push_triangle(
       uint16_t clut_y,
       uint8_t texture_blend_mode,
       uint8_t depth_shift,
-      bool dither)
+      bool dither,
+      int blend_mode)
 {
 #if 0
    let texture_page = [texpage_x as u16, texpage_y as u16];
@@ -362,118 +363,18 @@ void rsx_gl_push_line(int16_t p0x,
       int16_t p1y,
       uint32_t c0,
       uint32_t c1,
-      bool dither)
+      bool dither,
+      int blend_mode)
 {
-#if 0
-    let v = [
-        CommandVertex {
-            position: [p0x as i16, p0y as i16],
-            color: [c0 as u8, (c0 >> 8) as u8, (c0 >> 16) as u8],
-            texture_coord: [0, 0],
-            texture_page: [0, 0],
-            clut: [0, 0],
-            texture_blend_mode: 0,
-            depth_shift: 0,
-            dither: dither as u8,
-        },
-        CommandVertex {
-            position: [p1x as i16, p1y as i16],
-            color: [c1 as u8, (c1 >> 8) as u8, (c1 >> 16) as u8],
-            texture_coord: [0, 0],
-            texture_page: [0, 0],
-            clut: [0, 0],
-            texture_blend_mode: 0,
-            depth_shift: 0,
-            dither: dither as u8,
-        }];
-
-    renderer().gl_renderer().push_line(&v);
-#endif
 }
-
 
 void rsx_gl_load_image(uint16_t x, uint16_t y,
       uint16_t w, uint16_t h,
-      const uint16_t *vram)
+      uint16_t *vram)
 {
-#if 0
-   let vram = unsafe {
-      ::std::slice::from_raw_parts(vram as *const u16, 1024 * 512)
-   };
-
-   renderer().gl_renderer().upload_vram_window((x as u16, y as u16),
-         (w as u16, h as u16),
-         vram).unwrap();
-#endif
 }
 
-#if 0
-libretro_variables!(
-    struct CoreVariables (prefix = "beetle_psx") {
-        internal_resolution: u32, parse_upscale
-            => "Internal upscaling factor; \
-                1x (native)|2x|3x|4x|5x|6x|7x|8x|9x|10x|11x|12x",
-        internal_color_depth: u8, parse_color_depth
-            => "Internal color depth; dithered 16bpp (native)|32bpp",
-        scale_dither: bool, parse_bool
-            => "Scale dithering pattern with internal resolution; \
-                enabled|disabled",
-        wireframe: bool, parse_bool
-            => "Wireframe mode; disabled|enabled",
-        bios_menu: bool, parse_bool
-            => "Boot to BIOS menu; disabled|enabled",
-        display_internal_fps: bool, parse_bool
-            => "Display internal FPS; disabled|enabled"
-    });
 
-fn parse_upscale(opt: &str) -> Result<u32, <u32 as FromStr>::Err> {
-    let num = opt.trim_matches(|c: char| !c.is_numeric());
-
-    num.parse()
-}
-
-fn parse_color_depth(opt: &str) -> Result<u8, <u8 as FromStr>::Err> {
-    let num = opt.trim_matches(|c: char| !c.is_numeric());
-
-    num.parse()
-}
-
-fn parse_bool(opt: &str) -> Result<bool, ()> {
-    match opt {
-        "true" | "enabled" | "on" => Ok(true),
-        "false" | "disabled" | "off" => Ok(false),
-        _ => Err(()),
-    }
-}
-#endif
-
-
-#if 0
-fn get_av_info(std: VideoClock, upscaling: u32) -> libretro::SystemAvInfo {
-
-    // Maximum resolution supported by the PlayStation video
-    // output is 640x480
-    let max_width = (640 * upscaling) as c_uint;
-    let max_height = (480 * upscaling) as c_uint;
-
-    libretro::SystemAvInfo {
-        geometry: libretro::GameGeometry {
-            // The base resolution will be overriden using
-            // ENVIRONMENT_SET_GEOMETRY before rendering a frame so
-            // this base value is not really important
-            base_width: max_width,
-            base_height: max_height,
-            max_width: max_width,
-            max_height: max_height,
-            aspect_ratio: 4./3.,
-        },
-        timing: libretro::SystemTiming {
-            fps: video_output_framerate(std) as f64,
-            sample_rate: 44_100.
-        }
-    }
-}
-#endif
 
 void rsx_gl_set_blend_mode(enum blending_modes mode)
 {

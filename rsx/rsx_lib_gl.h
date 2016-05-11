@@ -4,10 +4,6 @@
 #include "libretro.h"
 #include "rsx.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
   void rsx_gl_set_blend_mode(enum blending_modes mode);
   void rsx_gl_set_environment(retro_environment_t);
   void rsx_gl_set_video_refresh(retro_video_refresh_t);
@@ -41,13 +37,14 @@ extern "C" {
 			 uint16_t clut_x, uint16_t clut_y,
 			 uint8_t texture_blend_mode,
 			 uint8_t depth_shift,
-			 bool dither);
+			 bool dither,
+          int blend_mode);
 
   void rsx_gl_push_line(int16_t p0x, int16_t p0y,
 		     int16_t p1x, int16_t p1y,
 		     uint32_t c0,
 		     uint32_t c1,
-		     bool dither);
+		     bool dither, int blend_mode);
 
   void rsx_gl_load_image(uint16_t x, uint16_t y,
 		      uint16_t w, uint16_t h,
@@ -60,11 +57,6 @@ extern "C" {
   void rsx_gl_copy_rect(uint16_t src_x, uint16_t src_y,
 		     uint16_t dst_x, uint16_t dst_y,
 		     uint16_t w, uint16_t h);
-
-
-#ifdef __cplusplus
-}
-#endif
 
 
 #endif /*__RSX_GL_H__ */
