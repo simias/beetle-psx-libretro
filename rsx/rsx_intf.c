@@ -25,7 +25,7 @@ void rsx_intf_set_blend_mode(enum blending_modes mode)
    {
       case RSX_OPENGL:
 #if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
-         rsx_gl_set_blend_mode(mode);
+         /* TODO/FIXME */
 #endif
          break;
       default:
@@ -42,7 +42,7 @@ void rsx_intf_set_environment(retro_environment_t cb)
          break;
       case RSX_OPENGL:
 #if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
-         rsx_gl_set_environment(cb);
+         /* TODO/FIXME */
 #endif
          break;
       case RSX_EXTERNAL_RUST:
@@ -62,7 +62,7 @@ void rsx_intf_set_video_refresh(retro_video_refresh_t cb)
          break;
       case RSX_OPENGL:
 #if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
-         rsx_gl_set_video_refresh(cb);
+         /* TODO/FIXME */
 #endif
          break;
       case RSX_EXTERNAL_RUST:
@@ -82,7 +82,7 @@ void rsx_intf_get_system_av_info(struct retro_system_av_info *info)
          break;
       case RSX_OPENGL:
 #if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
-         rsx_gl_get_system_av_info(info);
+         /* TODO/FIXME */
 #endif
          break;
       case RSX_EXTERNAL_RUST:
@@ -101,7 +101,7 @@ void rsx_intf_init(enum rsx_renderer_type type)
    {
       case RSX_OPENGL:
 #if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
-         rsx_gl_init();
+         /* TODO/FIXME */
 #endif
          break;
       case RSX_EXTERNAL_RUST:
@@ -129,8 +129,7 @@ bool rsx_intf_open(bool is_pal)
          break;
       case RSX_OPENGL:
 #if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
-         if (!rsx_gl_open(is_pal))
-            return false;
+         /* TODO/FIXME */
 #endif
          break;
       case RSX_EXTERNAL_RUST:
@@ -153,7 +152,7 @@ void rsx_intf_close(void)
          break;
       case RSX_OPENGL:
 #if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
-         rsx_gl_close();
+         /* TODO/FIXME */
 #endif
          break;
       case RSX_EXTERNAL_RUST:
@@ -172,7 +171,7 @@ void rsx_intf_refresh_variables(void)
          break;
       case RSX_OPENGL:
 #if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
-         rsx_gl_refresh_variables();
+         /* TODO/FIXME */
 #endif
          break;
       case RSX_EXTERNAL_RUST:
@@ -191,7 +190,7 @@ void rsx_intf_prepare_frame(void)
          break;
       case RSX_OPENGL:
 #if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
-         rsx_gl_prepare_frame();
+         /* TODO/FIXME */
 #endif
          break;
       case RSX_EXTERNAL_RUST:
@@ -212,7 +211,7 @@ void rsx_intf_finalize_frame(const void *fb, unsigned width,
          break;
       case RSX_OPENGL:
 #if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
-         rsx_gl_finalize_frame(fb, width, height, pitch);
+         /* TODO/FIXME */
 #endif
          break;
       case RSX_EXTERNAL_RUST:
@@ -231,7 +230,7 @@ void rsx_intf_set_draw_offset(int16_t x, int16_t y)
          break;
       case RSX_OPENGL:
 #if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
-         rsx_gl_set_draw_offset(x, y);
+         /* TODO/FIXME */
 #endif
          break;
       case RSX_EXTERNAL_RUST:
@@ -251,7 +250,7 @@ void rsx_intf_set_draw_area(uint16_t x, uint16_t y,
          break;
       case RSX_OPENGL:
 #if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
-         rsx_gl_set_draw_area(x, y, w, h);
+         /* TODO/FIXME */
 #endif
          break;
       case RSX_EXTERNAL_RUST:
@@ -272,7 +271,7 @@ void rsx_intf_set_display_mode(uint16_t x, uint16_t y,
          break;
       case RSX_OPENGL:
 #if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
-         rsx_gl_set_display_mode(x, y, w, h, depth_24bpp);
+         /* TODO/FIXME */
 #endif
          break;
       case RSX_EXTERNAL_RUST:
@@ -356,7 +355,7 @@ void rsx_intf_load_image(uint16_t x, uint16_t y,
          break;
       case RSX_OPENGL:
 #if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
-         rsx_gl_load_image(x, y, w, h, vram);
+         /* TODO/FIXME */
 #endif
          break;
       case RSX_EXTERNAL_RUST:
@@ -377,7 +376,7 @@ void rsx_intf_fill_rect(uint32_t color,
          break;
       case RSX_OPENGL:
 #if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
-         rsx_gl_fill_rect(color, x, y, w, h);
+         /* TODO/FIXME */
 #endif
          break;
       case RSX_EXTERNAL_RUST:
@@ -398,8 +397,7 @@ void rsx_intf_copy_rect(uint16_t src_x, uint16_t src_y,
          break;
       case RSX_OPENGL:
 #if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
-         rsx_gl_copy_rect(src_x, src_y, dst_x, dst_y,
-               w, h);
+         /* TODO/FIXME */
 #endif
          break;
       case RSX_EXTERNAL_RUST:
