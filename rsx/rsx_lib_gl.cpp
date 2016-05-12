@@ -14,29 +14,7 @@ extern uint8_t psx_gpu_upscale_shift;
 
 static RetroGl* static_renderer; 
 
-
-/* Already defined in rustation-libretro/GlRenderer.h */
-#if 0
-/* Width of the VRAM in 16bit pixels */
-static const uint16_t VRAM_WIDTH_PIXELS = 1024;
-
-/* Height of the VRAM in lines */
-static const uint16_t VRAM_HEIGHT = 512;
-#endif
-
 static bool rsx_gl_is_pal = false;
-
-/* The are a few hardware differences between PAL and NTSC consoles,
- * in particular the pixelclock runs slightly slower on PAL consoles. */
-
-/* The translated code already has an enum class named VideoClock */
-#if 0
-enum VideoClock
-{
-   Ntsc,
-   Pal,
-};
-#endif
 
 static void context_destroy(void)
 {
