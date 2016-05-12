@@ -7,8 +7,6 @@
 
 #include <boolean.h>
 
-static retro_video_refresh_t rsx_gl_video_cb;
-static retro_environment_t   rsx_gl_environ_cb;
 extern uint8_t widescreen_hack;
 extern uint8_t psx_gpu_upscale_shift;
 
@@ -102,7 +100,6 @@ void rsx_gl_finalize_frame(const void *fb, unsigned width,
 
 void rsx_gl_set_environment(retro_environment_t callback)
 {
-   rsx_gl_environ_cb = callback;
 #if 0
     libretro::set_environment(callback);
 #endif
@@ -110,7 +107,6 @@ void rsx_gl_set_environment(retro_environment_t callback)
 
 void rsx_gl_set_video_refresh(retro_video_refresh_t callback)
 {
-   rsx_gl_video_cb = callback;
 #if 0
    libretro::set_video_refresh(callback);
 #endif
