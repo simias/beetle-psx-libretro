@@ -7,7 +7,7 @@ class Shader {
 public:
     GLuint id;
 
-    Shader(const char** source, GLenum shader_type);
+    Shader(const char* source, GLenum shader_type);
     void attach_to(GLuint program);
     void detach_from(GLuint program);
     void drop();

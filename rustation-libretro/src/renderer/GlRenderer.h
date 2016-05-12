@@ -121,8 +121,8 @@ public:
     ~GlRenderer();
 
     template<typename T>
-    static DrawBuffer<T>* build_buffer( const char** vertex_shader,
-                                        const char** fragment_shader,
+    static DrawBuffer<T>* build_buffer( const char* vertex_shader,
+                                        const char* fragment_shader,
                                         size_t capacity,
                                         bool lifo  )
     {

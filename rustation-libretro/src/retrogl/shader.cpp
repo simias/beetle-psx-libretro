@@ -4,19 +4,19 @@
 #include <stdio.h>
 #include <assert.h>
 
-#define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
+/*#define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))*/
 
-Shader::Shader(const char** source, GLenum shader_type)
+Shader::Shader(const char* source, GLenum shader_type)
 {
     GLuint id = glCreateShader(shader_type);
     printf("SHADER ID: %d\n", (int) id);
 
-    size_t src_size = ARRAY_SIZE(source);
+    /* size_t src_size = ARRAY_SIZE(source); */
 
     glShaderSource( id,
                     1,
-                    source,
-                    (const GLint*) &src_size);
+                    &source,
+                    NULL);
     glCompileShader(id);
 
     GLint status = (GLint) GL_FALSE;
@@ -32,10 +32,7 @@ Shader::Shader(const char** source, GLenum shader_type)
         puts("Shader compilation failed:\n");
 
         /* print shader source */
-        size_t i;
-        for (i = 0; i < src_size; ++i) {
-            puts( source[i] );
-        }
+        puts( source );
 
         puts("Shader info log:\n");
         puts( get_shader_info_log(id) );
