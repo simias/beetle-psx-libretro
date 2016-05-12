@@ -46,17 +46,18 @@ Program::Program(Shader* vertex_shader, Shader* fragment_shader)
     }
 }
 
-GLuint Program::find_attribute(const char* attr)
+GLint Program::find_attribute(const char* attr)
 {
+    printf("FIND ATTRIBUTE: %s\n", attr);
     GLint index = glGetAttribLocation(this->id, attr);
 
     if (index < 0) {
         printf("Couldn't find attribute \"%s\" in program\n", attr);
         printf("GL error %d\n", (int) glGetError());
-        exit(EXIT_FAILURE);
+        /* exit(EXIT_FAILURE); */
     }
 
-    return (GLuint) index;
+    return index;
 }
 
 void Program::bind()
@@ -138,11 +139,12 @@ const char* get_program_info_log(GLuint id)
 
 UniformMap load_program_uniforms(GLuint program)
 {
+    printf("load_program_uniforms()\n");
     size_t n_uniforms = 0;
 
     glGetProgramiv( program,
                     GL_ACTIVE_UNIFORMS,
-                    (GLint*) &n_uniforms );
+                    (GLuint*) &n_uniforms );
 
     UniformMap uniforms;
 

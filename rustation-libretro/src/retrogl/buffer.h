@@ -72,13 +72,14 @@ public:
     /* fn bind_attributes(&self)-> Result<(), Error> { */
     void bind_attributes()
     {
+        printf("bind_attributes()\n");
         this->vao->bind();
 
         // ARRAY_BUFFER is captured by VertexAttribPointer
         this->bind();
 
         std::vector<Attribute> attrs = attributes(this->contains);
-        GLint element_size = (GLint) sizeof( *(this->contains) );
+        GLint element_size = (GLint) sizeof( T );
 
         /* 
         let index =
@@ -94,8 +95,17 @@ public:
 
         */
         for (Attribute attr : attrs) {
-            GLuint index = this->program->find_attribute(attr.name);
-            glEnableVertexAttribArray(index);
+            printf("Attribute.name = %s\n", attr.name);
+            GLint index = this->program->find_attribute(attr.name);
+
+            // Don't error out if the shader doesn't use this
+            // attribute, it could be caused by shader
+            // optimization if the attribute is unused for
+            // some reason.
+            if (index < 0) {
+                continue;
+            }
+            glEnableVertexAttribArray((GLuint) index);
 
             // This captures the buffer so that we don't have to bind it
             // when we draw later on, we'll just have to bind the vao

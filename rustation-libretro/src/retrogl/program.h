@@ -16,7 +16,7 @@ public:
     UniformMap uniforms;
 
     Program(Shader* vertex_shader, Shader* fragment_shader);
-    GLuint find_attribute(const char* attr);
+    GLint find_attribute(const char* attr);
     void bind();
     GLint uniform(const char* name);
     void uniform1i(const char* name, GLint i);
