@@ -31,13 +31,13 @@ static const char *command_fragment = {
 "const uint BLEND_MODE_TEXTURE_BLEND = 2U;\n"
 
 // Read a pixel in VRAM
-"vec4 vram_get_pixel(int x, int y) {\n"
+"vec4 vram_get_pixel(int x, int y) {"
 "  return texelFetch(fb_texture, ivec2(x, y), 0);\n"
 "}\n"
 
 // Take a normalized color and convert it into a 16bit 1555 ABGR
 // integer in the format used internally by the Playstation GPU.
-"uint rebuild_psx_color(vec4 color) {\n"
+"uint rebuild_psx_color(vec4 color) {"
 "  uint a = uint(floor(color.a + 0.5));\n"
 "  uint r = uint(floor(color.r * 31. + 0.5));\n"
 "  uint g = uint(floor(color.g * 31. + 0.5));\n"
@@ -50,7 +50,7 @@ static const char *command_fragment = {
 // a fully transparent texel (even for opaque draw commands). If you
 // want black you have to use an opaque draw command and use `0x8000`
 // instead.\n"
-"bool is_transparent(vec4 texel) {\n"
+"bool is_transparent(vec4 texel) {"
 "  return rebuild_psx_color(texel) == 0U;\n"
 "}\n"
 
@@ -58,11 +58,11 @@ static const char *command_fragment = {
 // pixel position in VRAM, by blocks of 4x4 pixels. The value is added
 // to the 8bit color components before they're truncated to 5 bits.
 //// TODO: r5 - There might be extra line breaks in here
-"const int dither_pattern[16] =\n"
-"  int[16](-4,  0, -3,  1,\\n\"\n"
-"           2, -2,  3, -1,\\n\"\n"
-"          -3,  1, -4,  0,\\n\"\n"
-"           3, -1,  2, -2);\\n\"\n"
+"const int dither_pattern[16] ="
+"  int[16](-4,  0, -3,  1,"
+"           2, -2,  3, -1,"
+"          -3,  1, -4,  0,"
+"           3, -1,  2, -2);" "\n"
 
 "void main() {\n"
 

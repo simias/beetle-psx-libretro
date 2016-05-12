@@ -73,6 +73,8 @@ const char* get_shader_info_log(GLuint id)
                         &log_len,
                         (char*) log);
 
+    printf(log);
+
     if (log_len <= 0) {
         return " ";
     }
