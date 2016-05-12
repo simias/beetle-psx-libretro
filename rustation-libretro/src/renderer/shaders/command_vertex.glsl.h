@@ -28,8 +28,8 @@ static const char *command_vertex[] = {
 "void main() {\n"
 "  ivec2 pos = position.xy + offset;\n"
 
-   // Convert VRAM coordinates (0;\n"1023, 0;\n"511) into OpenGL coordinates
-   // (-1;\n"1, -1;\n"1)
+   // Convert VRAM coordinates (0;1023, 0;511) into OpenGL coordinates
+   // (-1;1, -1;1)
 "  float xpos = (float(pos.x) / 512) - 1.0;\n"
 "  float ypos = (float(pos.y) / 256) - 1.0;\n"
 
