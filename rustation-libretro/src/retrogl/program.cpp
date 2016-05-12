@@ -140,24 +140,25 @@ const char* get_program_info_log(GLuint id)
 UniformMap load_program_uniforms(GLuint program)
 {
     printf("load_program_uniforms()\n");
-    size_t n_uniforms = 0;
+    GLint n_uniforms = 0;
 
     glGetProgramiv( program,
                     GL_ACTIVE_UNIFORMS,
-                    (GLint*) &n_uniforms );
+                    &n_uniforms );
 
     UniformMap uniforms;
 
     // Figure out how long a uniform name can be
-    size_t max_name_len = 0;
+    GLint max_name_len = 0;
 
     glGetProgramiv( program,
                     GL_ACTIVE_UNIFORM_MAX_LENGTH,
-                    (GLint*) &max_name_len);
+                    &max_name_len);
 
     assert( !glGetError() );
 
     size_t u;
+    printf("Uniform names:\n");
     for (u = 0; u < n_uniforms; ++u) {
         // Retrieve the name of this uniform
         char name[max_name_len];
@@ -183,7 +184,7 @@ UniformMap load_program_uniforms(GLuint program)
         GLint location = glGetUniformLocation(program, (const char*) name);
 
         /* name.truncate(len as usize); */
-        name[len - 1] = '\0';
+        /* name[len - 1] = '\0'; */
 
         if (location < 0) {
             printf("Uniform \"%s\" doesn't have a location", name);
@@ -191,6 +192,7 @@ UniformMap load_program_uniforms(GLuint program)
         }
 
         uniforms[name] = location;
+        printf("\t%s - location %d\n", name, location);
     }
 
     assert( !glGetError() );

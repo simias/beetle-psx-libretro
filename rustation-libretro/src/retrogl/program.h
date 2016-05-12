@@ -6,8 +6,9 @@
 #include <glsm/glsmsym.h>
 
 #include <map>
+#include <string>
 
-typedef std::map<const char*, GLint> UniformMap;
+typedef std::map<std::string, GLint> UniformMap;
 
 class Program {
 public:
