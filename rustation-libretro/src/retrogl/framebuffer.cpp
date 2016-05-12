@@ -38,7 +38,10 @@ Framebuffer::Framebuffer(Texture* color_texture, Texture* depth_texture)
                             0);
 
     /* Framebuffer owns this Texture*, make sure we clean it after being done */
-    if (depth_texture != nullptr) delete depth_texture;
+    if (depth_texture != nullptr) {
+        delete depth_texture;
+        depth_texture = nullptr;
+    }
 
     /* error_or(fb) */
     assert( !glGetError() );

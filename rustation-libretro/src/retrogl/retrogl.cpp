@@ -78,7 +78,10 @@ RetroGl::RetroGl(VideoClock video_clock)
 }
 
 RetroGl::~RetroGl() {
-    if (this->state_data.r != nullptr) delete this->state_data.r;
+    if (this->state_data.r != nullptr) {
+        delete this->state_data.r;
+        this->state_data.r = nullptr;
+    }
 }
 
 void RetroGl::context_reset() {
@@ -112,7 +115,10 @@ void RetroGl::context_reset() {
         break;
     }
 
-    delete this->state_data.r;
+    if (this->state_data.r != nullptr) {
+        delete this->state_data.r;
+        this->state_data.r = nullptr;
+    }
     
     /* GlRenderer will own this copy and delete it in its dtor */
     DrawConfig* copy_of_config  = new DrawConfig;

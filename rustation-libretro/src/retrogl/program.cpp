@@ -18,8 +18,15 @@ Program::Program(Shader* vertex_shader, Shader* fragment_shader)
     fragment_shader->detach_from(id);
 
     /* Program owns the two pointers, so we clean them up now */
-    if (vertex_shader != nullptr) delete vertex_shader;
-    if (fragment_shader != nullptr) delete fragment_shader;
+    if (vertex_shader != nullptr) {
+        delete vertex_shader;
+        vertex_shader = nullptr;
+    }
+
+    if (fragment_shader != nullptr) {
+        delete fragment_shader;
+        fragment_shader = nullptr;
+    }
 
     // Check if the program linking was successful
     GLint status = (GLint) GL_FALSE;
