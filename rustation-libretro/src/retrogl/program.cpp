@@ -7,6 +7,7 @@
 Program::Program(Shader* vertex_shader, Shader* fragment_shader)
 {
     GLuint id = glCreateProgram();
+    printf("PROGRAM ID: %d\n", (int) id);
 
     vertex_shader->attach_to(id);
     fragment_shader->attach_to(id);
@@ -23,6 +24,7 @@ Program::Program(Shader* vertex_shader, Shader* fragment_shader)
     // Check if the program linking was successful
     GLint status = (GLint) GL_FALSE;
     glGetProgramiv(id, GL_LINK_STATUS, &status);
+    printf("GL LINK STATUS: %d\n", (int) status);
 
     if (status == (GLint) GL_TRUE) {
         /* Rust code has a try statement here, perhaps we should fail fast with
