@@ -16,10 +16,6 @@ static RetroGl* static_renderer;
 
 static bool rsx_gl_is_pal = false;
 
-static void context_destroy(void)
-{
-}
-
 void renderer_gl_free(void)
 {
 #if 0
@@ -335,9 +331,3 @@ void rsx_gl_load_image(uint16_t x, uint16_t y,
   uint16_t[VRAM_HEIGHT*VRAM_WIDTH_PIXELS] array arg instead of a ptr */
    renderer()->gl_renderer()->upload_vram_window(top_left, dimensions, vram);
 }
-
-void rsx_gl_set_blend_mode(enum blending_modes mode)
-{
-}
-
-
