@@ -100,16 +100,10 @@ void rsx_gl_finalize_frame(const void *fb, unsigned width,
 
 void rsx_gl_set_environment(retro_environment_t callback)
 {
-#if 0
-    libretro::set_environment(callback);
-#endif
 }
 
 void rsx_gl_set_video_refresh(retro_video_refresh_t callback)
 {
-#if 0
-   libretro::set_video_refresh(callback);
-#endif
 }
 
 /* Precise FPS values for the video output for the given
