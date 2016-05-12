@@ -3,6 +3,7 @@
 
 #include <glsm/glsmsym.h>
 #include <stdlib.h>
+#include <string>
 
 class VertexArrayObject {
 public:
@@ -15,7 +16,7 @@ public:
 
 class Attribute {
 public:
-    char* name;
+    std::string name;
     size_t offset;
     /// Attribute type (BYTE, UNSIGNED_SHORT, FLOAT etc...)
     GLenum ty;

@@ -79,6 +79,11 @@ public:
         this->bind();
 
         std::vector<Attribute> attrs = attributes(this->contains);
+        printf("Contents of std::vector<Attribute> attrs: \n");
+        for (Attribute attr : attrs) {
+            printf("\t%s\n", attr.name.c_str());
+        }
+
         GLint element_size = (GLint) sizeof( T );
 
         /* 
@@ -95,8 +100,7 @@ public:
 
         */
         for (Attribute attr : attrs) {
-            printf("Attribute.name = %s\n", attr.name);
-            GLint index = this->program->find_attribute(attr.name);
+            GLint index = this->program->find_attribute(attr.name.c_str());
 
             // Don't error out if the shader doesn't use this
             // attribute, it could be caused by shader

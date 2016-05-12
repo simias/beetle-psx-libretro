@@ -144,7 +144,7 @@ UniformMap load_program_uniforms(GLuint program)
 
     glGetProgramiv( program,
                     GL_ACTIVE_UNIFORMS,
-                    (GLuint*) &n_uniforms );
+                    (GLint*) &n_uniforms );
 
     UniformMap uniforms;
 
