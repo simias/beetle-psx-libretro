@@ -7,10 +7,6 @@
 
 #include <boolean.h>
 
-#if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
-#include <glsm/glsm.h>
-#endif
-
 static retro_video_refresh_t rsx_gl_video_cb;
 static retro_environment_t   rsx_gl_environ_cb;
 extern uint8_t widescreen_hack;
@@ -42,28 +38,8 @@ enum VideoClock
 };
 #endif
 
-static bool fb_ready = false;
-
-static void context_reset(void)
-{
-   printf("context_reset.\n");
-   glsm_ctl(GLSM_CTL_STATE_CONTEXT_RESET, NULL);
-
-   if (!glsm_ctl(GLSM_CTL_STATE_SETUP, NULL))
-      return;
-
-   fb_ready = true;
-}
-
 static void context_destroy(void)
 {
-}
-
-static bool context_framebuffer_lock(void *data)
-{
-   if (fb_ready)
-      return false;
-   return true;
 }
 
 void renderer_gl_free(void)
@@ -118,19 +94,6 @@ void rsx_gl_init(void)
 
 bool rsx_gl_open(bool is_pal)
 {
-   glsm_ctx_params_t params = {0};
-
-   params.context_reset         = context_reset;
-   params.context_destroy       = context_destroy;
-   params.environ_cb            = rsx_gl_environ_cb;
-   params.stencil               = false;
-   params.imm_vbo_draw          = NULL;
-   params.imm_vbo_disable       = NULL;
-   params.framebuffer_lock      = context_framebuffer_lock;
-
-   if (!glsm_ctl(GLSM_CTL_STATE_CONTEXT_INIT, &params))
-      return false;
-
    rsx_gl_is_pal = is_pal;
 
    VideoClock clock = is_pal ? VideoClock::Pal : VideoClock::Ntsc;
@@ -153,25 +116,12 @@ void rsx_gl_refresh_variables(void)
 
 void rsx_gl_prepare_frame(void)
 {
-   if (!fb_ready)
-      return;
-
-   glsm_ctl(GLSM_CTL_STATE_BIND, NULL);
-
    renderer()->prepare_render();
 }
 
 void rsx_gl_finalize_frame(const void *fb, unsigned width,
       unsigned height, unsigned pitch)
 {
-   if (!fb_ready)
-      return;
-  
-   rsx_gl_video_cb(RETRO_HW_FRAME_BUFFER_VALID,
-         width, height, pitch);
-
-   glsm_ctl(GLSM_CTL_STATE_UNBIND, NULL);
-
    renderer()->finalize_frame();
 
 }
