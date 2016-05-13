@@ -74,12 +74,17 @@ public:
     /* fn bind_attributes(&self)-> Result<(), Error> { */
     void bind_attributes()
     {
+        printf("bind_attributes()\n");
         this->vao->bind();
 
         // ARRAY_BUFFER is captured by VertexAttribPointer
         this->bind();
 
         std::vector<Attribute> attrs = attributes(this->contains);
+        printf("Contents of std::vector<Attribute> attrs: \n");
+        for(std::vector<Attribute>::iterator it(attrs.begin()); it != attrs.end(); ++it) {
+            printf("\t%s\n", it->name.c_str());
+        }
 
         GLint element_size = (GLint) sizeof( T );
 
@@ -96,7 +101,8 @@ public:
                     };
 
         */
-        for (Attribute attr : attrs) {
+        for(std::vector<Attribute>::iterator it(attrs.begin()); it != attrs.end(); ++it) {
+            Attribute& attr = *it;
             GLint index = this->program->find_attribute(attr.name.c_str());
 
             // Don't error out if the shader doesn't use this

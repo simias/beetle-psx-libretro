@@ -5,6 +5,24 @@
 
 Framebuffer::Framebuffer(Texture* color_texture)
 {
+    InitializeWithColorTexture(color_texture);
+}
+
+Framebuffer::Framebuffer(Texture* color_texture, Texture* depth_texture)
+{
+    InitializeWithColorTexture(color_texture);
+
+    glFramebufferTexture(   GL_DRAW_FRAMEBUFFER,
+                            GL_DEPTH_ATTACHMENT,
+                            depth_texture->id,
+                            0);
+
+    /* error_or(fb) */
+    get_error();
+}
+
+void Framebuffer::InitializeWithColorTexture(Texture* color_texture)
+{
     GLuint id = 0;
     glGenFramebuffers(1, &id);
 
@@ -24,18 +42,6 @@ Framebuffer::Framebuffer(Texture* color_texture)
                 0,
                 (GLsizei) color_texture->width,
                 (GLsizei) color_texture->height);
-
-    /* error_or(fb) */
-    get_error();
-}
-
-Framebuffer::Framebuffer(Texture* color_texture, Texture* depth_texture)
-: Framebuffer(color_texture) /* C++11 delegating constructor */
-{
-    glFramebufferTexture(   GL_DRAW_FRAMEBUFFER,
-                            GL_DEPTH_ATTACHMENT,
-                            depth_texture->id,
-                            0);
 
     /* error_or(fb) */
     get_error();

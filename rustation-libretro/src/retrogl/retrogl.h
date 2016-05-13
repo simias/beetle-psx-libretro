@@ -7,14 +7,14 @@
 
 #include "../renderer/GlRenderer.h"
 
-enum class VideoClock {
+enum VideoClock {
     Ntsc,
     Pal
 };
 
 /// State machine dealing with OpenGL context
 /// destruction/reconstruction
-enum class GlState {
+enum GlState {
     // OpenGL context is ready
     Valid,
     /// OpenGL context has been destroyed (or is not created yet)

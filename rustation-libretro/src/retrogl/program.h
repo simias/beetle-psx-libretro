@@ -27,9 +27,11 @@ public:
     void uniform2i(const char* name, GLint a, GLint b);
     void drop();
 
+private:
+    void get_program_info_log();
+    char *info_log;
 };
 
-const char* get_program_info_log(GLuint id);
 
 // Return a hashmap of all uniform names contained in `program` with
 // their corresponding location.

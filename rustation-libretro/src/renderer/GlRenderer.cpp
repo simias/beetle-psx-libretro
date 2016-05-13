@@ -320,7 +320,7 @@ void GlRenderer::upload_textures(   uint16_t top_left[2],
     uint16_t y_start    = top_left[1];
     uint16_t y_end      = y_start + dimensions[1];
 
-    size_t slice_len = 4;
+    const size_t slice_len = 4;
     ImageLoadVertex slice[slice_len] =  
     {   
         {   {x_start,   y_start }   }, 
@@ -366,7 +366,7 @@ void GlRenderer::upload_vram_window(uint16_t top_left[2],
     uint16_t y_start    = top_left[1];
     uint16_t y_end      = y_start + dimensions[1];
 
-    size_t slice_len = 4;
+    const size_t slice_len = 4;
     ImageLoadVertex slice[slice_len] =
         {   
             {   {x_start,   y_start }   }, 
@@ -544,7 +544,7 @@ void GlRenderer::finalize_frame()
 
     this->output_buffer->clear();
 
-    size_t slice_len = 4;
+    const size_t slice_len = 4;
     OutputVertex slice[slice_len] =
     {
         { {-1.0, -1.0}, {fb_x_start,    fb_y_end}   },

@@ -14,8 +14,10 @@ public:
     void attach_to(GLuint program);
     void detach_from(GLuint program);
     void drop();
-};
 
-const char* get_shader_info_log(GLuint id);
+private:
+    void get_shader_info_log();
+    char *info_log;
+};
 
 #endif

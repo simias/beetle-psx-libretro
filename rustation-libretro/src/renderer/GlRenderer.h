@@ -69,7 +69,7 @@ struct ImageLoadVertex {
     uint16_t position[2];
 };
 
-enum class SemiTransparencyMode {
+enum SemiTransparencyMode {
     /// Source / 2 + destination / 2
     Average = 0,
     /// Source + destination

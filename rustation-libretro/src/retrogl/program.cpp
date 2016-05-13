@@ -5,6 +5,7 @@
 #include <assert.h>
 
 Program::Program(Shader* vertex_shader, Shader* fragment_shader)
+    : info_log(NULL)
 {
     GLuint id = glCreateProgram();
 
@@ -30,6 +31,8 @@ Program::Program(Shader* vertex_shader, Shader* fragment_shader)
     // Check if the program linking was successful
     GLint status = (GLint) GL_FALSE;
     glGetProgramiv(id, GL_LINK_STATUS, &status);
+    get_program_info_log();
+    printf("GL LINK STATUS: %d\n", (int) status);
 
     if (status == (GLint) GL_TRUE) {
         /* Rust code has a try statement here, perhaps we should fail fast with
@@ -45,7 +48,7 @@ Program::Program(Shader* vertex_shader, Shader* fragment_shader)
     } else {
         puts("OpenGL program linking failed\n");
         puts("Program info log:\n");
-        puts( get_program_info_log(id) );
+        puts( info_log );
 
         exit(EXIT_FAILURE);
     }
@@ -54,6 +57,7 @@ Program::Program(Shader* vertex_shader, Shader* fragment_shader)
 Program::~Program()
 {
     this->drop();
+    free(info_log);
 }
 
 GLint Program::find_attribute(const char* attr)
@@ -114,25 +118,25 @@ void Program::drop()
     glDeleteProgram(this->id);
 }
 
-const char* get_program_info_log(GLuint id)
+void Program::get_program_info_log()
 {
     GLint log_len = 0;
 
     glGetProgramiv(id, GL_INFO_LOG_LENGTH, &log_len);
 
     if (log_len <= 0) {
-        return " ";
+        return;
     }
 
-    char log[(size_t) log_len];
+    info_log = (char*)malloc(log_len);
     GLsizei len = (GLsizei) log_len;
     glGetProgramInfoLog(id,
                         len,
                         &log_len,
-                        (char*) log);
+                        (char*) info_log);
 
     if (log_len <= 0) {
-        return " ";
+        return;
     }
 
     // The length returned by GetShaderInfoLog *excludes*
@@ -141,9 +145,7 @@ const char* get_program_info_log(GLuint id)
     /* log.truncate(log_len as usize); */
     /* Don't want to spend time thinking about the above, I'll just put a \0
     in the last index */
-    log[log_len - 1] = '\0';
-
-    return (const char*) log;
+    info_log[log_len - 1] = '\0';
 }
 
 UniformMap load_program_uniforms(GLuint program)
@@ -165,10 +167,9 @@ UniformMap load_program_uniforms(GLuint program)
 
     get_error();
 
-    size_t u;
-    for (u = 0; u < n_uniforms; ++u) {
-        // Retrieve the name of this uniform
-        char name[max_name_len];
+    for (int u = 0; u < n_uniforms; ++u) {
+        // Retrieve the name of this uniform. Don't use the size we just fetched, because it's inconvenient. Use something monstrously large.
+        char name[256];
         size_t name_len = max_name_len;
         GLsizei len = 0;
         // XXX we might want to validate those at some point
