@@ -73,6 +73,7 @@ GlRenderer::GlRenderer(DrawConfig* config)
     // Texture holding the raw VRAM texture contents. We can't
     // meaningfully upscale it since most games use paletted
     // textures.
+    printf("Creating fb_texture...\n");
     Texture* fb_texture = new Texture(native_width, native_height, GL_RGB5_A1);
 
     if (depth > 16) {
@@ -99,10 +100,11 @@ GlRenderer::GlRenderer(DrawConfig* config)
         exit(EXIT_FAILURE);
     }
 
+    printf("Creating fb_out...\n");
     Texture* fb_out = new Texture( native_width * upscaling,
                                    native_height * upscaling,
                                    texture_storage);
-
+    printf("Creating fb_out_depth...\n");
     Texture* fb_out_depth = new Texture( fb_out->width,
                                          fb_out->height,
                                          GL_DEPTH_COMPONENT32F);
@@ -140,10 +142,22 @@ GlRenderer::~GlRenderer()
     if (command_buffer != nullptr)      delete command_buffer;
     if (output_buffer != nullptr)       delete output_buffer;
     if (image_load_buffer != nullptr)   delete image_load_buffer;    
-    if (fb_texture != nullptr)          delete fb_texture;
-    if (fb_out != nullptr)              delete fb_out;
-    if (fb_out_depth != nullptr)        delete fb_out_depth;
     if (config != nullptr)              delete config;
+    
+    if (fb_texture != nullptr) {         
+        fb_texture.drop();
+        delete fb_texture;
+    }
+    
+    if (fb_out != nullptr) {
+        fb_out.drop();              
+        delete fb_out;
+    }
+
+    if (fb_out_depth != nullptr) {        
+        fb_out_depth.drop();
+        delete fb_out_depth;
+    }
 }
 
 /*
