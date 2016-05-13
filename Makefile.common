@@ -200,6 +200,7 @@ SOURCES_C += $(LIBRETRO_DIR)/file/retro_stat.c
 RSXGL_DIR := $(CORE_DIR)/rustation-libretro/src
 SOURCES_CXX += \
 	$(RSXGL_DIR)/renderer/GlRenderer.cpp \
+	$(RSXGL_DIR)/retrogl/error.cpp \
 	$(RSXGL_DIR)/retrogl/framebuffer.cpp \
 	$(RSXGL_DIR)/retrogl/program.cpp \
 	$(RSXGL_DIR)/retrogl/shader.cpp \

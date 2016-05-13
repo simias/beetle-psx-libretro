@@ -7,6 +7,7 @@
 #include "../retrogl/program.h"
 #include "../retrogl/texture.h"
 #include "../retrogl/framebuffer.h"
+#include "../retrogl/error.h"
 
 #include "libretro.h"
 #include <glsm/glsmsym.h>

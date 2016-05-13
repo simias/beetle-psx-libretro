@@ -342,8 +342,7 @@ void GlRenderer::upload_textures(   uint16_t top_left[2],
     glPolygonMode(GL_FRONT_AND_BACK, this->command_polygon_mode);
     glEnable(GL_SCISSOR_TEST);
 
-    /* get_error() */
-    assert(!glGetError());
+    get_error();
 }
 
 void GlRenderer::upload_vram_window(uint16_t top_left[2], 
@@ -387,8 +386,7 @@ void GlRenderer::upload_vram_window(uint16_t top_left[2],
     glPolygonMode(GL_FRONT_AND_BACK, this->command_polygon_mode);
     glEnable(GL_SCISSOR_TEST);
 
-    /* get_error() */
-    assert(!glGetError());
+    get_error();
 }
 
 DrawConfig* GlRenderer::draw_config()
@@ -790,8 +788,7 @@ void GlRenderer::copy_rect( uint16_t source_top_left[2],
                         this->fb_out->id, GL_TEXTURE_2D, 0, dst_x, dst_y, 0,
                         w, h, 1 );
 
-    // get_error();
-    assert(!glGetError());
+    get_error();
 }
 
 std::vector<Attribute> attributes(CommandVertex* v)

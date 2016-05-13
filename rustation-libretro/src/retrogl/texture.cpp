@@ -15,7 +15,7 @@ Texture::Texture(uint32_t width, uint32_t height, GLenum internal_format)
                     (GLsizei) width,
                     (GLsizei) height);
 
-    assert( !glGetError() );
+    get_error();
 
 
     this->id = id;
@@ -51,7 +51,7 @@ void Texture::set_sub_image(uint16_t top_left[2],
                     ty,
                     (void*) data);
 
-    assert( !glGetError() );
+    get_error();
 }
 
 void Texture::set_sub_image_window( uint16_t top_left[2],

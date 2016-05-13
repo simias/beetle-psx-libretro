@@ -26,7 +26,7 @@ Shader::Shader(const char* source, GLenum shader_type)
     if (status == (GLint) GL_TRUE) {
         // There shouldn't be anything in glGetError but let's
         // check to make sure.
-        assert( !glGetError() );
+        get_error();
         this->id = id;
     } else {
         puts("Shader compilation failed:\n");

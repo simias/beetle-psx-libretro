@@ -40,7 +40,7 @@ Program::Program(Shader* vertex_shader, Shader* fragment_shader)
 
         // There shouldn't be anything in glGetError but let's
         // check to make sure.
-        assert( !glGetError() );
+        get_error();
 
         this->id = id;
         this->uniforms = uniforms;
@@ -60,7 +60,7 @@ GLint Program::find_attribute(const char* attr)
 
     if (index < 0) {
         printf("Couldn't find attribute \"%s\" in program\n", attr);
-        printf("GL error %d\n", (int) glGetError());
+        get_error();
         /* exit(EXIT_FAILURE); */
     }
 
@@ -162,7 +162,7 @@ UniformMap load_program_uniforms(GLuint program)
                     GL_ACTIVE_UNIFORM_MAX_LENGTH,
                     &max_name_len);
 
-    assert( !glGetError() );
+    get_error();
 
     size_t u;
     printf("Uniform names:\n");
@@ -202,7 +202,7 @@ UniformMap load_program_uniforms(GLuint program)
         printf("\t%s - location %d\n", name, location);
     }
 
-    assert( !glGetError() );
+    get_error();
 
     return uniforms;
 }

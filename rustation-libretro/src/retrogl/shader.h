@@ -1,6 +1,8 @@
 #ifndef RETROGL_SHADER_H
 #define RETROGL_SHADER_H
 
+#include "error.h"
+
 #include <glsm/glsmsym.h>
 
 class Shader {

@@ -1,6 +1,8 @@
 #ifndef RETROGL_TEXTURE_H
 #define RETROGL_TEXTURE_H
 
+#include "error.h"
+
 #include <glsm/glsmsym.h>
 
 #include <stdint.h>

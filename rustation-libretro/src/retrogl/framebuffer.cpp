@@ -26,7 +26,7 @@ Framebuffer::Framebuffer(Texture* color_texture)
                 (GLsizei) color_texture->height);
 
     /* error_or(fb) */
-    assert( !glGetError() );
+    get_error();
 }
 
 Framebuffer::Framebuffer(Texture* color_texture, Texture* depth_texture)
@@ -44,7 +44,7 @@ Framebuffer::Framebuffer(Texture* color_texture, Texture* depth_texture)
     }
 
     /* error_or(fb) */
-    assert( !glGetError() );
+    get_error();
 }
 
 Framebuffer::~Framebuffer()

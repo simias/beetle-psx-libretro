@@ -3,6 +3,7 @@
 
 #include "vertex.h"
 #include "program.h"
+#include "error.h"
 
 #include <glsm/glsmsym.h>
 
@@ -59,7 +60,7 @@ public:
         this->bind_attributes();
 
         /* error_or() */
-        assert( !glGetError() );
+        get_error();
     }
 
     ~DrawBuffer()
@@ -120,14 +121,14 @@ public:
             case GL_UNSIGNED_SHORT:
             case GL_INT:
             case GL_UNSIGNED_INT:
-                glVertexAttribIPointer(index,
+                glVertexAttribIPointer( index,
                                         attr.components,
                                         attr.ty,
                                         element_size,
                                         attr.gl_offset());
                 break;
             case GL_FLOAT:
-                glVertexAttribPointer( index,
+                glVertexAttribPointer(  index,
                                         attr.components,
                                         attr.ty,
                                         GL_FALSE,
@@ -135,7 +136,7 @@ public:
                                         attr.gl_offset());
                 break;
             case GL_DOUBLE:
-                glVertexAttribLPointer(index,
+                glVertexAttribLPointer( index,
                                         attr.components,
                                         attr.ty,
                                         element_size,
@@ -144,8 +145,7 @@ public:
             }
         }
 
-        /* get_error() */
-        assert( !glGetError() );
+        get_error();
     }
 
     void enable_attribute(const char* attr)
@@ -155,8 +155,7 @@ public:
 
         glEnableVertexAttribArray(index);
 
-        /* get_error() */
-        assert( !glGetError() );
+        get_error();
     }
 
     void disable_attribute(const char* attr)
@@ -166,9 +165,7 @@ public:
 
         glDisableVertexAttribArray(index);
 
-        /* get_error() */
-        return assert( !glGetError() );
-
+        get_error();
     }
 
     bool empty()
@@ -188,15 +185,14 @@ public:
 
         size_t element_size = sizeof( *(this->contains) );
         GLsizeiptr storage_size = (GLsizeiptr) (this->capacity * element_size);
-        glBufferData(  GL_ARRAY_BUFFER,
+        glBufferData(   GL_ARRAY_BUFFER,
                         storage_size,
                         NULL,
                         GL_DYNAMIC_DRAW);
 
         this->len = 0;
 
-        /* get_error() */
-        assert( !glGetError() );
+        get_error();
     }
 
     /// Bind the buffer to the current VAO
@@ -231,8 +227,7 @@ public:
                         (GLintptr) size_bytes,
                         (void*) &slice);
 
-        /* get_error() */
-        assert( !glGetError() );
+        get_error();
         
         this->len += n;
     }

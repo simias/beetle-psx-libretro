@@ -2,6 +2,7 @@
 #define RETROGL_PROGRAM_H
 
 #include "shader.h"
+#include "error.h"
 
 #include <glsm/glsmsym.h>
 

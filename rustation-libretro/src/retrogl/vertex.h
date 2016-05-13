@@ -1,7 +1,10 @@
 #ifndef RETROGL_VERTEX_H
 #define RETROGL_VERTEX_H
 
+#include "error.h"
+
 #include <glsm/glsmsym.h>
+
 #include <stdlib.h>
 #include <string>
 

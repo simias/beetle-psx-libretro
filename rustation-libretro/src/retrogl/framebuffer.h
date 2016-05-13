@@ -3,6 +3,7 @@
 
 #include <glsm/glsmsym.h>
 #include "texture.h"
+#include "error.h"
 
 class Framebuffer {
 public:

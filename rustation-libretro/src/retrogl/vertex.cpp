@@ -8,7 +8,7 @@ VertexArrayObject::VertexArrayObject()
     GLuint id = 0;
     glGenVertexArrays(1, &id);
 
-    assert( !glGetError() );
+    get_error();
 
     this->id = id;
 }
