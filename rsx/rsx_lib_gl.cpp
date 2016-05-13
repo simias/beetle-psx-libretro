@@ -10,7 +10,7 @@
 extern uint8_t widescreen_hack;
 extern uint8_t psx_gpu_upscale_shift;
 
-static RetroGl* static_renderer; 
+static RetroGl* static_renderer = nullptr; 
 
 static bool rsx_gl_is_pal = false;
 
@@ -25,13 +25,9 @@ void renderer_gl_free(void)
 #endif
 }
 
-RetroGl* maybe_renderer()
+RetroGl* renderer(void)
 {
-  return static_renderer;
-}
-RetroGl* renderer()
-{
-  RetroGl* r = maybe_renderer();
+  RetroGl* r = static_renderer;
   if (r != nullptr) {
     return r;
   } else {
@@ -40,12 +36,12 @@ RetroGl* renderer()
   }
 }
 
-void set_renderer(RetroGl* renderer)
+static void set_renderer(RetroGl* renderer)
 {
   static_renderer = renderer;
 }
 
-void drop_renderer()
+static void drop_renderer()
 {
   static_renderer = nullptr;  
 }

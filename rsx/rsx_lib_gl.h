@@ -61,10 +61,7 @@
 		     uint16_t w, uint16_t h);
 
   /* Functions from simias's rustation-libretro/lib.rs */
-  RetroGl* maybe_renderer();
   RetroGl* renderer();
-  void set_renderer(RetroGl* renderer);
-  void drop_renderer();
 
 
 
