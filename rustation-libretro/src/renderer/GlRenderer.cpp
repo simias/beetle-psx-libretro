@@ -145,17 +145,17 @@ GlRenderer::~GlRenderer()
     if (config != nullptr)              delete config;
     
     if (fb_texture != nullptr) {         
-        fb_texture.drop();
+        fb_texture->drop();
         delete fb_texture;
     }
     
     if (fb_out != nullptr) {
-        fb_out.drop();              
+        fb_out->drop();              
         delete fb_out;
     }
 
     if (fb_out_depth != nullptr) {        
-        fb_out_depth.drop();
+        fb_out_depth->drop();
         delete fb_out_depth;
     }
 }
