@@ -526,6 +526,7 @@ void GlRenderer::finalize_frame()
     this->bind_libretro_framebuffer();
 
     // Bind 'fb_out' to texture unit 1
+    printf("GlRenderer::finalize_frame() - fb_out has ID of %d\n", this->fb_out->id);
     this->fb_out->bind(GL_TEXTURE1);
 
     // First we draw the visible part of fb_out

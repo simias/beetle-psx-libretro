@@ -13,7 +13,7 @@ Framebuffer::Framebuffer(Texture* color_texture)
 
     this->bind();
 
-    glFramebufferTexture(  GL_DRAW_FRAMEBUFFER,
+    glFramebufferTexture(   GL_DRAW_FRAMEBUFFER,
                             GL_COLOR_ATTACHMENT0,
                             color_texture->id,
                             0);
@@ -32,16 +32,10 @@ Framebuffer::Framebuffer(Texture* color_texture)
 Framebuffer::Framebuffer(Texture* color_texture, Texture* depth_texture)
 : Framebuffer(color_texture) /* C++11 delegating constructor */
 {
-    glFramebufferTexture(  GL_DRAW_FRAMEBUFFER,
+    glFramebufferTexture(   GL_DRAW_FRAMEBUFFER,
                             GL_DEPTH_ATTACHMENT,
                             depth_texture->id,
                             0);
-
-    /* Framebuffer owns this Texture*, make sure we clean it after being done */
-    if (depth_texture != nullptr) {
-        delete depth_texture;
-        depth_texture = nullptr;
-    }
 
     /* error_or(fb) */
     get_error();

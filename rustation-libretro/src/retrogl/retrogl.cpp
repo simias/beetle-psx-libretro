@@ -76,7 +76,7 @@ RetroGl::RetroGl(VideoClock video_clock)
     this->state = GlState::Invalid;
     this->state_data.c = config;
     this->state_data.r = nullptr;
-    
+
     this->video_clock = video_clock;
 
 }
@@ -198,6 +198,7 @@ void RetroGl::finalize_frame()
 
 void RetroGl::refresh_variables()
 {
+    printf("Entered RetroGl::refresh_variables()\n");
     GlRenderer* renderer = nullptr;
     switch (this->state)
     {
