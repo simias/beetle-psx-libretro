@@ -1834,7 +1834,11 @@ static void CDSelect(void)
 {
  if(cdifs && CD_TrayOpen)
  {
+#ifdef BEETLE_WANT_PBP
   int disc_count = (CD_IsPBP ? PBP_DiscCount : (int)cdifs->size());
+#else
+  int disc_count = cdifs->size();
+#endif
 
   CD_SelectedDisc = (CD_SelectedDisc + 1) % (disc_count + 1);
 
@@ -2254,7 +2258,11 @@ static void check_system_specs(void)
 static unsigned disk_get_num_images(void)
 {
    if(cdifs)
-      return CD_IsPBP ? PBP_DiscCount : cdifs->size();
+      #ifdef BEETLE_WANT_PBP
+       return CD_IsPBP ? PBP_DiscCount : cdifs->size();
+      #else
+       return cdifs->size();
+      #endif
    else
       return 0;
 }

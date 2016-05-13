@@ -46,8 +46,10 @@ CDAccess *cdaccess_open_image(const char *path, bool image_memcache)
 
  if(strlen(path) >= 4 && !strcasecmp(path + strlen(path) - 4, ".ccd"))
   ret = new CDAccess_CCD(path, image_memcache);
+#ifdef BEETLE_WANT_PBP
  else if(strlen(path) >= 4 && !strcasecmp(path + strlen(path) - 4, ".pbp"))
   ret = new CDAccess_PBP(path, image_memcache);
+#endif
  else
   ret = new CDAccess_Image(path, image_memcache);
 
