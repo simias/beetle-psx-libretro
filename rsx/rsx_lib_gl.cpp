@@ -7,9 +7,6 @@
 
 #include <boolean.h>
 
-extern "C" uint8_t widescreen_hack;
-extern "C" uint8_t psx_gpu_upscale_shift;
-
 static RetroGl* static_renderer = nullptr; 
 
 static bool rsx_gl_is_pal = false;
@@ -96,10 +93,12 @@ void rsx_gl_finalize_frame(const void *fb, unsigned width,
 
 void rsx_gl_set_environment(retro_environment_t callback)
 {
+   /* TODO/FIXME - might not be necessary */
 }
 
 void rsx_gl_set_video_refresh(retro_video_refresh_t callback)
 {
+   /* TODO/FIXME - might not be necessary */
 }
 
 /* Precise FPS values for the video output for the given
@@ -117,17 +116,7 @@ static float video_output_framerate(void)
 
 void rsx_gl_get_system_av_info(struct retro_system_av_info *info)
 {
-   memset(info, 0, sizeof(*info));
-   info->timing.fps            = video_output_framerate();
-   info->timing.sample_rate    = 44100;
-   info->geometry.base_width   = MEDNAFEN_CORE_GEOMETRY_BASE_W << psx_gpu_upscale_shift;
-   info->geometry.base_height  = MEDNAFEN_CORE_GEOMETRY_BASE_H << psx_gpu_upscale_shift;
-   info->geometry.max_width    = MEDNAFEN_CORE_GEOMETRY_MAX_W << psx_gpu_upscale_shift;
-   info->geometry.max_height   = MEDNAFEN_CORE_GEOMETRY_MAX_H << psx_gpu_upscale_shift;
-   info->geometry.aspect_ratio = !widescreen_hack ? MEDNAFEN_CORE_GEOMETRY_ASPECT_RATIO : (float)16/9;
-#if 0
-    struct retro_system_av_info info = renderer->get_system_av_info();
-#endif
+   /* TODO/FIXME */
 }
 
 /* Draw commands */
