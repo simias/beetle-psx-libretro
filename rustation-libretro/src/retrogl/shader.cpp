@@ -7,6 +7,10 @@ Shader::Shader(const char* source, GLenum shader_type)
     : info_log(NULL)
 {
     GLuint id = glCreateShader(shader_type);
+    if (id == 0) {
+        puts("An error occured creating the shader object\n");
+        exit(EXIT_FAILURE);
+    }
 
     glShaderSource( id,
                     1,

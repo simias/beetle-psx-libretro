@@ -7,6 +7,10 @@ Program::Program(Shader* vertex_shader, Shader* fragment_shader)
     : info_log(NULL)
 {
     GLuint id = glCreateProgram();
+    if (id == 0) {
+        puts("An error occured creating the program object\n");
+        exit(EXIT_FAILURE);
+    }
 
     vertex_shader->attach_to(id);
     fragment_shader->attach_to(id);
