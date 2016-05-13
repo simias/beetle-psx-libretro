@@ -8,7 +8,7 @@ void get_error()
     switch (error)
     {
     case GL_NO_ERROR:
-        puts("GL error flag: GL_NO_ERROR\n");
+        //puts("GL error flag: GL_NO_ERROR\n");
         break;
     case GL_INVALID_ENUM:
         puts("GL error flag: GL_INVALID_ENUM\n");
@@ -27,6 +27,9 @@ void get_error()
         break;
     case GL_STACK_OVERFLOW:
         puts("GL error flag: GL_STACK_OVERFLOW\n");
+        break;
+    case GL_INVALID_OPERATION:
+        puts("GL error flag: GL_INVALID_OPERATION\n");
         break;
     default:
         printf("GL error flag: %d\n", (int) error);
