@@ -13,6 +13,7 @@ public:
     GLuint id;
 
     VertexArrayObject();
+    ~VertexArrayObject();
     void bind();
     void drop();
 };

@@ -41,6 +41,11 @@ Shader::Shader(const char* source, GLenum shader_type)
     }
 }
 
+Shader::~Shader()
+{
+    this->drop();
+}
+
 void Shader::attach_to(GLuint program)
 {
     glAttachShader(program, this->id);

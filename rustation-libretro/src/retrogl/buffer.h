@@ -68,6 +68,7 @@ public:
         if (this->vao != nullptr)       delete vao;
         if (this->program != nullptr)   delete program;
         if (this->contains != nullptr)  delete contains;
+        this->drop();
     }
 
     /* fn bind_attributes(&self)-> Result<(), Error> { */

@@ -13,6 +13,11 @@ VertexArrayObject::VertexArrayObject()
     this->id = id;
 }
 
+VertexArrayObject::~VertexArrayObject()
+{
+    this->drop();
+}
+
 void VertexArrayObject::bind()
 {
     glBindVertexArray(this->id);

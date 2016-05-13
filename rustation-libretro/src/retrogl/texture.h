@@ -14,6 +14,7 @@ public:
     uint32_t height;
 
     Texture(uint32_t width, uint32_t height, GLenum internal_format);
+    ~Texture();
     void bind(GLenum texture_unit);
     
     /*

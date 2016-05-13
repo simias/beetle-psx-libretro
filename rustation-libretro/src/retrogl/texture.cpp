@@ -24,6 +24,11 @@ Texture::Texture(uint32_t width, uint32_t height, GLenum internal_format)
     this->height = height;
 }
 
+Texture::~Texture()
+{
+    this->drop();
+}
+
 void Texture::bind(GLenum texture_unit)
 {
     glActiveTexture(texture_unit);

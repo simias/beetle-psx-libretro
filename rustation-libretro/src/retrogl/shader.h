@@ -10,6 +10,7 @@ public:
     GLuint id;
 
     Shader(const char* source, GLenum shader_type);
+    ~Shader();
     void attach_to(GLuint program);
     void detach_from(GLuint program);
     void drop();

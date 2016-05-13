@@ -53,6 +53,11 @@ Program::Program(Shader* vertex_shader, Shader* fragment_shader)
     }
 }
 
+Program::~Program()
+{
+    this->drop();
+}
+
 GLint Program::find_attribute(const char* attr)
 {
     printf("FIND ATTRIBUTE: %s\n", attr);

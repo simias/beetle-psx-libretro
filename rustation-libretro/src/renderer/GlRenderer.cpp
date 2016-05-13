@@ -143,21 +143,10 @@ GlRenderer::~GlRenderer()
     if (output_buffer != nullptr)       delete output_buffer;
     if (image_load_buffer != nullptr)   delete image_load_buffer;    
     if (config != nullptr)              delete config;
+    if (fb_texture != nullptr)          delete fb_texture;
+    if (fb_out != nullptr)              delete fb_out;
+    if (fb_out_depth != nullptr)        delete fb_out_depth;
     
-    if (fb_texture != nullptr) {         
-        fb_texture->drop();
-        delete fb_texture;
-    }
-    
-    if (fb_out != nullptr) {
-        fb_out->drop();              
-        delete fb_out;
-    }
-
-    if (fb_out_depth != nullptr) {        
-        fb_out_depth->drop();
-        delete fb_out_depth;
-    }
 }
 
 /*
@@ -484,6 +473,7 @@ bool GlRenderer::refresh_variables()
             exit(EXIT_FAILURE);
         }
 
+        printf("refresh_variables() - Re-Creating fb_out...\n");
         Texture* fb_out = new Texture(w, h, texture_storage);
 
         if (this->fb_out != nullptr) { 
