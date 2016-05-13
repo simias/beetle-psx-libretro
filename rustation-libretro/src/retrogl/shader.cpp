@@ -18,16 +18,13 @@ Shader::Shader(const char* source, GLenum shader_type)
                     NULL);
     glCompileShader(id);
 
+#ifdef DEBUG
     GLint status = (GLint) GL_FALSE;
     glGetShaderiv(id, GL_COMPILE_STATUS, &status);
     get_shader_info_log();
 
-    if (status == (GLint) GL_TRUE) {
-        // There shouldn't be anything in glGetError but let's
-        // check to make sure.
-        get_error();
-        this->id = id;
-    } else {
+    if (status != (GLint) GL_TRUE)
+    {
         puts("Shader compilation failed:\n");
 
         /* print shader source */
@@ -37,7 +34,14 @@ Shader::Shader(const char* source, GLenum shader_type)
         puts(info_log);
 
         exit(EXIT_FAILURE);
+        return;
     }
+    // There shouldn't be anything in glGetError but let's
+    // check to make sure.
+    get_error();
+#endif
+
+    this->id = id;
 }
 
 Shader::~Shader()

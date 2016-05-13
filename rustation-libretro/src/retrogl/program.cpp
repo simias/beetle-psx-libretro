@@ -31,29 +31,33 @@ Program::Program(Shader* vertex_shader, Shader* fragment_shader)
         fragment_shader = nullptr;
     }
 
+#ifdef DEBUG
     // Check if the program linking was successful
     GLint status = (GLint) GL_FALSE;
     glGetProgramiv(id, GL_LINK_STATUS, &status);
     get_program_info_log();
 
-    if (status == (GLint) GL_TRUE) {
-        /* Rust code has a try statement here, perhaps we should fail fast with
-        exit(EXIT_FAILURE) ? */
-        UniformMap uniforms = load_program_uniforms(id);
-
-        // There shouldn't be anything in glGetError but let's
-        // check to make sure.
-        get_error();
-
-        this->id = id;
-        this->uniforms = uniforms;
-    } else {
+    if (status != (GLint) GL_TRUE)
+    {
         puts("OpenGL program linking failed\n");
         puts("Program info log:\n");
         puts( info_log );
 
         exit(EXIT_FAILURE);
+        return;
     }
+#endif
+
+    /* Rust code has a try statement here, perhaps we should fail fast with
+       exit(EXIT_FAILURE) ? */
+    UniformMap uniforms = load_program_uniforms(id);
+
+    // There shouldn't be anything in glGetError but let's
+    // check to make sure.
+    get_error();
+
+    this->id = id;
+    this->uniforms = uniforms;
 }
 
 Program::~Program()
