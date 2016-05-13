@@ -7,8 +7,8 @@
 
 #include <boolean.h>
 
-extern uint8_t widescreen_hack;
-extern uint8_t psx_gpu_upscale_shift;
+extern "C" uint8_t widescreen_hack;
+extern "C" uint8_t psx_gpu_upscale_shift;
 
 static RetroGl* static_renderer = nullptr; 
 
