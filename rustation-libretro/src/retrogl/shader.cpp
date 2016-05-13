@@ -2,16 +2,10 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <assert.h>
-
-/*#define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))*/
 
 Shader::Shader(const char* source, GLenum shader_type)
 {
     GLuint id = glCreateShader(shader_type);
-    printf("SHADER ID: %d\n", (int) id);
-
-    /* size_t src_size = ARRAY_SIZE(source); */
 
     glShaderSource( id,
                     1,

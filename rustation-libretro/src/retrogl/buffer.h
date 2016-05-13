@@ -74,17 +74,12 @@ public:
     /* fn bind_attributes(&self)-> Result<(), Error> { */
     void bind_attributes()
     {
-        printf("bind_attributes()\n");
         this->vao->bind();
 
         // ARRAY_BUFFER is captured by VertexAttribPointer
         this->bind();
 
         std::vector<Attribute> attrs = attributes(this->contains);
-        printf("Contents of std::vector<Attribute> attrs: \n");
-        for (Attribute attr : attrs) {
-            printf("\t%s\n", attr.name.c_str());
-        }
 
         GLint element_size = (GLint) sizeof( T );
 

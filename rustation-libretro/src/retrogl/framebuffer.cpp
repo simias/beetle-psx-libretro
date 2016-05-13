@@ -43,7 +43,6 @@ Framebuffer::Framebuffer(Texture* color_texture, Texture* depth_texture)
 
 Framebuffer::~Framebuffer()
 {
-    if (this->_color_texture != nullptr) delete this->_color_texture;
     this->drop();
 }
 

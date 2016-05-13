@@ -129,6 +129,7 @@ void RetroGl::context_reset() {
     memcpy(copy_of_config, &config, sizeof(config));
     this->state_data.r = new GlRenderer(copy_of_config);
     this->state = GlState::Valid;
+    printf("RetroGl::context_reset() - fb_out has ID of %d\n", (int) this->state_data.r->fb_out->id);
 }
 
 GlRenderer* RetroGl::gl_renderer() 
@@ -175,8 +176,10 @@ void RetroGl::prepare_render()
         exit(EXIT_FAILURE);
     }
 
+    printf("RetroGl::prepare_render() entry - fb_out has ID of %d\n", (int) this->state_data.r->fb_out->id);
     glsm_ctl(GLSM_CTL_STATE_BIND, NULL);
     renderer->prepare_render();
+    printf("RetroGl::prepare_render() exit - fb_out has ID of %d\n", (int) this->state_data.r->fb_out->id);
 }
 
 void RetroGl::finalize_frame()
@@ -192,8 +195,10 @@ void RetroGl::finalize_frame()
         exit(EXIT_FAILURE);
     }
 
+    printf("RetroGl::finalize_frame() entry - fb_out has ID of %d\n", (int) this->state_data.r->fb_out->id);
     renderer->finalize_frame();
     glsm_ctl(GLSM_CTL_STATE_UNBIND, NULL);
+    printf("RetroGl::finalize_frame() exit - fb_out has ID of %d\n", (int) this->state_data.r->fb_out->id);
 }
 
 void RetroGl::refresh_variables()

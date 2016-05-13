@@ -7,7 +7,6 @@
 Program::Program(Shader* vertex_shader, Shader* fragment_shader)
 {
     GLuint id = glCreateProgram();
-    printf("PROGRAM ID: %d\n", (int) id);
 
     vertex_shader->attach_to(id);
     fragment_shader->attach_to(id);
@@ -31,7 +30,6 @@ Program::Program(Shader* vertex_shader, Shader* fragment_shader)
     // Check if the program linking was successful
     GLint status = (GLint) GL_FALSE;
     glGetProgramiv(id, GL_LINK_STATUS, &status);
-    printf("GL LINK STATUS: %d\n", (int) status);
 
     if (status == (GLint) GL_TRUE) {
         /* Rust code has a try statement here, perhaps we should fail fast with
@@ -60,7 +58,6 @@ Program::~Program()
 
 GLint Program::find_attribute(const char* attr)
 {
-    printf("FIND ATTRIBUTE: %s\n", attr);
     GLint index = glGetAttribLocation(this->id, attr);
 
     if (index < 0) {
@@ -151,7 +148,6 @@ const char* get_program_info_log(GLuint id)
 
 UniformMap load_program_uniforms(GLuint program)
 {
-    printf("load_program_uniforms()\n");
     GLint n_uniforms = 0;
 
     glGetProgramiv( program,
@@ -170,7 +166,6 @@ UniformMap load_program_uniforms(GLuint program)
     get_error();
 
     size_t u;
-    printf("Uniform names:\n");
     for (u = 0; u < n_uniforms; ++u) {
         // Retrieve the name of this uniform
         char name[max_name_len];
@@ -204,7 +199,6 @@ UniformMap load_program_uniforms(GLuint program)
         }
 
         uniforms[name] = location;
-        printf("\t%s - location %d\n", name, location);
     }
 
     get_error();
