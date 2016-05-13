@@ -72,9 +72,13 @@ RetroGl::RetroGl(VideoClock video_clock)
         config.vram[i] = 0xdead;
     }
 
+    // No context until `context_reset` is called
     this->state = GlState::Invalid;
     this->state_data.c = config;
+    this->state_data.r = nullptr;
+    
     this->video_clock = video_clock;
+
 }
 
 RetroGl::~RetroGl() {
