@@ -1,7 +1,6 @@
 #include "vertex.h"
 
 #include <string.h> // strcpy()
-#include <assert.h>
 
 VertexArrayObject::VertexArrayObject()
 {

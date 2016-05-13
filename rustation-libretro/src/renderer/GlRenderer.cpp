@@ -11,7 +11,6 @@
 #include <stdlib.h> // size_t, EXIT_FAILURE
 #include <stddef.h> // offsetof()
 #include <string.h>
-#include <assert.h>
 
 GlRenderer::GlRenderer(DrawConfig* config)
 {
@@ -73,7 +72,6 @@ GlRenderer::GlRenderer(DrawConfig* config)
     // Texture holding the raw VRAM texture contents. We can't
     // meaningfully upscale it since most games use paletted
     // textures.
-    printf("Creating fb_texture...\n");
     Texture* fb_texture = new Texture(native_width, native_height, GL_RGB5_A1);
 
     if (depth > 16) {
@@ -100,11 +98,10 @@ GlRenderer::GlRenderer(DrawConfig* config)
         exit(EXIT_FAILURE);
     }
 
-    printf("Creating fb_out...\n");
     Texture* fb_out = new Texture( native_width * upscaling,
                                    native_height * upscaling,
                                    texture_storage);
-    printf("Creating fb_out_depth...\n");
+
     Texture* fb_out_depth = new Texture( fb_out->width,
                                          fb_out->height,
                                          GL_DEPTH_COMPONENT32F);
@@ -399,7 +396,6 @@ DrawConfig* GlRenderer::draw_config()
 
 void GlRenderer::prepare_render()
 {
-    printf("GlRenderer::prepare_render() - fb_out has ID of %d\n", this->fb_out->id);
     // In case we're upscaling we need to increase the line width
     // proportionally
     glLineWidth((GLfloat)this->internal_upscaling);

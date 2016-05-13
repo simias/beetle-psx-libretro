@@ -116,7 +116,24 @@ static float video_output_framerate(void)
 
 void rsx_gl_get_system_av_info(struct retro_system_av_info *info)
 {
-   /* TODO/FIXME */
+   /* TODO/FIXME - This definition seems very backwards and duplicating work */
+
+   /* This will possibly trigger the frontend to reconfigure itself */
+   rsx_gl_refresh_variables();
+
+   struct retro_variable var = {0};
+    
+   var.key = "beetle_psx_internal_resolution";
+   uint8_t upscaling = 1;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value) {
+      /* Same limitations as libretro.cpp */
+      upscaling = var.value[0] -'0';
+   }
+
+   VideoClock clock = is_pal ? VideoClock::Pal : VideoClock::Ntsc;
+
+   struct retro_system_av_info result = renderer()->get_av_info(clock, upscaling);
+   memcpy(info, *result);
 }
 
 /* Draw commands */

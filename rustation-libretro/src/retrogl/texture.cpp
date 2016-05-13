@@ -8,7 +8,6 @@ Texture::Texture(uint32_t width, uint32_t height, GLenum internal_format)
     GLuint id = 0;
 
     glGenTextures(1, &id);
-    printf("TEXTURE ID: %d\n", id);
     glBindTexture(GL_TEXTURE_2D, id);
     glTexStorage2D(GL_TEXTURE_2D,
                     1,
@@ -32,7 +31,6 @@ Texture::~Texture()
 void Texture::bind(GLenum texture_unit)
 {
     glActiveTexture(texture_unit);
-    printf("BINDING TEXTURE %d to TEXTURE UNIT %d\n", this->id, (int) texture_unit);
     glBindTexture(GL_TEXTURE_2D, this->id);
 }
 

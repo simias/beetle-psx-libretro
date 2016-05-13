@@ -9,7 +9,6 @@
 
 #include <stdlib.h> // size_t
 #include <stdint.h>
-#include <assert.h>
 
 #include <vector>
 
@@ -74,17 +73,12 @@ public:
     /* fn bind_attributes(&self)-> Result<(), Error> { */
     void bind_attributes()
     {
-        printf("bind_attributes()\n");
         this->vao->bind();
 
         // ARRAY_BUFFER is captured by VertexAttribPointer
         this->bind();
 
         std::vector<Attribute> attrs = attributes(this->contains);
-        printf("Contents of std::vector<Attribute> attrs: \n");
-        for(std::vector<Attribute>::iterator it(attrs.begin()); it != attrs.end(); ++it) {
-            printf("\t%s\n", it->name.c_str());
-        }
 
         GLint element_size = (GLint) sizeof( T );
 

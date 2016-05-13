@@ -2,7 +2,6 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <assert.h>
 
 Program::Program(Shader* vertex_shader, Shader* fragment_shader)
     : info_log(NULL)
@@ -32,7 +31,6 @@ Program::Program(Shader* vertex_shader, Shader* fragment_shader)
     GLint status = (GLint) GL_FALSE;
     glGetProgramiv(id, GL_LINK_STATUS, &status);
     get_program_info_log();
-    printf("GL LINK STATUS: %d\n", (int) status);
 
     if (status == (GLint) GL_TRUE) {
         /* Rust code has a try statement here, perhaps we should fail fast with

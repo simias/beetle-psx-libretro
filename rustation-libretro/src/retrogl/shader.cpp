@@ -17,7 +17,6 @@ Shader::Shader(const char* source, GLenum shader_type)
     GLint status = (GLint) GL_FALSE;
     glGetShaderiv(id, GL_COMPILE_STATUS, &status);
     get_shader_info_log();
-    printf("COMPILE STATUS: %d\n", (int) status);
 
     if (status == (GLint) GL_TRUE) {
         // There shouldn't be anything in glGetError but let's
