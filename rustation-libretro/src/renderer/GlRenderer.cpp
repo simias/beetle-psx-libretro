@@ -264,7 +264,9 @@ void GlRenderer::draw()
          */
         /* My push_slice impl expects an array of T, need to do this */
         const size_t length = this->semi_transparent_vertices.size();
-        CommandVertex slice[length];
+        static size_t slice_length = 0;
+        static CommandVertex* slice = NULL;
+        if(length>slice_length) slice = (CommandVertex*)realloc(slice,sizeof(CommandVertex)*(slice_length=length));
         size_t i;
         for (i = 0; i < length; ++i) {
             slice[i] = this->semi_transparent_vertices[i];
@@ -443,6 +445,7 @@ void GlRenderer::prepare_render()
     glLineWidth((GLfloat)this->internal_upscaling);
     glPolygonMode(GL_FRONT_AND_BACK, this->command_polygon_mode);
     glEnable(GL_SCISSOR_TEST);
+    glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
     // Used for PSX GPU command blending
     glBlendColor(0.25, 0.25, 0.25, 0.5);

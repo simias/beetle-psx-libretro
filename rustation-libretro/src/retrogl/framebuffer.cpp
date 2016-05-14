@@ -1,6 +1,7 @@
 #include "framebuffer.h"
 
 #include <stdlib.h> // exit()
+#include <stdio.h>
 
 Framebuffer::Framebuffer(Texture* color_texture)
 {
@@ -53,6 +54,7 @@ Framebuffer::~Framebuffer()
 
 void Framebuffer::bind()
 {
+    printf("Calling glBindFramebuffer() with GL_DRAW_FRAMEBUFFER and ID %d\n", this->id);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->id);
 }
 
