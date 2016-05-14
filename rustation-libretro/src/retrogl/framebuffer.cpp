@@ -53,6 +53,7 @@ Framebuffer::~Framebuffer()
 
 void Framebuffer::bind()
 {
+    printf("Calling glBindFramebuffer() with GL_DRAW_FRAMEBUFFER and ID %d\n", this->id);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->id);
 }
 
