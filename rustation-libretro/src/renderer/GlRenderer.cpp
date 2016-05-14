@@ -443,6 +443,7 @@ void GlRenderer::prepare_render()
     glLineWidth((GLfloat)this->internal_upscaling);
     glPolygonMode(GL_FRONT_AND_BACK, this->command_polygon_mode);
     glEnable(GL_SCISSOR_TEST);
+    glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
     // Used for PSX GPU command blending
     glBlendColor(0.25, 0.25, 0.25, 0.5);
