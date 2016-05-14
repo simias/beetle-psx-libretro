@@ -175,7 +175,7 @@ void GlRenderer::draw()
     this->command_buffer->program->uniform1i("fb_texture", 0);
 
     // Bind the out framebuffer
-    Framebuffer(this->fb_out, this->fb_out_depth);
+    Framebuffer _fb = Framebuffer(this->fb_out, this->fb_out_depth);
 
     glClear(GL_DEPTH_BUFFER_BIT);
 
@@ -336,7 +336,7 @@ void GlRenderer::upload_textures(   uint16_t top_left[2],
 
     // Bind the output framebuffer
     // let _fb = Framebuffer::new(&self.fb_out);
-    Framebuffer(this->fb_out);
+    Framebuffer _fb = Framebuffer(this->fb_out);
 
     this->image_load_buffer->draw(GL_TRIANGLE_STRIP);
     glPolygonMode(GL_FRONT_AND_BACK, this->command_polygon_mode);
@@ -380,7 +380,7 @@ void GlRenderer::upload_vram_window(uint16_t top_left[2],
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     // Bind the output framebuffer
-    Framebuffer(this->fb_out);
+    Framebuffer _fb = Framebuffer(this->fb_out);
 
     this->image_load_buffer->draw(GL_TRIANGLE_STRIP);
     glPolygonMode(GL_FRONT_AND_BACK, this->command_polygon_mode);
@@ -744,7 +744,7 @@ void GlRenderer::fill_rect( uint8_t color[3],
     this->apply_scissor();
 
     // Bind the out framebuffer
-    Framebuffer(this->fb_out);
+    Framebuffer _fb = Framebuffer(this->fb_out);
 
     glClearColor(   (float) color[0] / 255.0,
                     (float) color[1] / 255.0,
