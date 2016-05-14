@@ -1,6 +1,7 @@
 #include "framebuffer.h"
 
 #include <stdlib.h> // exit()
+#include <stdio.h>
 
 Framebuffer::Framebuffer(Texture* color_texture)
 {
