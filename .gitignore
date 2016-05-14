@@ -8,3 +8,4 @@
 /msvc/*.suo
 /msvc/*.user
 /msvc/Release
+/msvc/.vs
