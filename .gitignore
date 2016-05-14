@@ -9,3 +9,4 @@
 /msvc/*.user
 /msvc/Release
 /msvc/.vs
+/msvc/x64
