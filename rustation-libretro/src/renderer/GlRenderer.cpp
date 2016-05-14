@@ -259,6 +259,7 @@ void GlRenderer::draw()
         glEnable(GL_BLEND);
 
         this->command_buffer->program->uniform1ui("draw_semi_transparent", 1);
+        
         this->command_buffer->draw(this->command_draw_mode);
         
         this->command_buffer->clear();
@@ -594,7 +595,8 @@ void GlRenderer::finalize_frame()
     //but we lose track easily of what's bound. so just kill them all here. it's just once a frame anyway
     GLint nVertexAttribs;
     glGetIntegerv(GL_MAX_VERTEX_ATTRIBS,&nVertexAttribs);
-    for(int i=0;i<nVertexAttribs;i++) glDisableVertexAttribArray(i);
+    size_t i;
+    for (i=0;i<nVertexAttribs;i++) glDisableVertexAttribArray(i);
 
     glDisable(GL_BLEND);
     glBlendColor(0.0, 0.0, 0.0, 0.0);

@@ -107,7 +107,7 @@ public:
                     };
 
         */
-        for(std::vector<Attribute>::iterator it(attrs.begin()); it != attrs.end(); ++it) {
+        for (std::vector<Attribute>::iterator it(attrs.begin()); it != attrs.end(); ++it) {
             Attribute& attr = *it;
             GLint index = this->program->find_attribute(attr.name.c_str());
 
@@ -191,7 +191,8 @@ public:
     {
         this->bind();
 
-        size_t element_size = sizeof( *(this->contains) );
+        // Compute the size of the buffer
+        size_t element_size = sizeof( T );
         GLsizeiptr storage_size = (GLsizeiptr) (this->capacity * element_size);
         glBufferData(   GL_ARRAY_BUFFER,
                         storage_size,
@@ -206,6 +207,7 @@ public:
     /// Bind the buffer to the current VAO
     void bind()
     {
+        printf("DrawBuffer::bind() - BINDING BUFFER ID %d AS A GL_ARRAY_BUFFER\n", this->id);
         glBindBuffer(GL_ARRAY_BUFFER, this->id);
     }
 
@@ -216,7 +218,7 @@ public:
             return;
         }
 
-        size_t element_size = sizeof( *(this->contains) );
+        size_t element_size = sizeof( T );
 
         size_t offset;
         if (this->lifo) {
@@ -242,7 +244,10 @@ public:
 
     void draw(GLenum mode)
     {
+        printf("DrawBuffer::draw() - BUFFER ID %d\n", this->id);
+        printf("DrawBuffer::draw() - BINDING VAO ID %d\n", this->vao->id);
         this->vao->bind();
+        printf("DrawBuffer::draw() - BINDING PROGRAM ID %d\n", this->program->id);
         this->program->bind();
 
         GLint first = this->lifo ? (GLint) this->remaining_capacity() : 0;
@@ -260,6 +265,7 @@ public:
     /* impl<T> Drop for DrawBuffer<T> { */
     void drop()
     {
+        
         glDeleteBuffers(1, &this->id);
     }
 };
