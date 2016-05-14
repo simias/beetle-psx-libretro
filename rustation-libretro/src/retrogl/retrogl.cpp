@@ -256,11 +256,12 @@ struct retro_system_av_info RetroGl::get_system_av_info()
 
 bool RetroGl::context_framebuffer_lock(void *data)
 {
+    /* If the state is invalid, lock the framebuffer (return true) */
     switch (this->state) {
     case GlState::Valid:
-        return true;
-    case GlState::Invalid:
         return false;
+    case GlState::Invalid:
+        return true;
     }
 }
 
