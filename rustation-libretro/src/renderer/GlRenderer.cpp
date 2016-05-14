@@ -589,6 +589,13 @@ void GlRenderer::finalize_frame()
     this->output_buffer->draw(GL_TRIANGLE_STRIP);
 
     // Cleanup OpenGL context before returning to the frontend
+
+    //It isn't clear why these need to be unbound, but it's good practice
+    //but we lose track easily of what's bound. so just kill them all here. it's just once a frame anyway
+    GLint nVertexAttribs;
+    glGetIntegerv(GL_MAX_VERTEX_ATTRIBS,&nVertexAttribs);
+    for(int i=0;i<nVertexAttribs;i++) glDisableVertexAttribArray(i);
+
     glDisable(GL_BLEND);
     glBlendColor(0.0, 0.0, 0.0, 0.0);
     glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
