@@ -264,7 +264,9 @@ void GlRenderer::draw()
          */
         /* My push_slice impl expects an array of T, need to do this */
         const size_t length = this->semi_transparent_vertices.size();
-        CommandVertex slice[length];
+        static size_t slice_length = 0;
+        static CommandVertex* slice = NULL;
+        if(length>slice_length) slice = (CommandVertex*)realloc(slice,sizeof(CommandVertex)*(slice_length=length));
         size_t i;
         for (i = 0; i < length; ++i) {
             slice[i] = this->semi_transparent_vertices[i];
