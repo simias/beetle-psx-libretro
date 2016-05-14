@@ -136,14 +136,42 @@ GlRenderer::GlRenderer(DrawConfig* config)
 
 GlRenderer::~GlRenderer()
 {
-    if (command_buffer != nullptr)      delete command_buffer;
-    if (output_buffer != nullptr)       delete output_buffer;
-    if (image_load_buffer != nullptr)   delete image_load_buffer;    
-    if (config != nullptr)              delete config;
-    if (fb_texture != nullptr)          delete fb_texture;
-    if (fb_out != nullptr)              delete fb_out;
-    if (fb_out_depth != nullptr)        delete fb_out_depth;
-    
+    if (this->command_buffer != nullptr) {     
+        delete this->command_buffer;
+        this->command_buffer = nullptr;
+    }
+
+    if (this->output_buffer != nullptr)
+    {
+        delete this->output_buffer;
+        this->output_buffer = nullptr;
+    }      
+       
+
+    if (this->image_load_buffer != nullptr) {   
+        delete this->image_load_buffer;
+        this->image_load_buffer = nullptr;
+    }
+
+    if (this->config != nullptr) {              
+        delete this->config;
+        this->config = nullptr;
+    }
+
+    if (this->fb_texture != nullptr) {          
+        delete this->fb_texture;
+        this->fb_texture = nullptr;
+    }
+
+    if (this->fb_out != nullptr) {              
+        delete this->fb_out;
+        this->fb_out = nullptr;
+    }
+
+    if (this->fb_out_depth != nullptr) {        
+        delete this->fb_out_depth;
+        this->fb_out_depth = nullptr;        
+    }
 }
 
 /*
@@ -474,6 +502,7 @@ bool GlRenderer::refresh_variables()
 
         if (this->fb_out != nullptr) { 
             delete this->fb_out;
+            this->fb_out = nullptr;
         }
         
         this->fb_out = fb_out;
@@ -489,6 +518,7 @@ bool GlRenderer::refresh_variables()
         
         if (this->fb_out_depth != nullptr) { 
             delete this->fb_out;
+            this->fb_out = nullptr;
         }
 
         this->fb_out_depth = new Texture(w, h, GL_DEPTH_COMPONENT32F);

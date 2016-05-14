@@ -64,9 +64,21 @@ public:
 
     ~DrawBuffer()
     {
-        if (this->vao != nullptr)       delete vao;
-        if (this->program != nullptr)   delete program;
-        if (this->contains != nullptr)  delete contains;
+        if (this->vao != nullptr) {
+            delete this->vao;
+            this->vao = nullptr;
+        }
+
+        if (this->program != nullptr) {
+            delete program;
+            this->program = nullptr;
+        }
+
+        if (this->contains != nullptr) {
+            delete contains;
+            this->contains = nullptr;
+        }
+
         this->drop();
     }
 
