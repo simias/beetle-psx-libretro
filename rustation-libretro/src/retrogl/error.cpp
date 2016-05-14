@@ -1,15 +1,16 @@
 #include "error.h"
 #include <stdio.h>
+#include <stdlib.h>
 void get_error()
 {
-#ifndef NDEBUG
+#ifdef DEBUG
     
     GLenum error = glGetError();
     switch (error)
     {
     case GL_NO_ERROR:
         //puts("GL error flag: GL_NO_ERROR\n");
-        break;
+        return;
     case GL_INVALID_ENUM:
         puts("GL error flag: GL_INVALID_ENUM\n");
         break;
@@ -35,6 +36,8 @@ void get_error()
         printf("GL error flag: %d\n", (int) error);
         break;
     }
+
+    exit(EXIT_FAILURE);
     
 #endif
 }

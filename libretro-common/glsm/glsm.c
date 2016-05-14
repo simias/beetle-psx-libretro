@@ -1745,7 +1745,7 @@ static void glsm_state_setup(void)
 #endif
 
 #ifdef CORE
-   glGenVertexArrays(1, &gl_state.vao);
+   /*glGenVertexArrays(1, &gl_state.vao);*/
 #endif
 }
 

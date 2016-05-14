@@ -29,9 +29,7 @@ void VertexArrayObject::drop()
 
 Attribute::Attribute(const char* name, size_t offset, GLenum ty, GLint components)
 {
-    /* TODO - Not sure if safe */
     this->name = name;
-    
     this->offset = offset;
     this->ty = ty;
     this->components = components;

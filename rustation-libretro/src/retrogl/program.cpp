@@ -175,7 +175,8 @@ UniformMap load_program_uniforms(GLuint program)
 
     get_error();
 
-    for (int u = 0; u < n_uniforms; ++u) {
+    size_t u;
+    for (u = 0; u < n_uniforms; ++u) {
         // Retrieve the name of this uniform. Don't use the size we just fetched, because it's inconvenient. Use something monstrously large.
         char name[256];
         size_t name_len = max_name_len;

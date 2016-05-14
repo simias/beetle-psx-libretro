@@ -155,6 +155,7 @@ void RetroGl::context_destroy()
         config = *this->state_data.r->draw_config();
         break;
     case GlState::Invalid:
+        // Looks like we didn't have an OpenGL context anyway...
         return;
     }
 
@@ -227,12 +228,6 @@ void RetroGl::refresh_variables()
         // This call can potentially (but not necessarily) call
         // `context_destroy` and `context_reset` to reinitialize
         // the entire OpenGL context, so beware.
-        
-        /* The above comment may not be applicable anymore since we're
-        calling environ_cb directly.
-        TODO - This callback should only be used in retro_run(), what should
-        be done instead? 
-         */
         bool ok = environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &av_info);
 
         if (!ok)

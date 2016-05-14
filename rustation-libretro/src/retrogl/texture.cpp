@@ -71,6 +71,7 @@ void Texture::set_sub_image_window( uint16_t top_left[2],
 
    size_t index = ((size_t) y) * row_len + ((size_t) x);
 
+   /* TODO - Am I indexing data out of bounds? */
    uint16_t* sub_data = &( data[index] );
 
    glPixelStorei(GL_UNPACK_ROW_LENGTH, (GLint) row_len);

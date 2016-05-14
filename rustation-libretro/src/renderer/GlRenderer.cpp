@@ -110,7 +110,7 @@ GlRenderer::GlRenderer(DrawConfig* config)
     // let mut state = GlRenderer {
     this->command_buffer = opaque_command_buffer;
     this->command_draw_mode = GL_TRIANGLES;
-    /*semi_transparent_vertices(VERTEX_BUFFER_LEN, nullptr); */
+    this->semi_transparent_vertices.reserve((size_t) VERTEX_BUFFER_LEN);
     this->semi_transparency_mode =  SemiTransparencyMode::Average;
     this->command_polygon_mode = command_draw_mode;
     this->output_buffer = output_buffer;
@@ -147,7 +147,6 @@ GlRenderer::~GlRenderer()
         this->output_buffer = nullptr;
     }      
        
-
     if (this->image_load_buffer != nullptr) {   
         delete this->image_load_buffer;
         this->image_load_buffer = nullptr;
@@ -260,9 +259,23 @@ void GlRenderer::draw()
 
         this->command_buffer->program->uniform1ui("draw_semi_transparent", 1);
         
+        /*  (self.command_buffer
+                 .push_slice(&self.semi_transparent_vertices)).unwrap();
+         */
+        /* My push_slice impl expects an array of T, need to do this */
+        const size_t length = this->semi_transparent_vertices.size();
+        CommandVertex slice[length];
+        size_t i;
+        for (i = 0; i < length; ++i) {
+            slice[i] = this->semi_transparent_vertices[i];
+        }
+
+        this->command_buffer->push_slice(slice, length);
+
         this->command_buffer->draw(this->command_draw_mode);
         
         this->command_buffer->clear();
+        
         this->semi_transparent_vertices.clear();     
     }
 
@@ -334,7 +347,7 @@ void GlRenderer::upload_textures(   uint16_t top_left[2],
                                     uint16_t dimensions[2],
                                     uint16_t pixel_buffer[VRAM_PIXELS])
 {
-    this->fb_texture->set_sub_image( top_left,
+    this->fb_texture->set_sub_image(top_left,
                                     dimensions,
                                     GL_RGBA,
                                     GL_UNSIGNED_SHORT_1_5_5_5_REV,
@@ -594,9 +607,9 @@ void GlRenderer::finalize_frame()
     //It isn't clear why these need to be unbound, but it's good practice
     //but we lose track easily of what's bound. so just kill them all here. it's just once a frame anyway
     GLint nVertexAttribs;
-    glGetIntegerv(GL_MAX_VERTEX_ATTRIBS,&nVertexAttribs);
+    glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &nVertexAttribs);
     size_t i;
-    for (i=0;i<nVertexAttribs;i++) glDisableVertexAttribArray(i);
+    for (i = 0; i < nVertexAttribs; i++) glDisableVertexAttribArray(i);
 
     glDisable(GL_BLEND);
     glBlendColor(0.0, 0.0, 0.0, 0.0);
@@ -616,8 +629,11 @@ void GlRenderer::finalize_frame()
     video_cb(   RETRO_HW_FRAME_BUFFER_VALID, this->frontend_resolution[0],
                 this->frontend_resolution[1], 0);
 }
-
-void GlRenderer::maybe_force_draw(  size_t nvertices, GLenum draw_mode, 
+/// Check if a new primitive's attributes are somehow incompatible
+/// with the ones currently buffered, in which case we must force
+/// a draw to flush the buffers.
+void GlRenderer::maybe_force_draw(  size_t nvertices, 
+                                    GLenum draw_mode, 
                                     bool semi_transparent, 
                                     SemiTransparencyMode semi_transparency_mode)
 {
@@ -764,8 +780,6 @@ void GlRenderer::fill_rect( uint8_t color[3],
     // Fill rect ignores the draw area. Save the previous value
     // and reconfigure the scissor box to the fill rectangle
     // instead.
-
-
     uint16_t draw_area_top_left[2] = {
         this->config->draw_area_top_left[0], 
         this->config->draw_area_top_left[1] 
@@ -782,16 +796,19 @@ void GlRenderer::fill_rect( uint8_t color[3],
 
     this->apply_scissor();
 
-    // Bind the out framebuffer
-    Framebuffer _fb = Framebuffer(this->fb_out);
+    /* This scope is intentional, just like in the Rust version */
+    {
+        // Bind the out framebuffer
+        Framebuffer _fb = Framebuffer(this->fb_out);
 
-    glClearColor(   (float) color[0] / 255.0,
-                    (float) color[1] / 255.0,
-                    (float) color[2] / 255.0,
-                    // XXX Not entirely sure what happens to
-                    // the mask bit in fill_rect commands
-                    0.0);
-    glClear(GL_COLOR_BUFFER_BIT);
+        glClearColor(   (float) color[0] / 255.0,
+                        (float) color[1] / 255.0,
+                        (float) color[2] / 255.0,
+                        // XXX Not entirely sure what happens to
+                        // the mask bit in fill_rect commands
+                        0.0);
+        glClear(GL_COLOR_BUFFER_BIT);
+    }
 
     // Reconfigure the draw area
     this->config->draw_area_top_left[0]     = draw_area_top_left[0];
@@ -823,7 +840,7 @@ void GlRenderer::copy_rect( uint16_t source_top_left[2],
     // and target area overlap, this should be handled
     // explicitely
     /* TODO - OpenGL 4.3 and GLES 3.2 requirement! FIXME! */
-    glCopyImageSubData(this->fb_out->id, GL_TEXTURE_2D, 0, src_x, src_y, 0,
+    glCopyImageSubData( this->fb_out->id, GL_TEXTURE_2D, 0, src_x, src_y, 0,
                         this->fb_out->id, GL_TEXTURE_2D, 0, dst_x, dst_y, 0,
                         w, h, 1 );
 

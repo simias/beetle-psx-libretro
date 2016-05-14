@@ -37,7 +37,7 @@ void Framebuffer::InitializeWithColorTexture(Texture* color_texture)
 
     GLenum col_attach_0 = GL_COLOR_ATTACHMENT0;
     glDrawBuffers(1, &col_attach_0);
-    glViewport(0,
+    glViewport( 0,
                 0,
                 (GLsizei) color_texture->width,
                 (GLsizei) color_texture->height);
@@ -60,5 +60,3 @@ void Framebuffer::drop()
 {
     glDeleteFramebuffers(1, &this->id);
 }
-
-

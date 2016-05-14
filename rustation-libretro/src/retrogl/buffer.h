@@ -228,6 +228,7 @@ public:
         }
 
         size_t offset_bytes = offset * element_size;
+        
         size_t size_bytes = n * element_size;
 
         this->bind();
@@ -265,7 +266,6 @@ public:
     /* impl<T> Drop for DrawBuffer<T> { */
     void drop()
     {
-        
         glDeleteBuffers(1, &this->id);
     }
 };
