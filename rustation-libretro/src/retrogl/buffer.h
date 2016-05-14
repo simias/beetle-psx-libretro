@@ -236,6 +236,8 @@ public:
         GLint first = this->lifo ? (GLint) this->remaining_capacity() : 0;
 
         glDrawArrays(mode, first, (GLsizei) this->len);
+
+        get_error();
     }
     
     size_t remaining_capacity()
