@@ -12,8 +12,6 @@ Program::Program(Shader* vertex_shader, Shader* fragment_shader)
         exit(EXIT_FAILURE);
     }
 
-    printf("Program::Program() - ATTACHING VERT SHADER ID %d AND FRAG SHADER ID %d to PROGRAM ID %d\n",
-        vertex_shader->id, fragment_shader->id, id);
     vertex_shader->attach_to(id);
     fragment_shader->attach_to(id);
 

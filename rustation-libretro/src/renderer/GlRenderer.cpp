@@ -559,7 +559,8 @@ bool GlRenderer::refresh_variables()
 
     return reconfigure_frontend;
 }
-
+/* Setup 2 triangles that cover the entire framebuffer
+then copy the displayed portion of the screen from fb_out */
 void GlRenderer::finalize_frame()
 {
     // Draw pending commands

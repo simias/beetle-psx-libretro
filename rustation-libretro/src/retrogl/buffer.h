@@ -207,7 +207,6 @@ public:
     /// Bind the buffer to the current VAO
     void bind()
     {
-        printf("DrawBuffer::bind() - BINDING BUFFER ID %d AS A GL_ARRAY_BUFFER\n", this->id);
         glBindBuffer(GL_ARRAY_BUFFER, this->id);
     }
 
@@ -245,10 +244,7 @@ public:
 
     void draw(GLenum mode)
     {
-        printf("DrawBuffer::draw() - BUFFER ID %d\n", this->id);
-        printf("DrawBuffer::draw() - BINDING VAO ID %d\n", this->vao->id);
         this->vao->bind();
-        printf("DrawBuffer::draw() - BINDING PROGRAM ID %d\n", this->program->id);
         this->program->bind();
 
         GLint first = this->lifo ? (GLint) this->remaining_capacity() : 0;
