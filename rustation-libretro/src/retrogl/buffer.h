@@ -26,9 +26,6 @@ public:
     Program* program;
     /// Number of elements T that the vertex buffer can hold
     size_t capacity;
-    /// Marker for the type of our buffer's contents
-    /* PhantomData<T> contains; */
-    T* contains;
     /// Current number of entries in the buffer
     size_t len;
     /// If true newer items are added *before* older ones
@@ -52,8 +49,8 @@ public:
         this->program = program;
         this->capacity = capacity;
         this->id = id;
-        
-        this->contains = new T;
+
+        this->lifo = lifo;
 
         this->clear();
         this->bind_attributes();
@@ -74,11 +71,6 @@ public:
             this->program = nullptr;
         }
 
-        if (this->contains != nullptr) {
-            delete contains;
-            this->contains = nullptr;
-        }
-
         this->drop();
     }
 
@@ -90,7 +82,7 @@ public:
         // ARRAY_BUFFER is captured by VertexAttribPointer
         this->bind();
 
-        std::vector<Attribute> attrs = attributes(this->contains);
+        std::vector<Attribute> attrs = T::attributes();
 
         GLint element_size = (GLint) sizeof( T );
 

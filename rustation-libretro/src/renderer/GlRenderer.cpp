@@ -851,7 +851,7 @@ void GlRenderer::copy_rect( uint16_t source_top_left[2],
     get_error();
 }
 
-std::vector<Attribute> attributes(CommandVertex* v)
+std::vector<Attribute> CommandVertex::attributes()
 {
     std::vector<Attribute> result;
 
@@ -868,7 +868,7 @@ std::vector<Attribute> attributes(CommandVertex* v)
     return result;
 }
 
-std::vector<Attribute> attributes(OutputVertex* v)
+std::vector<Attribute> OutputVertex::attributes()
 {
     std::vector<Attribute> result;
 
@@ -878,7 +878,7 @@ std::vector<Attribute> attributes(OutputVertex* v)
     return result;
 }
 
-std::vector<Attribute> attributes(ImageLoadVertex* v)
+std::vector<Attribute> ImageLoadVertex::attributes()
 {
     std::vector<Attribute> result;
 
