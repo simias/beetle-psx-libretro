@@ -534,8 +534,8 @@ bool GlRenderer::refresh_variables()
 
         
         if (this->fb_out_depth != nullptr) { 
-            delete this->fb_out;
-            this->fb_out = nullptr;
+            delete this->fb_out_depth;
+            this->fb_out_depth = nullptr;
         }
 
         this->fb_out_depth = new Texture(w, h, GL_DEPTH_COMPONENT32F);
