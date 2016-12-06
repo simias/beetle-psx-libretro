@@ -49,7 +49,7 @@ struct DrawConfig {
 
 struct CommandVertex {
     /// Position in PlayStation VRAM coordinates
-	float position[4];
+    float position[4];
     /// RGB color, 8bits per component
     uint8_t color[3];
     /// Texture coordinates within the page
