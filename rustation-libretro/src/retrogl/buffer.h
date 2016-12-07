@@ -59,10 +59,7 @@ public:
 	// we only remap one third of it at a time
         GLsizeiptr storage_size = this->capacity * element_size * 3;
 
-        glBufferStorage(GL_ARRAY_BUFFER,
-			storage_size,
-			NULL,
-			GL_MAP_WRITE_BIT);
+        glBufferData(GL_ARRAY_BUFFER, storage_size, NULL, GL_DYNAMIC_DRAW);
 
         this->bind_attributes();
 
@@ -212,7 +209,6 @@ public:
     {
         return this->map_start + this->map_index;
     }
-
 
     void enable_attribute(const char* attr)
     {
