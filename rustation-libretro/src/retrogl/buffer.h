@@ -166,6 +166,8 @@ public:
         GLintptr offset_bytes;
         void *m;
 
+        this->bind();
+
         // If we're already mapped something's wrong
         assert(this->map == NULL);
 
@@ -197,6 +199,8 @@ public:
     void unmap__no_bind()
     {
         assert(this->map != NULL);
+
+        this->bind();
 
         glUnmapBuffer(GL_ARRAY_BUFFER);
 
@@ -292,7 +296,7 @@ public:
 
     void draw(GLenum mode)
     {
-        printf("Draw indexed %lu\n", this->map_index);
+        printf("Draw %lu\n", this->map_index);
 
         if (this->empty()) {
 	  return;
@@ -315,6 +319,8 @@ public:
     void draw_indexed__raw(GLenum mode, GLushort *indices, GLsizei count)
     {
         printf("Draw indexed %d/%lu\n", count, this->map_index);
+
+        this->bind();
 
         if (this->empty()) {
 	  return;
