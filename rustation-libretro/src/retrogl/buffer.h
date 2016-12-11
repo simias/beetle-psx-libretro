@@ -59,6 +59,10 @@ public:
 	// we only remap one third of it at a time
         GLsizeiptr storage_size = this->capacity * element_size * 3;
 
+        // Since we store indexes in unsigned shorts we want to make
+        // sure the entire buffer is indexable.
+        assert(this->capacity * 3 <= 0xffff);
+
         glBufferData(GL_ARRAY_BUFFER, storage_size, NULL, GL_DYNAMIC_DRAW);
 
         this->bind_attributes();

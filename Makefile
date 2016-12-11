@@ -1,5 +1,5 @@
 GIT_VERSION := " $(shell git rev-parse --short HEAD)"
-DEBUG = 1
+DEBUG = 0
 FRONTEND_SUPPORTS_RGB565 = 1
 HAVE_RUST   = 0
 HAVE_OPENGL = 1
