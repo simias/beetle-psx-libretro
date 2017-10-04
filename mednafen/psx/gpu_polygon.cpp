@@ -264,68 +264,34 @@ static INLINE void DrawTriangle(PS_GPU *gpu, tri_vertex *vertices, uint32_t clut
    if(!CalcIDeltas<goraud, textured>(idl, vertices[0], vertices[1], vertices[2]))
       return;
 
-   // [0] should be top vertex, [2] should be bottom vertex, [1] should be off to the side vertex.
-   //
-   //
-   int32_t y_start = vertices[0].y;
-   int32_t y_middle = vertices[1].y;
-   int32_t y_bound = vertices[2].y;
+   
+ // [0] should be top vertex, [2] should be bottom vertex, [1] should be off to the side vertex.
+ //
+ //
+ int64 base_coord;
+ int64 base_step;
 
-   int64_t base_coord;
-   int64_t base_step;
+ int64 bound_coord_us;
+ int64 bound_coord_ls;
 
-   int64_t bound_coord_us;
+ bool right_facing;
+ i_group ig;
 
-   int64_t bound_coord_ls;
+ if(textured)
+ {
+  ig.u = (COORD_MF_INT(vertices[core_vertex].u) + (1 << (COORD_FBS - 1))) << COORD_POST_PADDING;
+  ig.v = (COORD_MF_INT(vertices[core_vertex].v) + (1 << (COORD_FBS - 1))) << COORD_POST_PADDING;
+ }
 
-   bool right_facing;
-   //bool bottom_up;
-   i_group ig;
+ ig.r = (COORD_MF_INT(vertices[core_vertex].r) + (1 << (COORD_FBS - 1))) << COORD_POST_PADDING;
+ ig.g = (COORD_MF_INT(vertices[core_vertex].g) + (1 << (COORD_FBS - 1))) << COORD_POST_PADDING;
+ ig.b = (COORD_MF_INT(vertices[core_vertex].b) + (1 << (COORD_FBS - 1))) << COORD_POST_PADDING;
 
-   //
-   // Find vertex with lowest X coordinate, and use as the base for calculating interpolants from.
-   //
-   {
-      unsigned iggvi = 0;
+ AddIDeltas_DX<goraud, textured>(ig, idl, -vertices[core_vertex].x);
+ AddIDeltas_DY<goraud, textured>(ig, idl, -vertices[core_vertex].y);
 
-      //
-      // <=, not <
-      //
-      if(vertices[1].x <= vertices[iggvi].x)
-         iggvi = 1;
-
-      if(vertices[2].x <= vertices[iggvi].x)
-         iggvi = 2;
-
-      if(textured)
-         {
-            ig.u = (COORD_MF_INT(vertices[core_vertex].u) + (1 << (COORD_FBS - 1))) << COORD_POST_PADDING;
-            ig.v = (COORD_MF_INT(vertices[core_vertex].v) + (1 << (COORD_FBS - 1))) << COORD_POST_PADDING;
-         }
-
-      if (gpu->upscale_shift > 0)
-      {
-         // Bias the texture coordinates so that it rounds to the
-         // correct value when the game is mapping a 2D sprite using
-         // triangles. Otherwise this could cause a small "shift" in
-         // the texture coordinates when upscaling
-
-         if (idl.du_dy == 0 && (int32_t)idl.du_dx > 0)
-            ig.u -= (1 << (COORD_FBS - 1 - gpu->upscale_shift));
-         if (idl.dv_dx == 0 && (int32_t)idl.dv_dy > 0)
-            ig.v -= (1 << (COORD_FBS - 1 - gpu->upscale_shift));
-      }
-
-      ig.r = (COORD_MF_INT(vertices[core_vertex].r) + (1 << (COORD_FBS - 1))) << COORD_POST_PADDING;
-      ig.g = (COORD_MF_INT(vertices[core_vertex].g) + (1 << (COORD_FBS - 1))) << COORD_POST_PADDING;
-      ig.b = (COORD_MF_INT(vertices[core_vertex].b) + (1 << (COORD_FBS - 1))) << COORD_POST_PADDING;
-
-      AddIDeltas_DX<goraud, textured>(ig, idl, -vertices[iggvi].x);
-      AddIDeltas_DY<goraud, textured>(ig, idl, -vertices[iggvi].y);
-   }
-
-   base_coord = MakePolyXFP(vertices[0].x);
-   base_step = MakePolyXFPStep((vertices[2].x - vertices[0].x), (vertices[2].y - vertices[0].y));
+ base_coord = MakePolyXFP(vertices[0].x);
+ base_step = MakePolyXFPStep((vertices[2].x - vertices[0].x), (vertices[2].y - vertices[0].y));
 
    //
    //
