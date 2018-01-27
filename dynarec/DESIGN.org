@@ -1,0 +1,51 @@
+* Emulated vs. native instructions
+  In this document "native" describes the code that runs natively on
+  the host controller (an x86 PC, an ARM CPU, etc...). "Emulated"
+  instructions are the original MIPS instructions that the PSX uses
+  and are either interpreted or dynamically recompiled in the
+  emulator.
+
+* Recompilation pages and invalidation
+  A difficulty in the dynarec architecture is to handle invalidations
+  properly. If the emulated program writes to a memory location that
+  we've recompiled it's important that we invalidate the cached
+  dynarec version so that we do not risk running an outdated version
+  of the program if the execution flow goes to the modified
+  instructions.
+
+  Doing this at the instruction level is rather complicated. A single
+  recompiled instruction will end up with multiple native
+  instructions. Depending on how complex the instruction is to emulate
+  we might need a variable amount of native instruction to implement
+  different opcodes. Sometimes we might be able to optimize several
+  emulated instructions into a single native one. For instance the
+  very common LUI/ORI instruction pair to load an immedate value using
+  the MIPS instruction set can be emulated as a single MOV instruction
+  on x86.
+
+  Now imagine that we have such optimized dynarec code for some bit of
+  code in emulated PSX memory. Now the emulated game, for some reason,
+  decides to overwrite the ORI with something else (maybe a bug, maybe
+  self-modifying code to change the variable being loaded). Handling
+  this correctyl would be tricky, you have to figure out if your
+  optimization still makes sense, if it does not you have to split it
+  in two different instructions. But then you need to find the space
+  to insert a new instruction so you might have to move the machine
+  code following it to make some space. Clearly it's a pain to handle
+  in all cases.
+
+  To avoid this invalidation and recompilation are not handled at the
+  instruction level but rather at a "page" level. A page is recompiled
+  all at once and invalidated all at once. Since you know this you can
+  micro-optimize all the code within each page (local loops etc...)
+  but you need to be careful about code that crosses page boundaries.
+
+  So in the example above, the overwrite of the ORI instruction would
+  cause the entire containing page to be invalidated at once. Later if
+  the CPU goes back to executing this portion of memory the dynarec
+  will recompile it entirely.
+
+* To-do list
+** TODO Allow executing out of parport extension
+   For instance running code from xplorer/gameshark. I also use that
+   to load "raw" PSX executables for tests.

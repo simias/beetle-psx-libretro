@@ -8,6 +8,7 @@ MEDNAFEN_DIR := $(CORE_DIR)/mednafen
 CORE_EMU_DIR := $(MEDNAFEN_DIR)/psx
 RSXGL_DIR    := $(CORE_DIR)/rustation-libretro/src
 CDROM_DIR    := $(MEDNAFEN_DIR)/cdrom
+DYNAREC_DIR  := $(CORE_DIR)/dynarec
 
 ifeq ($(HAVE_OPENGL), 1)
    ifeq ($(GLES), 1)
@@ -252,6 +253,14 @@ ifneq ($(HAVE_GRIFFIN), 1)
          SOURCES_C += $(LIBRETRO_DIR)/rthreads/rthreads.c
       endif
 
+   endif
+
+   ifeq ($(HAVE_DYNAREC), 1)
+      FLAGS += -DHAVE_DYNAREC
+
+      EXTRA_INCLUDES += -I$(CORE_DIR)/dynarec
+
+      SOURCES_C += $(DYNAREC_DIR)/dynarec.c
    endif
 endif ## ifneq($(HAVE_GRIFFIN, 1))
 

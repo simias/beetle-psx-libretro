@@ -33,6 +33,13 @@
 #include "../pgxp/pgxp_main.h"
 // int pgxpMode = PGXP_GetModes();
 
+#ifdef HAVE_DYNAREC
+#include "dynarec.h"
+
+struct dynarec_state *dynarec_state = NULL;
+
+#endif
+
 extern bool psx_gte_overclock;
 
 
@@ -2636,8 +2643,47 @@ pscpu_timestamp_t PS_CPU::RunReal(pscpu_timestamp_t timestamp_in)
  return(timestamp);
 }
 
+#ifdef HAVE_DYNAREC
+pscpu_timestamp_t PS_CPU::RunDynarec(int32_t timestamp)
+{
+   uint32_t PC;
+   uint32_t new_PC;
+   uint32_t new_PC_mask;
+   uint32_t LDWhich;
+   uint32_t LDValue;
+
+   if (dynarec_state == NULL) {
+      dynarec_state = dynarec_init();
+      assert(dynarec_state != NULL);
+   }
+
+   BACKING_TO_ACTIVE;
+
+   do {
+      int32_t cycles_to_run = next_event_ts - timestamp;
+
+      dynarec_set_next_event(dynarec_state, cycles_to_run);
+      dynarec_set_pc(dynarec_state, PC);
+
+      dynarec_run(dynarec_state);
+   } while(MDFN_LIKELY(PSX_EventHandler(timestamp)));
+
+   ACTIVE_TO_BACKING;
+
+   return 0;
+}
+#endif
+
 pscpu_timestamp_t PS_CPU::Run(pscpu_timestamp_t timestamp_in, bool BIOSPrintMode, bool ILHMode)
 {
+#ifdef HAVE_DYNAREC
+   bool use_dynarec = true;
+
+   if (use_dynarec) {
+      return(RunDynarec(timestamp_in));
+   }
+#endif /* HAVE_DYNAREC */
+
  if(CPUHook || ADDBT)
   return(RunReal<true, true, false>(timestamp_in));
 #ifdef DEBUG
@@ -2646,7 +2692,6 @@ pscpu_timestamp_t PS_CPU::Run(pscpu_timestamp_t timestamp_in, bool BIOSPrintMode
  if(BIOSPrintMode)
   return(RunReal<false, true, false>(timestamp_in));
 #endif
- return(RunReal<false, false, false>(timestamp_in));
 }
 
 void PS_CPU::SetCPUHook(void (*cpuh)(const pscpu_timestamp_t timestamp, uint32 pc), void (*addbt)(uint32 from, uint32 to, bool exception))
