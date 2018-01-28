@@ -100,6 +100,7 @@ class PS_SPU;
 extern PS_CPU *CPU;
 extern PS_CDC *CDC;
 extern PS_SPU *SPU;
+extern MultiAccessSizeMem<512 * 1024, uint32, false> *BIOSROM;
 extern MultiAccessSizeMem<2048 * 1024, uint32_t, false> MainRAM;
 
 #define OVERCLOCK_SHIFT 8

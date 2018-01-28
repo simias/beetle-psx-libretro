@@ -256,11 +256,12 @@ ifneq ($(HAVE_GRIFFIN), 1)
    endif
 
    ifeq ($(HAVE_DYNAREC), 1)
-      FLAGS += -DHAVE_DYNAREC
+      FLAGS += -DHAVE_DYNAREC -DDYNAREC_ARCH_$(DYNAREC_ARCH)
 
       EXTRA_INCLUDES += -I$(CORE_DIR)/dynarec
 
-      SOURCES_C += $(DYNAREC_DIR)/dynarec.c
+      SOURCES_C += $(DYNAREC_DIR)/dynarec.c \
+                   $(DYNAREC_DIR)/dynarec-$(shell echo $(DYNAREC_ARCH) | tr A-Z a-z).c
    endif
 endif ## ifneq($(HAVE_GRIFFIN, 1))
 
