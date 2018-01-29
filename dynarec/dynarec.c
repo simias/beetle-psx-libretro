@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <assert.h>
 #include <sys/mman.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 #include "dynarec.h"
 
@@ -131,31 +133,43 @@ static int dynarec_recompile(struct dynarec_state *state,
          compiler to optimize this correctly, otherwise it might be
          better to move them to the instructions where they make
          sense.*/
-      uint8_t  reg_t = (instruction >> 16) & 0x1f;
-      uint8_t  reg_s = (instruction >> 21) & 0x1f;
-      uint16_t imm = instruction & 0xffff;
+      uint8_t  reg_t  = (instruction >> 16) & 0x1f;
+      uint8_t  reg_s  = (instruction >> 21) & 0x1f;
+      uint16_t imm    = instruction & 0xffff;
 
       printf("Compiling 0x%08x\n", instruction);
 
       map = compiler.map;
 
       switch (instruction >> 26) {
-      case 0x0d:
-         if (reg_t == 0) {
-            /* nop */
+      case 0x0d: /* ORI */
+         if (reg_t == 0 || (reg_t == reg_s && imm == 0)) {
+            /* NOP */
+            break;
+         }
+
+         if (reg_s == 0) {
+            dynarec_emit_li(&compiler, reg_t, imm);
+            break;
+         }
+
+         if (imm == 0) {
+            dynarec_emit_mov(&compiler, reg_t, reg_s);
             break;
          }
 
          dynarec_emit_ori(&compiler, reg_t, reg_s, imm);
-
          break;
-      case 0x0f:
+      case 0x0f: /* LUI */
          if (reg_t == 0) {
             /* nop */
             break;
          }
 
-         dynarec_emit_lui(&compiler, reg_t, imm);
+         dynarec_emit_li(&compiler, reg_t, ((uint32_t)imm) << 16);
+         break;
+      case 0x2b: /* SW */
+         dynarec_emit_sw(&compiler, reg_s, imm, reg_t);
          break;
       default:
          printf("Dynarec encountered unsupported instruction %08x\n",
@@ -168,6 +182,16 @@ static int dynarec_recompile(struct dynarec_state *state,
          printf(" %02x", *map);
       }
       printf("\n");
+
+#if 1
+      {
+         int fd = open("/tmp/dump.amd64", O_WRONLY | O_CREAT| O_TRUNC, 0644);
+
+         write(fd, page->map, compiler.map - page->map);
+
+         close(fd);
+      }
+#endif
    }
 
    return 0;

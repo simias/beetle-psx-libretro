@@ -132,13 +132,20 @@ struct dynarec_compiler {
 
 /* These methods are provided by the various architecture-dependent
    backends */
-extern void dynarec_emit_lui(struct dynarec_compiler *compiler,
-                             uint8_t reg,
-                             uint16_t val);
+extern void dynarec_emit_li(struct dynarec_compiler *compiler,
+                            uint8_t reg,
+                            uint32_t val);
+extern void dynarec_emit_mov(struct dynarec_compiler *compiler,
+                             uint8_t reg_t,
+                             uint8_t reg_s);
 extern void dynarec_emit_ori(struct dynarec_compiler *compiler,
                              uint8_t reg_t,
                              uint8_t reg_s,
                              uint16_t val);
+extern void dynarec_emit_sw(struct dynarec_compiler *compiler,
+                            uint8_t reg_addr,
+                            int16_t offset,
+                            uint8_t reg_val);
 
 #ifdef __cplusplus
 }
