@@ -15,10 +15,14 @@ extern "C" {
 
 /* PSX RAM size in bytes: 2MB */
 #define PSX_RAM_SIZE               0x200000U
-/* BIOS ROM size in bytes: 512KB */
+/* BIOS ROM size in bytes: 512kB */
 #define PSX_BIOS_SIZE              0x80000U
 /* Base address for the BIOS ROM */
 #define PSX_BIOS_BASE              0x1FC00000U
+/* Scratchpad size in bytes: 1kB */
+#define PSX_SCRATCHPAD_SIZE        1024U
+/* Base address for the scratchpad */
+#define PSX_SCRATCHPAD_BASE        0x1F800000U
 
 /* Length of a recompilation page in bytes */
 #define DYNAREC_PAGE_SIZE          2048U
@@ -81,6 +85,25 @@ enum PSX_REG {
    PSX_REG_RA = 31,
 };
 
+enum PSX_CPU_EXCEPTIONS {
+    /// Interrupt Request
+    PSX_EXCEPTION_INTERRUPT = 0x0,
+    /// Alignment error on load
+    PSX_EXCEPTION_LOAD_ALIGN = 0x4,
+    /// Alignment error on store
+    PSX_EXCEPTION_STORE_ALIGN = 0x5,
+    /// System call (caused by the SYSCALL opcode)
+    PSX_EXCEPTION_SYSCALL = 0x8,
+    /// Breakpoint (caused by the BREAK opcode)
+    PSX_EXCEPTION_BREAK = 0x9,
+    /// CPU encountered an unknown instruction
+    PSX_EXCEPTION_ILLEGAL_INSTRUCTION = 0xa,
+    /// Unsupported coprocessor operation
+    PSX_COPROCESSOR_ERROR = 0xb,
+    /// Arithmetic overflow
+    PSX_OVERFLOW = 0xc,
+};
+
 struct dynarec_page {
    /* If true the page contains up-to-date recompiled code. Otherwise
       the page needs to be recompiled prior to execution. */
@@ -102,17 +125,23 @@ struct dynarec_state {
    int32_t             next_event_cycle;
    /* Current value of the PC */
    uint32_t            pc;
+   /* Region mask, it's used heavily in the dynarec'd code so it's
+      convenient to have it accessible in this struct. */
+   uint32_t            region_mask[8];
    /* All CPU registers. R0 is always 0. */
    uint32_t            regs[32];
    /* Pointer to the PSX RAM */
    uint32_t           *ram;
+   /* Pointer to the PSX scratchpad */
+   uint32_t           *scratchpad;
    /* Pointer to the PSX BIOS */
    const uint32_t     *bios;
-
    struct dynarec_page pages[DYNAREC_TOTAL_PAGES];
 };
 
-extern struct dynarec_state *dynarec_init(uint32_t *ram, const uint32_t *bios);
+extern struct dynarec_state *dynarec_init(uint32_t *ram,
+                                          uint32_t *scratchpad,
+                                          const uint32_t *bios);
 extern void dynarec_set_next_event(struct dynarec_state *state,
                                    int32_t cycles);
 extern void dynarec_set_pc(struct dynarec_state *state,
@@ -130,6 +159,8 @@ struct dynarec_compiler {
    uint32_t pc;
 };
 
+typedef void (*dynarec_fn_t)(void);
+
 /* These methods are provided by the various architecture-dependent
    backends */
 extern void dynarec_emit_li(struct dynarec_compiler *compiler,
@@ -146,6 +177,9 @@ extern void dynarec_emit_sw(struct dynarec_compiler *compiler,
                             uint8_t reg_addr,
                             int16_t offset,
                             uint8_t reg_val);
+
+extern void dynarec_execute(struct dynarec_state *state,
+                            dynarec_fn_t target);
 
 #ifdef __cplusplus
 }

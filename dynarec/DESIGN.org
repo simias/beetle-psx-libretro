@@ -49,3 +49,6 @@
 ** TODO Allow executing out of parport extension
    For instance running code from xplorer/gameshark. I also use that
    to load "raw" PSX executables for tests.
+** TODO Fast SP mode
+** TODO Lazy invalidate mode
+** TODO Precompile mode

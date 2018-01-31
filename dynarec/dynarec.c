@@ -7,7 +7,22 @@
 
 #include "dynarec.h"
 
-struct dynarec_state *dynarec_init(uint32_t *ram, const uint32_t *bios) {
+static const uint32_t region_mask[8] = {
+   0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, /* KUSEG: 2048MB */
+   0x7fffffff,                                     /* KSEG0:  512MB */
+   0x1fffffff,                                     /* KSEG1:  512MB */
+   0xffffffff, 0xffffffff,                         /* KSEG2: 1024MB */
+};
+
+/* Mask "addr" to remove the region bits and return a "canonical"
+   address. */
+static uint32_t dynarec_mask_address(uint32_t addr) {
+   return addr & region_mask[addr >> 29];
+}
+
+struct dynarec_state *dynarec_init(uint32_t *ram,
+                                   uint32_t *scratchpad,
+                                   const uint32_t *bios) {
    struct dynarec_state *state;
    unsigned i;
 
@@ -18,8 +33,10 @@ struct dynarec_state *dynarec_init(uint32_t *ram, const uint32_t *bios) {
 
    state->next_event_cycle = 0;
    state->ram = ram;
+   state->scratchpad = scratchpad;
    state->bios = bios;
 
+   memcpy(state->region_mask, region_mask, sizeof(region_mask));
    memset(state->regs, 0, sizeof(state->regs));
 
    /* Initialize all pages as unmapped/invalid */
@@ -37,19 +54,6 @@ void dynarec_set_next_event(struct dynarec_state *state, int32_t cycles) {
 
 void dynarec_set_pc(struct dynarec_state *state, uint32_t pc) {
    state->pc = pc;
-}
-
-/* Mask "addr" to remove the region bits and return a "canonical"
-   address. */
-static uint32_t dynarec_mask_address(uint32_t addr) {
-   static const uint32_t region_mask[8] = {
-      0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, /* KUSEG: 2048MB */
-      0x7fffffff,                                     /* KSEG0:  512MB */
-      0x1fffffff,                                     /* KSEG1:  512MB */
-      0xffffffff, 0xffffffff,                         /* KSEG2: 1024MB */
-   };
-
-   return addr & region_mask[addr >> 29];
 }
 
 /* Find the offset of the page containing `addr`. Returns -1 if no
@@ -174,7 +178,7 @@ static int dynarec_recompile(struct dynarec_state *state,
       default:
          printf("Dynarec encountered unsupported instruction %08x\n",
                 instruction);
-         abort();
+         return 0;
       }
 
       printf("Emited:");
@@ -194,6 +198,7 @@ static int dynarec_recompile(struct dynarec_state *state,
 #endif
    }
 
+   page->valid = 1;
    return 0;
 }
 
@@ -214,4 +219,8 @@ void dynarec_run(struct dynarec_state *state) {
          abort();
       }
    }
+
+   dynarec_fn_t f = (dynarec_fn_t)page->map;
+
+   dynarec_execute(state, f);
 }
