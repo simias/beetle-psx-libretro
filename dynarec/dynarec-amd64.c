@@ -14,10 +14,10 @@ enum X86_REG {
    REG_AX  = 0,  /* Temporary variable */
    REG_BX  = 3,  /* PSX V0 (R2) [PAFC] */
    REG_CX  = 1,  /* Temporary variable */
-   REG_DX  = 2,  /* Temporary variable */
+   REG_DX  = 2,  /* Temporary variable, func arg 3 */
    REG_BP  = 5,  /* struct dynarec_state pointer [PAFC] */
-   REG_SI  = 6,
-   REG_DI  = 7,
+   REG_SI  = 6,  /* Temporary variable, func arg 1 */
+   REG_DI  = 7,  /* Temporary variable, func arg 0 */
    REG_SP  = 4,  /* Host stack [PAFC] */
    REG_R8  = 8,  /* PSX AT */
    REG_R9  = 9,  /* PSX V0 */
@@ -98,8 +98,12 @@ static int register_location(enum PSX_REG reg) {
       *_jump_patch = _jump_off;                                   \
    }}
 
-#define EMIT_IF_EQUAL(_compiler)  EMIT_IF(_compiler, 0x74)
-#define EMIT_IF_BELOW(_compiler)  EMIT_IF(_compiler, 0x72)
+#define EMIT_IF_NOT_EQUAL(_compiler)  EMIT_IF(_compiler, 0x74)
+#define EMIT_IF_LESS_THAN(_compiler)  EMIT_IF(_compiler, 0x73)
+
+void dynarec_unhandled_memory_access(uint32_t val, uint32_t addr) {
+   printf("memory access: %08x @ %08x\n", val, addr);
+}
 
 static void emit_imm32(struct dynarec_compiler *compiler,
                        uint32_t val) {
@@ -132,6 +136,19 @@ static void emit_simm24(struct dynarec_compiler *compiler,
 static void emit_trap(struct dynarec_compiler *compiler) {
    /* INT 3 */
    *(compiler->map++) = 0xcc;
+}
+
+static void emit_call(struct dynarec_compiler *compiler,
+                      uint64_t func_addr) {
+   uint64_t local_addr = (uint64_t)compiler->map;
+   local_addr += 5;
+
+   /* compute relative function address */
+   func_addr -= local_addr;
+
+   /* call imm32 */
+   *(compiler->map++) = 0xe8;
+   emit_imm32(compiler, func_addr);
 }
 
 void dynarec_emit_mov(struct dynarec_compiler *compiler,
@@ -236,7 +253,7 @@ void dynarec_emit_sw(struct dynarec_compiler *compiler,
       emit_imm32(compiler, (int32_t)offset);
    }
 
-   /* Move address to %eax */
+   /* Copy address to %eax */
    /* MOV %ecx, %eax */
    *(compiler->map++) = 0x89;
    *(compiler->map++) = 0xc8;
@@ -247,7 +264,7 @@ void dynarec_emit_sw(struct dynarec_compiler *compiler,
    *(compiler->map++) = 0xe0;
    *(compiler->map++) = 0x03;
 
-   EMIT_IF_EQUAL(compiler) {
+   EMIT_IF_NOT_EQUAL(compiler) {
       /* Address is not aligned correctly. */
       emit_exception(compiler, PSX_EXCEPTION_LOAD_ALIGN);
    } EMIT_ENDIF(compiler)
@@ -278,19 +295,25 @@ void dynarec_emit_sw(struct dynarec_compiler *compiler,
    emit_imm32(compiler, PSX_RAM_SIZE * 4);
 
    if (value_r < 0) {
-      /* Load value into %edx */
-      uint32_t reg_offset;
+      /* Load value into %edi */
+      if (reg_val == PSX_REG_R0) {
+         /* XOR %edi, %edi */
+         *(compiler->map++) = 0x31;
+         *(compiler->map++) = 0xff;
+      } else {
+         uint32_t reg_offset;
 
-      reg_offset = offsetof(struct dynarec_state, regs);
-      reg_offset += 4 * reg_val;
+         reg_offset = offsetof(struct dynarec_state, regs);
+         reg_offset += 4 * reg_val;
 
-      /* MOV reg_offset(%rbp), %edx */
-      *(compiler->map++) = 0x8b;
-      *(compiler->map++) = 0x95;
-      emit_imm32(compiler, reg_offset);
+         /* MOV reg_offset(%rbp), %edi */
+         *(compiler->map++) = 0x8b;
+         *(compiler->map++) = 0xbd;
+         emit_imm32(compiler, reg_offset);
+      }
    }
 
-   EMIT_IF_BELOW(compiler) {
+   EMIT_IF_LESS_THAN(compiler) {
       /* We're targetting RAM */
 
       /* Mask the address in case it was in one of the mirrors */
@@ -338,45 +361,83 @@ void dynarec_emit_sw(struct dynarec_compiler *compiler,
          *(compiler->map++) = 0x89;
          *(compiler->map++) = ((value_r & 7) << 3) | 1;
       } else {
-         /* MOVL %edx, (%rcx) */
+         /* MOVL %edi, (%rcx) */
          *(compiler->map++) = 0x89;
-         *(compiler->map++) = 0x11;
+         *(compiler->map++) = 0x39;
       }
    } EMIT_ELSE(compiler) {
+      /* Copy to %eax to subtract scratchpad base offset */
+      /* MOV %ecx, %eax */
+      *(compiler->map++) = 0x89;
+      *(compiler->map++) = 0xc8;
+
       /* Test if the address is in the scratchpad */
       /* SUB imm32, %ecx */
-      *(compiler->map++) = 0x81;
-      *(compiler->map++) = 0xe9;
+      *(compiler->map++) = 0x2d;
       emit_imm32(compiler, PSX_SCRATCHPAD_BASE);
 
-      /* CMP imm32, %ecx */
-      *(compiler->map++) = 0x81;
-      *(compiler->map++) = 0xf9;
+      /* CMP imm32, %eax */
+      *(compiler->map++) = 0x3d;
       emit_imm32(compiler, PSX_SCRATCHPAD_SIZE);
 
-      EMIT_IF_BELOW(compiler) {
+      EMIT_IF_LESS_THAN(compiler) {
          /* We're targetting the scratchpad. This is the simplest
             case, no invalidation needed, we can store it directly in
             the scratchpad buffer */
 
          /* Add the address of the RAM buffer in host memory */
-         /* ADD imm7(%rbp), %ecx */
+         /* ADD imm7(%rbp), %eax */
          *(compiler->map++) = 0x03;
-         *(compiler->map++) = 0x4d;
+         *(compiler->map++) = 0x45;
          emit_imm7(compiler, offsetof(struct dynarec_state, scratchpad));
 
          if (value_r >= 0) {
-            /* MOVL %r8-15, (%rcx) */
+            /* MOVL %r8-15, (%rax) */
             *(compiler->map++) = 0x44;
             *(compiler->map++) = 0x89;
-            *(compiler->map++) = ((value_r & 7) << 3) | 1;
+            *(compiler->map++) = ((value_r & 7) << 3);
          } else {
-            /* MOVL %edx, (%rcx) */
+            /* MOVL %edi, (%rax) */
             *(compiler->map++) = 0x89;
-            *(compiler->map++) = 0x11;
+            *(compiler->map++) = 0x38;
          }
       } EMIT_ELSE(compiler) {
-         emit_trap(compiler);
+         /* We're writing to some device's memory, call the emulator
+            code */
+         if (value_r >= 0) {
+            /* Move value to %edi */
+            /* MOV r8-r15, %edi */
+            *(compiler->map++) = 0x44;
+            *(compiler->map++) = 0x89;
+            *(compiler->map++) = 0xc7 | ((value_r & 7) << 3);
+         }
+
+         /* Move address to %esi */
+         /* MOV %ecx, %esi */
+         *(compiler->map++) = 0x89;
+         *(compiler->map++) = 0xce;
+
+         /* Save registers that are not preserved across calls */
+         /* XXX should we save them back where they belong in
+            dynarec_state instead? */
+         /* PUSH %r8 */
+         *(compiler->map++) = 0x41;
+         *(compiler->map++) = 0x50;
+
+         /* PUSH %r9 */
+         *(compiler->map++) = 0x41;
+         *(compiler->map++) = 0x51;
+
+         /* PUSH %r10 */
+         *(compiler->map++) = 0x41;
+         *(compiler->map++) = 0x52;
+
+         /* PUSH %r11 */
+         *(compiler->map++) = 0x41;
+         *(compiler->map++) = 0x53;
+
+         emit_call(compiler,
+                   (uint64_t)dynarec_unhandled_memory_access);
       } EMIT_ENDIF(compiler)
    } EMIT_ENDIF(compiler)
 
@@ -387,9 +448,9 @@ void dynarec_emit_sw(struct dynarec_compiler *compiler,
 void dynarec_execute(struct dynarec_state *state,
                      dynarec_fn_t target) {
 
-   __asm__ ("mov %%rcx, %%rbp\n\t"
+   __asm__ ("mov %0, %%rbp\n\t"
             "call *%%rax\n\t"
             :
-            : "c"(state), "a"(target));
+            : "r"(state), "a"(target));
 
 }
