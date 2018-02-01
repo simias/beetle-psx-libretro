@@ -67,7 +67,8 @@ static int register_location(enum PSX_REG reg) {
       *_jump_patch = _jump_off;                                   \
    }} while(0)
 
-#define EMIT_IF_EQ(_compiler) EMIT_IF(_compiler, 0x74)
+#define EMIT_IF_EQUAL(_compiler) EMIT_IF(_compiler, 0x74)
+#define EMIT_IF_BELOW(_compiler)  EMIT_IF(_compiler, 0x72)
 
 static void emit_imm32(struct dynarec_compiler *compiler,
                        uint32_t val) {
@@ -77,6 +78,13 @@ static void emit_imm32(struct dynarec_compiler *compiler,
       *(compiler->map++) = val & 0xff;
       val >>= 8;
    }
+}
+
+static void emit_imm7(struct dynarec_compiler *compiler,
+                      uint32_t val) {
+   assert(val <= 0x7f);
+
+   *(compiler->map++) = val;
 }
 
 /* Emit a signed value on 24 bits  */
@@ -160,7 +168,8 @@ void dynarec_emit_sw(struct dynarec_compiler *compiler,
                      uint8_t reg_addr,
                      int16_t offset,
                      uint8_t reg_val) {
-   int addr_r = register_location(reg_addr);
+   int addr_r  = register_location(reg_addr);
+   int value_r = register_location(reg_val);
 
    /* First we load the address into R11 and we add the offset */
    if (addr_r >= 0) {
@@ -202,7 +211,7 @@ void dynarec_emit_sw(struct dynarec_compiler *compiler,
    *(compiler->map++) = 0xe0;
    *(compiler->map++) = 0x03;
 
-   EMIT_IF_EQ(compiler) {
+   EMIT_IF_EQUAL(compiler) {
       /* Address is not aligned correctly. */
       emit_exception(compiler, PSX_EXCEPTION_LOAD_ALIGN);
    } EMIT_ENDIF(compiler);
@@ -225,10 +234,47 @@ void dynarec_emit_sw(struct dynarec_compiler *compiler,
    *(compiler->map++) = 0x23;
    *(compiler->map++) = 0x5c;
    *(compiler->map++) = 0x84;
-   *(compiler->map++) = offsetof(struct dynarec_state, region_mask);
+   emit_imm7(compiler, offsetof(struct dynarec_state, region_mask));
 
-   /* Make sure the encoding above works */
-   assert(offsetof(struct dynarec_state, region_mask) < 0x80);
+   /* Move address to %eax */
+   /* MOV %r11d, %eax */
+   *(compiler->map++) = 0x44;
+   *(compiler->map++) = 0x89;
+   *(compiler->map++) = 0xd8;
+
+   /* Test if the address is in RAM */
+   /* CMP imm32, %rax */
+   *(compiler->map++) = 0x48;
+   *(compiler->map++) = 0x3d;
+   /* The RAM is mirrored 4 times */
+   emit_imm32(compiler, PSX_RAM_SIZE * 4);
+
+   EMIT_IF_BELOW(compiler) {
+      /* Mask the address in case it was in one of the mirrors */
+      /* AND imm32, %eax */
+      *(compiler->map++) = 0x48;
+      *(compiler->map++) = 0x25;
+      emit_imm32(compiler, PSX_RAM_SIZE - 1);
+
+      /* Add the address of the RAM buffer in host memory */
+      /* ADDQ imm32(%r12), %rax */
+      *(compiler->map++) = 0x49;
+      *(compiler->map++) = 0x03;
+      *(compiler->map++) = 0x44;
+      *(compiler->map++) = 0x24;
+      emit_imm7(compiler, offsetof(struct dynarec_state, ram));
+
+      if (value_r > 0) {
+         /* MOVL %r0-7, (%rax) */
+         *(compiler->map++) = 0x89;
+         *(compiler->map++) = value_r << 3;
+      } else {
+         /* Load to a temporary register */
+         UNIMPLEMENTED;
+      }
+
+      /* XXX invalidate page */
+   } EMIT_ENDIF(compiler);
 
    /* XXX Finish me */
    emit_trap(compiler);

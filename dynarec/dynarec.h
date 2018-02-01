@@ -128,14 +128,14 @@ struct dynarec_state {
    /* Region mask, it's used heavily in the dynarec'd code so it's
       convenient to have it accessible in this struct. */
    uint32_t            region_mask[8];
-   /* All CPU registers. R0 is always 0. */
-   uint32_t            regs[32];
    /* Pointer to the PSX RAM */
    uint32_t           *ram;
    /* Pointer to the PSX scratchpad */
    uint32_t           *scratchpad;
    /* Pointer to the PSX BIOS */
    const uint32_t     *bios;
+   /* All CPU registers. R0 is always 0. */
+   uint32_t            regs[32];
    struct dynarec_page pages[DYNAREC_TOTAL_PAGES];
 };
 
