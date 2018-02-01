@@ -13,20 +13,20 @@
 enum X86_REG {
    REG_AX  = 0,  /* Temporary variable */
    REG_BX  = 3,  /* PSX V0 (R2) [PAFC] */
-   REG_CX  = 1,  /* PSX V1 (R3) */
-   REG_DX  = 2,  /* PSX A0 (R4) */
-   REG_BP  = 5,  /* PSX T0 (R8) [PAFC] */
-   REG_SI  = 6,  /* PSX SP (R29) */
-   REG_DI  = 7,  /* PSX RA (R31) */
+   REG_CX  = 1,  /* Temporary variable */
+   REG_DX  = 2,  /* Temporary variable */
+   REG_BP  = 5,  /* struct dynarec_state pointer [PAFC] */
+   REG_SI  = 6,
+   REG_DI  = 7,
    REG_SP  = 4,  /* Host stack [PAFC] */
-   REG_R8  = 8,
-   REG_R9  = 9,
-   REG_R10 = 10, /* Temporary variable: holds value for SW */
-   REG_R11 = 11, /* Temporary variable: holds address for SW */
-   REG_R12 = 12, /* struct dynarec_state pointer [PAFC] */
-   REG_R13 = 13, /* [PAFC] */
-   REG_R14 = 14, /* [PAFC] */
-   REG_R15 = 15, /* [PAFC] */
+   REG_R8  = 8,  /* PSX AT */
+   REG_R9  = 9,  /* PSX V0 */
+   REG_R10 = 10, /* PSX V1 */
+   REG_R11 = 11, /* PSX A0 */
+   REG_R12 = 12, /* PSX A1 [PAFC] */
+   REG_R13 = 13, /* PSX T0 [PAFC] */
+   REG_R14 = 14, /* PSX SP [PAFC] */
+   REG_R15 = 15, /* PSX RA [PAFC] */
 };
 
 /* Returns the host register location for the PSX-emulated register
@@ -34,18 +34,22 @@ enum X86_REG {
    it must be accessed in memory. */
 static int register_location(enum PSX_REG reg) {
    switch (reg) {
+   case PSX_REG_AT:
+      return REG_R8;
    case PSX_REG_V0:
-      return REG_BX;
+      return REG_R9;
    case PSX_REG_V1:
-      return REG_CX;
+      return REG_R10;
    case PSX_REG_A0:
-      return REG_DX;
+      return REG_R11;
+   case PSX_REG_A1:
+      return REG_R12;
    case PSX_REG_T0:
-      return REG_BP;
+      return REG_R13;
    case PSX_REG_SP:
-      return REG_SI;
+      return REG_R14;
    case PSX_REG_RA:
-      return REG_DI;
+      return REG_R15;
    default:
       return -1;
    }
@@ -67,7 +71,7 @@ static int register_location(enum PSX_REG reg) {
       *_jump_patch = _jump_off;                                   \
    }} while(0)
 
-#define EMIT_IF_EQUAL(_compiler) EMIT_IF(_compiler, 0x74)
+#define EMIT_IF_EQUAL(_compiler)  EMIT_IF(_compiler, 0x74)
 #define EMIT_IF_BELOW(_compiler)  EMIT_IF(_compiler, 0x72)
 
 static void emit_imm32(struct dynarec_compiler *compiler,
@@ -104,19 +108,20 @@ static void emit_trap(struct dynarec_compiler *compiler) {
 }
 
 void dynarec_emit_mov(struct dynarec_compiler *compiler,
-                      uint8_t reg_t,
-                      uint8_t reg_s) {
+                      enum PSX_REG reg_t,
+                      enum PSX_REG reg_s) {
    UNIMPLEMENTED;
 }
 
 void dynarec_emit_li(struct dynarec_compiler *compiler,
-                     uint8_t reg_t,
+                     enum PSX_REG reg_t,
                      uint32_t val) {
    const int target = register_location(reg_t);
 
    if (target >= 0) {
-      /* MOV $imm32, $r0-7 */
-      *(compiler->map++) = 0xb8 | target;
+      /* MOV $imm32, $r8-15 */
+      *(compiler->map++) = 0x41;
+      *(compiler->map++) = 0xb0 | target;
       emit_imm32(compiler, val);
    } else {
       uint32_t reg_offset;
@@ -124,19 +129,17 @@ void dynarec_emit_li(struct dynarec_compiler *compiler,
       reg_offset = offsetof(struct dynarec_state, regs);
       reg_offset += 4 * reg_t;
 
-      /* MOV $imm32, reg_offset(%r12) */
-      *(compiler->map++) = 0x41;
+      /* MOV $imm32, reg_offset(%rbp) */
       *(compiler->map++) = 0xc7;
-      *(compiler->map++) = 0x84;
-      *(compiler->map++) = 0x24;
+      *(compiler->map++) = 0x85;
       emit_imm32(compiler, reg_offset);
       emit_imm32(compiler, val);
    }
 }
 
 void dynarec_emit_ori(struct dynarec_compiler *compiler,
-                      uint8_t reg_t,
-                      uint8_t reg_s,
+                      enum PSX_REG reg_t,
+                      enum PSX_REG reg_s,
                       uint16_t val) {
    const int target = register_location(reg_t);
    const int source = register_location(reg_s);
@@ -147,14 +150,14 @@ void dynarec_emit_ori(struct dynarec_compiler *compiler,
          UNIMPLEMENTED;
       }
 
-      /* OR $imm32, %r0-7 */
+      /* OR $imm32, %r8-15 */
+      *(compiler->map++) = 0x41;
       *(compiler->map++) = 0x81;
-      *(compiler->map++) = 0xc8 | target;
+      *(compiler->map++) = 0xc0 | target;
       emit_imm32(compiler, val);
-      return;
+   } else {
+      UNIMPLEMENTED;
    }
-
-   UNIMPLEMENTED;
 }
 
 static void emit_exception(struct dynarec_compiler *compiler,
@@ -165,34 +168,41 @@ static void emit_exception(struct dynarec_compiler *compiler,
 }
 
 void dynarec_emit_sw(struct dynarec_compiler *compiler,
-                     uint8_t reg_addr,
+                     enum PSX_REG reg_addr,
                      int16_t offset,
-                     uint8_t reg_val) {
+                     enum PSX_REG reg_val) {
    int addr_r  = register_location(reg_addr);
    int value_r = register_location(reg_val);
 
-   /* First we load the address into R11 and we add the offset */
+   /* First we load the address into %ecx and we add the offset */
    if (addr_r >= 0) {
-      /* LEA offset(%r0-7), %r11d */
+      /* LEA offset(%r8-15), %ecx */
       *(compiler->map++) = 0x67;
-      *(compiler->map++) = 0x44;
+      *(compiler->map++) = 0x41;
       *(compiler->map++) = 0x8d;
-      *(compiler->map++) = 0x98 | addr_r;
-      emit_simm24(compiler, offset);
+      *(compiler->map++) = 0x80 | addr_r;
+      emit_imm32(compiler, (int32_t)offset);
    } else {
-      uint32_t reg_offset;
+      if (reg_addr == PSX_REG_R0) {
+         /* XXX We could optimize this since it means that the offset
+            is static. Not sure if this is common enough to be worth
+            it. */
+         /* XOR %ecx, %ecx */
+         *(compiler->map++) = 0x31;
+         *(compiler->map++) = 0xc9;
+      } else {
+         uint32_t reg_offset;
 
-      reg_offset = offsetof(struct dynarec_state, regs);
-      reg_offset += 4 * reg_addr;
+         reg_offset = offsetof(struct dynarec_state, regs);
+         reg_offset += 4 * reg_addr;
 
-      /* MOV reg_offset(%r12), %r11d */
-      *(compiler->map++) = 0x45;
-      *(compiler->map++) = 0x8b;
-      *(compiler->map++) = 0x9c;
-      *(compiler->map++) = 0x24;
-      emit_imm32(compiler, reg_offset);
+         /* MOV reg_offset(%rbp), %ecx */
+         *(compiler->map++) = 0x8b;
+         *(compiler->map++) = 0x8d;
+         emit_imm32(compiler, reg_offset);
+      }
 
-      /* ADD $offset, %r11d */
+      /* ADD $offset, %ecx */
       *(compiler->map++) = 0x41;
       *(compiler->map++) = 0x81;
       *(compiler->map++) = 0xc3;
@@ -200,10 +210,9 @@ void dynarec_emit_sw(struct dynarec_compiler *compiler,
    }
 
    /* Move address to %eax */
-   /* MOV %r11d, %eax */
-   *(compiler->map++) = 0x44;
+   /* MOV %ecx, %eax */
    *(compiler->map++) = 0x89;
-   *(compiler->map++) = 0xd8;
+   *(compiler->map++) = 0xc8;
 
    /* Check alignment */
    /* AND $3, %eax */
@@ -217,10 +226,9 @@ void dynarec_emit_sw(struct dynarec_compiler *compiler,
    } EMIT_ENDIF(compiler);
 
    /* Move address to %eax */
-   /* MOV %r11d, %eax */
-   *(compiler->map++) = 0x44;
+   /* MOV %ecx, %eax */
    *(compiler->map++) = 0x89;
-   *(compiler->map++) = 0xd8;
+   *(compiler->map++) = 0xc8;
 
    /* Compute offset into region_mask, i.e. addr >> 29 */
    /* SHR $29, %eax */
@@ -228,46 +236,65 @@ void dynarec_emit_sw(struct dynarec_compiler *compiler,
    *(compiler->map++) = 0xe8;
    *(compiler->map++) = 29;
 
-   /* Mask the address. region_mask is pointed at by r13 */
-   /* AND (%r13, %rax, 4), %r11d */
-   *(compiler->map++) = 0x45;
+   /* Mask the address. region_mask is pointed */
+   /* AND off7(%rbp, %rax, 4), %ecx */
    *(compiler->map++) = 0x23;
-   *(compiler->map++) = 0x5c;
-   *(compiler->map++) = 0x84;
+   *(compiler->map++) = 0x4c;
+   *(compiler->map++) = 0x85;
    emit_imm7(compiler, offsetof(struct dynarec_state, region_mask));
 
-   /* Move address to %eax */
-   /* MOV %r11d, %eax */
-   *(compiler->map++) = 0x44;
-   *(compiler->map++) = 0x89;
-   *(compiler->map++) = 0xd8;
-
    /* Test if the address is in RAM */
-   /* CMP imm32, %rax */
-   *(compiler->map++) = 0x48;
-   *(compiler->map++) = 0x3d;
+   /* CMP imm32, %rcx */
+   *(compiler->map++) = 0x81;
+   *(compiler->map++) = 0xf9;
    /* The RAM is mirrored 4 times */
    emit_imm32(compiler, PSX_RAM_SIZE * 4);
 
    EMIT_IF_BELOW(compiler) {
       /* Mask the address in case it was in one of the mirrors */
-      /* AND imm32, %eax */
-      *(compiler->map++) = 0x48;
-      *(compiler->map++) = 0x25;
+      /* AND imm32, %ecx */
+      *(compiler->map++) = 0x81;
+      *(compiler->map++) = 0xe1;
       emit_imm32(compiler, PSX_RAM_SIZE - 1);
 
+      /* Copy to %eax so that we compute the page offset for
+         invalidation */
+      /* MOV %ecx, %eax */
+      *(compiler->map++) = 0x89;
+      *(compiler->map++) = 0xc8;
+
+      /* Compute page index in %eax */
+      /* SHR $imm8, %eax */
+      *(compiler->map++) = 0xc1;
+      *(compiler->map++) = 0xe8;
+      *(compiler->map++) = DYNAREC_PAGE_SIZE_SHIFT;
+
+      /* Compute offset in the page table */
+      /* imul imm32, %rax, %rax */
+      *(compiler->map++) = 0x48;
+      *(compiler->map++) = 0x69;
+      *(compiler->map++) = 0xc0;
+      emit_imm32(compiler, sizeof(struct dynarec_page));
+
+      /* Clear valid flag */
+      /* MOVL $0, off32(%rbp, %rax, 1) */
+      *(compiler->map++) = 0xc7;
+      *(compiler->map++) = 0x84;
+      *(compiler->map++) = 0x05;
+      emit_imm32(compiler, offsetof(struct dynarec_state, pages));
+      emit_imm32(compiler, 0);
+
       /* Add the address of the RAM buffer in host memory */
-      /* ADDQ imm32(%r12), %rax */
-      *(compiler->map++) = 0x49;
+      /* ADD imm7(%rbp), %ecx */
       *(compiler->map++) = 0x03;
-      *(compiler->map++) = 0x44;
-      *(compiler->map++) = 0x24;
+      *(compiler->map++) = 0x4d;
       emit_imm7(compiler, offsetof(struct dynarec_state, ram));
 
-      if (value_r > 0) {
-         /* MOVL %r0-7, (%rax) */
+      if (value_r >= 0) {
+         /* MOVL %r8-15, (%rcx) */
+         *(compiler->map++) = 0x44;
          *(compiler->map++) = 0x89;
-         *(compiler->map++) = value_r << 3;
+         *(compiler->map++) = ((value_r & 7) << 3) | 1;
       } else {
          /* Load to a temporary register */
          UNIMPLEMENTED;
@@ -283,9 +310,9 @@ void dynarec_emit_sw(struct dynarec_compiler *compiler,
 void dynarec_execute(struct dynarec_state *state,
                      dynarec_fn_t target) {
 
-   __asm__ ("mov %%rdi, %%r12\n\t"
+   __asm__ ("mov %%rcx, %%rbp\n\t"
             "call *%%rax\n\t"
             :
-            : "D"(state), "a"(target));
+            : "c"(state), "a"(target));
 
 }

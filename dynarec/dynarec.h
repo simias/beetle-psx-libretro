@@ -24,8 +24,10 @@ extern "C" {
 /* Base address for the scratchpad */
 #define PSX_SCRATCHPAD_BASE        0x1F800000U
 
+/* Log in base 2 of the page size*/
+#define DYNAREC_PAGE_SIZE_SHIFT    11U
 /* Length of a recompilation page in bytes */
-#define DYNAREC_PAGE_SIZE          2048U
+#define DYNAREC_PAGE_SIZE          (1U << DYNAREC_PAGE_SIZE_SHIFT)
 /* Number of instructions per page */
 #define DYNAREC_PAGE_INSTRUCTIONS  (DYNAREC_PAGE_SIZE / 4U)
 
@@ -107,7 +109,7 @@ enum PSX_CPU_EXCEPTIONS {
 struct dynarec_page {
    /* If true the page contains up-to-date recompiled code. Otherwise
       the page needs to be recompiled prior to execution. */
-   int                valid;
+   uint32_t           valid;
    /* Executable portion of memory containing the recompiled code. */
    uint8_t           *map;
    /* Offsets into `map` to retreive the location of individual
@@ -115,7 +117,7 @@ struct dynarec_page {
       end which is used either to cross the boundary to the next page
       or to trigger the recompiler if the next page is not yet
       recompiled. */
-   uint32_t            instruction_offsets[DYNAREC_PAGE_INSTRUCTIONS + 1];
+   uint32_t           instruction_offsets[DYNAREC_PAGE_INSTRUCTIONS + 1];
 };
 
 struct dynarec_state {
@@ -164,19 +166,19 @@ typedef void (*dynarec_fn_t)(void);
 /* These methods are provided by the various architecture-dependent
    backends */
 extern void dynarec_emit_li(struct dynarec_compiler *compiler,
-                            uint8_t reg,
+                            enum PSX_REG reg,
                             uint32_t val);
 extern void dynarec_emit_mov(struct dynarec_compiler *compiler,
-                             uint8_t reg_t,
-                             uint8_t reg_s);
+                             enum PSX_REG reg_t,
+                             enum PSX_REG reg_s);
 extern void dynarec_emit_ori(struct dynarec_compiler *compiler,
-                             uint8_t reg_t,
-                             uint8_t reg_s,
+                             enum PSX_REG reg_t,
+                             enum PSX_REG reg_s,
                              uint16_t val);
 extern void dynarec_emit_sw(struct dynarec_compiler *compiler,
-                            uint8_t reg_addr,
+                            enum PSX_REG reg_addr,
                             int16_t offset,
-                            uint8_t reg_val);
+                            enum PSX_REG reg_val);
 
 extern void dynarec_execute(struct dynarec_state *state,
                             dynarec_fn_t target);
