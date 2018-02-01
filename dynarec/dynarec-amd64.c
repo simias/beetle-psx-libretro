@@ -60,16 +60,43 @@ static int register_location(enum PSX_REG reg) {
       abort();                                                   \
    } while (0)
 
-#define EMIT_IF(_compiler, _opcode) do {           \
+/* A set of rather ugly macros to generate if/else statements. The
+ * "else" part can be ommited. These statemens introduce a new scope
+ * and can be nested. These macros use the 2 byte jump instructions so
+ * the bodies must not be bigger than 127 bytes.
+ *
+ * "else if" statements can be implementing by nesting the elses:
+ *
+ *   if (a) {                       if (a) {
+ *      x();                           x();
+ *   } else if (b) {   =======>     } else {
+ *      y();                           if (b) {
+ *   } else {                             y();
+ *      z();                           } else {
+ *   }                                    z();
+ *                                     }
+ *                                  }
+ */
+
+#define EMIT_IF(_compiler, _opcode) {              \
    uint8_t *_jump_patch;                           \
    *((_compiler)->map++) = (_opcode);              \
    _jump_patch = (_compiler)->map++;
+
+#define EMIT_ELSE(_compiler) {                                    \
+   uint32_t _jump_off = ((_compiler)->map - _jump_patch) + 1;     \
+   assert(_jump_off < 128);                                       \
+   *_jump_patch = _jump_off;                                      \
+   /* JMP imms8 */                                                \
+   *((_compiler)->map++) = 0xeb;                                  \
+   _jump_patch = (_compiler)->map++;                              \
+   }
 
 #define EMIT_ENDIF(_compiler) {                                   \
       uint32_t _jump_off = ((_compiler)->map - _jump_patch) - 1;  \
       assert(_jump_off < 128);                                    \
       *_jump_patch = _jump_off;                                   \
-   }} while(0)
+   }}
 
 #define EMIT_IF_EQUAL(_compiler)  EMIT_IF(_compiler, 0x74)
 #define EMIT_IF_BELOW(_compiler)  EMIT_IF(_compiler, 0x72)
@@ -223,7 +250,7 @@ void dynarec_emit_sw(struct dynarec_compiler *compiler,
    EMIT_IF_EQUAL(compiler) {
       /* Address is not aligned correctly. */
       emit_exception(compiler, PSX_EXCEPTION_LOAD_ALIGN);
-   } EMIT_ENDIF(compiler);
+   } EMIT_ENDIF(compiler)
 
    /* Move address to %eax */
    /* MOV %ecx, %eax */
@@ -250,7 +277,22 @@ void dynarec_emit_sw(struct dynarec_compiler *compiler,
    /* The RAM is mirrored 4 times */
    emit_imm32(compiler, PSX_RAM_SIZE * 4);
 
+   if (value_r < 0) {
+      /* Load value into %edx */
+      uint32_t reg_offset;
+
+      reg_offset = offsetof(struct dynarec_state, regs);
+      reg_offset += 4 * reg_val;
+
+      /* MOV reg_offset(%rbp), %edx */
+      *(compiler->map++) = 0x8b;
+      *(compiler->map++) = 0x95;
+      emit_imm32(compiler, reg_offset);
+   }
+
    EMIT_IF_BELOW(compiler) {
+      /* We're targetting RAM */
+
       /* Mask the address in case it was in one of the mirrors */
       /* AND imm32, %ecx */
       *(compiler->map++) = 0x81;
@@ -296,12 +338,47 @@ void dynarec_emit_sw(struct dynarec_compiler *compiler,
          *(compiler->map++) = 0x89;
          *(compiler->map++) = ((value_r & 7) << 3) | 1;
       } else {
-         /* Load to a temporary register */
-         UNIMPLEMENTED;
+         /* MOVL %edx, (%rcx) */
+         *(compiler->map++) = 0x89;
+         *(compiler->map++) = 0x11;
       }
+   } EMIT_ELSE(compiler) {
+      /* Test if the address is in the scratchpad */
+      /* SUB imm32, %ecx */
+      *(compiler->map++) = 0x81;
+      *(compiler->map++) = 0xe9;
+      emit_imm32(compiler, PSX_SCRATCHPAD_BASE);
 
-      /* XXX invalidate page */
-   } EMIT_ENDIF(compiler);
+      /* CMP imm32, %ecx */
+      *(compiler->map++) = 0x81;
+      *(compiler->map++) = 0xf9;
+      emit_imm32(compiler, PSX_SCRATCHPAD_SIZE);
+
+      EMIT_IF_BELOW(compiler) {
+         /* We're targetting the scratchpad. This is the simplest
+            case, no invalidation needed, we can store it directly in
+            the scratchpad buffer */
+
+         /* Add the address of the RAM buffer in host memory */
+         /* ADD imm7(%rbp), %ecx */
+         *(compiler->map++) = 0x03;
+         *(compiler->map++) = 0x4d;
+         emit_imm7(compiler, offsetof(struct dynarec_state, scratchpad));
+
+         if (value_r >= 0) {
+            /* MOVL %r8-15, (%rcx) */
+            *(compiler->map++) = 0x44;
+            *(compiler->map++) = 0x89;
+            *(compiler->map++) = ((value_r & 7) << 3) | 1;
+         } else {
+            /* MOVL %edx, (%rcx) */
+            *(compiler->map++) = 0x89;
+            *(compiler->map++) = 0x11;
+         }
+      } EMIT_ELSE(compiler) {
+         emit_trap(compiler);
+      } EMIT_ENDIF(compiler)
+   } EMIT_ENDIF(compiler)
 
    /* XXX Finish me */
    emit_trap(compiler);
