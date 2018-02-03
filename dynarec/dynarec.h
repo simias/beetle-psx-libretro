@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -136,10 +137,16 @@ struct dynarec_state {
    uint32_t           *scratchpad;
    /* Pointer to the PSX BIOS */
    const uint32_t     *bios;
-   /* All CPU registers. R0 is always 0. */
-   uint32_t            regs[32];
+   /* All general purpose CPU registers except R0 */
+   uint32_t            regs[31];
    struct dynarec_page pages[DYNAREC_TOTAL_PAGES];
 };
+
+/* Get the offset of the location of a register within a struct
+   dynarec_state. */
+#define DYNAREC_STATE_REG_OFFSET(_r)                                    \
+   (assert(_r != 0),                                                    \
+    offsetof(struct dynarec_state, regs) + (_r - 1) * sizeof(uint32_t))
 
 extern struct dynarec_state *dynarec_init(uint32_t *ram,
                                           uint32_t *scratchpad,
