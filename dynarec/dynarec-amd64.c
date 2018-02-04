@@ -15,9 +15,9 @@ enum X86_REG {
    REG_BX  = 3,  /* [PAFC] */
    REG_CX  = 1,  /* Temporary variable */
    REG_DX  = 2,  /* Temporary variable, func arg 3 */
-   REG_BP  = 5,  /* struct dynarec_state pointer [PAFC] */
+   REG_BP  = 5,  /* Host BP [PAFC] */
    REG_SI  = 6,  /* Temporary variable, func arg 1 */
-   REG_DI  = 7,  /* Temporary variable, func arg 0 */
+   REG_DI  = 7,  /* struct dynarec_state pointer, func arg 0 */
    REG_SP  = 4,  /* Host stack [PAFC] */
    REG_R8  = 8,  /* PSX AT */
    REG_R9  = 9,  /* PSX V0 */
@@ -29,11 +29,14 @@ enum X86_REG {
    REG_R15 = 15, /* PSX RA [PAFC] */
 };
 
-#define STATE_REG  REG_BP
+#define STATE_REG  REG_DI
 
 /* Returns the host register location for the PSX-emulated register
    `reg`. Returns -1 if no host register is allocated, in which case
-   it must be accessed in memory. */
+   it must be accessed in memory.
+
+   If you change this don't forget to change `dynarec_execute` as
+   well. */
 static int register_location(enum PSX_REG reg) {
    switch (reg) {
    case PSX_REG_AT:
@@ -461,6 +464,7 @@ static void emit_call(struct dynarec_compiler *compiler,
    /* Save registers that are not preserved across calls */
    /* XXX should we save them back where they belong in
       dynarec_state instead? */
+   PUSH_R64(REG_DI);
    PUSH_R64(REG_R8);
    PUSH_R64(REG_R9);
    PUSH_R64(REG_R10);
@@ -476,6 +480,7 @@ static void emit_call(struct dynarec_compiler *compiler,
    POP_R64(REG_R10);
    POP_R64(REG_R9);
    POP_R64(REG_R8);
+   POP_R64(REG_DI);
 }
 
 static void emit_exception(struct dynarec_compiler *compiler,
@@ -651,9 +656,6 @@ void dynarec_emit_sw(struct dynarec_compiler *compiler,
             MOV_R32_R32(value_r, REG_SI);
          }
 
-         /* Move state pointer to %rdi (arg0) */
-         MOV_R32_R32(STATE_REG, REG_DI);
-
          emit_call(compiler,
                    (uint64_t)dynarec_unhandled_memory_access);
       } ENDIF;
@@ -661,14 +663,4 @@ void dynarec_emit_sw(struct dynarec_compiler *compiler,
 
    /* XXX Finish me */
    emit_trap(compiler);
-}
-
-void dynarec_execute(struct dynarec_state *state,
-                     dynarec_fn_t target) {
-
-   __asm__ ("mov %0, %%rbp\n\t"
-            "call *%%rax\n\t"
-            :
-            : "r"(state), "a"(target));
-
 }

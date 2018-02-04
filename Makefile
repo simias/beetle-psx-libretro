@@ -481,7 +481,7 @@ else
    FLAGS += $(MEDNAFEN_GCC_FLAGS)
 endif
 
-OBJECTS := $(SOURCES_CXX:.cpp=.o) $(SOURCES_C:.c=.o)
+OBJECTS := $(SOURCES_CXX:.cpp=.o) $(SOURCES_C:.c=.o) $(SOURCES_ASM:.s=.o)
 DEPS    := $(SOURCES_CXX:.cpp=.d) $(SOURCES_C:.c=.d)
 
 all: $(TARGET)

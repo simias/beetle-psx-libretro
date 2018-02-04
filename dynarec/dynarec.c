@@ -43,9 +43,25 @@ struct dynarec_state *dynarec_init(uint32_t *ram,
    for (i = 0; i < ARRAY_SIZE(state->pages); i++) {
       state->pages[i].valid = 0;
       state->pages[i].map = NULL;
+      state->pages[i].map_len = 0;
    }
 
    return state;
+}
+
+void dynarec_delete(struct dynarec_state *state) {
+   struct dynarec_page *page;
+   unsigned i;
+
+   for (i = 0; i < ARRAY_SIZE(state->pages); i++) {
+      page = &state->pages[i];
+
+      if (page->map_len > 0) {
+         munmap(page->map, page->map_len);
+      }
+   }
+
+   free(state);
 }
 
 void dynarec_set_next_event(struct dynarec_state *state, int32_t cycles) {
@@ -80,24 +96,60 @@ static int32_t dynarec_find_page_index(struct dynarec_state *state,
    return -1;
 }
 
-static int dynarec_map_page(struct dynarec_page *page) {
-   if (page->map == NULL) {
-      /* Map a new page for execution */
-      page->map = mmap(NULL,
-                       DYNAREC_MAP_LEN,
-                       PROT_WRITE | PROT_EXEC,
-                       MAP_PRIVATE | MAP_ANONYMOUS,
-                       -1,
-                       0);
+/* Make sure that there's enough space after `pos` in `page` to add a
+   new instruction. Otherwise reallocate a bigger buffer. Safe to call
+   on an empty page.
 
-      if (page->map == MAP_FAILED) {
-         perror("Dynarec mmap failed");
-         page->map = NULL;
-         return -1;
+   Returns `pos` if no reallocation is needed, the same position in
+   the new buffer in case of reallocation or NULL if the reallocation
+   fails. */
+static uint8_t *dynarec_maybe_realloc(struct dynarec_page *page,
+                                      uint8_t *pos) {
+   uint8_t *new_map;
+   uint32_t new_len;
+   size_t   used;
+
+   if (page->map_len == 0) {
+      used = 0;
+      /* Allocate twice the space required for a page where all
+         instructions have the average size. */
+      new_len = DYNAREC_INSTRUCTION_AVG_LEN * DYNAREC_PAGE_INSTRUCTIONS * 2;
+   } else {
+      used = pos - page->map;
+
+      if (used + DYNAREC_INSTRUCTION_MAX_LEN >= page->map_len) {
+         /* We have enough space*/
+         return pos;
       }
+
+      /* Double the page size. May be a bit overkill, instead we could
+         do something proportional to the number of instructions left
+         to recompile ? */
+      new_len = page->map_len * 2;
    }
 
-   return 0;
+   /* Reallocate */
+   new_map = mmap(NULL,
+                  new_len,
+                  PROT_READ | PROT_WRITE | PROT_EXEC,
+                  MAP_PRIVATE | MAP_ANONYMOUS,
+                  -1,
+                  0);
+
+   if (new_map == MAP_FAILED) {
+      perror("Dynarec mmap failed");
+      return NULL;
+   }
+
+   if (page->map_len != 0) {
+      /* Recopy the contents of the old page */
+      memcpy(new_map, page->map, used);
+      munmap(page->map, page->map_len);
+   }
+   page->map = new_map;
+   page->map_len = new_len;
+
+   return page->map + used;
 }
 
 static int dynarec_recompile(struct dynarec_state *state,
@@ -105,17 +157,12 @@ static int dynarec_recompile(struct dynarec_state *state,
    struct dynarec_page     *page;
    const uint32_t          *emulated_page;
    struct dynarec_compiler  compiler;
-   uint8_t                 *map;
    unsigned                 i;
 
    compiler.state = state;
 
    page = &state->pages[page_index];
    page->valid = 0;
-
-   if (dynarec_map_page(page) < 0) {
-      return -1;
-   }
 
    if (page_index < DYNAREC_RAM_PAGES) {
       emulated_page = state->ram + DYNAREC_PAGE_INSTRUCTIONS * page_index;
@@ -126,10 +173,8 @@ static int dynarec_recompile(struct dynarec_state *state,
       compiler.pc = PSX_BIOS_BASE + DYNAREC_PAGE_SIZE * bios_index;
    }
 
-   compiler.map = page->map;
-
    /* Helper macros for instruction decoding */
-   for (i = 0; i < DYNAREC_PAGE_INSTRUCTIONS; i++) {
+   for (i = 0; i < DYNAREC_PAGE_INSTRUCTIONS; i++, compiler.pc += 4) {
       uint32_t instruction = emulated_page[i];
 
       /* Various decodings of the fields, of course they won't all be
@@ -140,10 +185,17 @@ static int dynarec_recompile(struct dynarec_state *state,
       uint8_t  reg_t  = (instruction >> 16) & 0x1f;
       uint8_t  reg_s  = (instruction >> 21) & 0x1f;
       uint16_t imm    = instruction & 0xffff;
+      uint8_t *instruction_start;
 
       printf("Compiling 0x%08x\n", instruction);
 
-      map = compiler.map;
+      compiler.map = dynarec_maybe_realloc(page, compiler.map);
+
+      instruction_start = compiler.map;
+
+      if (instruction_start == NULL) {
+         return -1;
+      }
 
       switch (instruction >> 26) {
       case 0x0d: /* ORI */
@@ -181,9 +233,11 @@ static int dynarec_recompile(struct dynarec_state *state,
          return 0;
       }
 
+      assert(compiler.map - instruction_start <= DYNAREC_INSTRUCTION_MAX_LEN);
+
       printf("Emited:");
-      for (; map != compiler.map; map++) {
-         printf(" %02x", *map);
+      for (; instruction_start != compiler.map; instruction_start++) {
+         printf(" %02x", *instruction_start);
       }
       printf("\n");
 

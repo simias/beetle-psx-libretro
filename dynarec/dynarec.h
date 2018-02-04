@@ -44,11 +44,6 @@ extern "C" {
 # include "dynarec-amd64.h"
 #endif
 
-/* Length of the portion of memory mmap'ed to recompile a single
-   page. */
-#define DYNAREC_MAP_LEN            (DYNAREC_INSTRUCTION_MAX_LEN * \
-                                    DYNAREC_PAGE_INSTRUCTIONS)
-
 #ifndef ARRAY_SIZE
 # define ARRAY_SIZE(_a) (sizeof(_a) / sizeof((_a)[0]))
 #endif
@@ -113,6 +108,8 @@ struct dynarec_page {
    uint32_t           valid;
    /* Executable portion of memory containing the recompiled code. */
    uint8_t           *map;
+   /* Length of the mapped region */
+   uint32_t           map_len;
    /* Offsets into `map` to retreive the location of individual
       instructions. We have one additional pseudo-instruction in the
       end which is used either to cross the boundary to the next page
@@ -151,6 +148,7 @@ struct dynarec_state {
 extern struct dynarec_state *dynarec_init(uint32_t *ram,
                                           uint32_t *scratchpad,
                                           const uint32_t *bios);
+extern void dynarec_delete(struct dynarec_state *state);
 extern void dynarec_set_next_event(struct dynarec_state *state,
                                    int32_t cycles);
 extern void dynarec_set_pc(struct dynarec_state *state,
