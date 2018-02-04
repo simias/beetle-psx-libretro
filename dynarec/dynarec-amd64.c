@@ -152,7 +152,9 @@ static void emit_sib(struct dynarec_compiler *compiler,
 
 }
 
-void dynarec_unhandled_memory_access(uint32_t val, uint32_t addr) {
+void dynarec_unhandled_memory_access(struct dynarec_state *compiler,
+                                     uint32_t val,
+                                     uint32_t addr) {
    printf("memory access: %08x @ %08x\n", val, addr);
 }
 
@@ -456,6 +458,7 @@ static void emit_call(struct dynarec_compiler *compiler,
    /* compute relative function address */
    func_addr -= local_addr;
 
+   /* Save registers that are not preserved across calls */
    /* XXX should we save them back where they belong in
       dynarec_state instead? */
    PUSH_R64(REG_R8);
@@ -465,8 +468,9 @@ static void emit_call(struct dynarec_compiler *compiler,
 
    /* call imm32 */
    *(compiler->map++) = 0xe8;
-   //emit_imm32(compiler, func_addr);
-   emit_imm32(compiler, 0);
+   /* XXX patch address after page recompilation in case of
+      relocation */
+   emit_imm32(compiler, func_addr);
 
    POP_R64(REG_R11);
    POP_R64(REG_R10);
@@ -531,37 +535,36 @@ void dynarec_emit_sw(struct dynarec_compiler *compiler,
    int addr_r  = register_location(reg_addr);
    int value_r = register_location(reg_val);
 
-   /* First we load the address into %ecx and we add the offset */
+   /* First we load the address into %edx and we add the offset */
    if (addr_r >= 0) {
-      LEA_OFF_PR32_R32((int32_t)offset, addr_r, REG_CX);
+      LEA_OFF_PR32_R32((int32_t)offset, addr_r, REG_DX);
    } else {
       if (reg_addr == PSX_REG_R0) {
          /* XXX We could optimize this since it means that the offset
             is static. Not sure if this is common enough to be worth
             it. */
-         CLEAR_REG(REG_CX);
+         MOV_U32_R32((int32_t)offset, REG_DX);
       } else {
          MOV_OFF_PR64_R32(DYNAREC_STATE_REG_OFFSET(reg_addr),
                           STATE_REG,
-                          REG_CX);
+                          REG_DX);
+         ADD_U32_R32((int32_t)offset, REG_DX);
       }
-
-      ADD_U32_R32((int32_t)offset, REG_CX);
    }
 
    if (value_r < 0) {
-      /* Load value into %edi */
+      /* Load value into %rsi */
       if (reg_val == PSX_REG_R0) {
-         CLEAR_REG(REG_DI);
+         CLEAR_REG(REG_SI);
       } else {
          MOV_OFF_PR64_R32(DYNAREC_STATE_REG_OFFSET(reg_val),
                           STATE_REG,
-                          REG_DI);
+                          REG_SI);
       }
    }
 
    /* Copy address to %eax */
-   MOV_R32_R32(REG_CX, REG_AX);
+   MOV_R32_R32(REG_DX, REG_AX);
 
    /* Check alignment */
    AND_U32_R32(3, REG_AX);
@@ -572,7 +575,7 @@ void dynarec_emit_sw(struct dynarec_compiler *compiler,
    } ENDIF;
 
    /* Move address to %eax */
-   MOV_R32_R32(REG_CX, REG_AX);
+   MOV_R32_R32(REG_DX, REG_AX);
 
    /* Compute offset into region_mask, i.e. addr >> 29 */
    SHR_U32_R32(29, REG_AX);
@@ -582,21 +585,19 @@ void dynarec_emit_sw(struct dynarec_compiler *compiler,
                    STATE_REG,
                    REG_AX,
                    4,
-                   REG_CX);
-
-   /* Copy to %eax for processing */
-   MOV_R32_R32(REG_CX, REG_AX);
+                   REG_DX);
 
    /* Test if the address is in RAM */
-   CMP_U32_R32(PSX_RAM_SIZE * 4, REG_CX);
+   CMP_U32_R32(PSX_RAM_SIZE * 4, REG_DX);
 
    IF_LESS_THAN {
       /* We're targetting RAM */
 
       /* Mask the address in case it was in one of the mirrors */
-      AND_U32_R32(PSX_RAM_SIZE - 1, REG_CX);
+      AND_U32_R32(PSX_RAM_SIZE - 1, REG_DX);
 
       /* Compute page index in %eax */
+      MOV_R32_R32(REG_DX, REG_AX);
       SHR_U32_R32(DYNAREC_PAGE_SIZE_SHIFT, REG_AX);
 
       /* Compute offset in the page table */
@@ -614,14 +615,15 @@ void dynarec_emit_sw(struct dynarec_compiler *compiler,
       /* Add the address of the RAM buffer in host memory */
       ADD_OFF_PR64_R32(offsetof(struct dynarec_state, ram),
                        STATE_REG,
-                       REG_CX);
+                       REG_DX);
       if (value_r >= 0) {
-         MOV_R32_PR64(value_r, REG_CX);
+         MOV_R32_PR64(value_r, REG_DX);
       } else {
-         MOV_R32_PR64(REG_DI, REG_CX);
+         MOV_R32_PR64(REG_SI, REG_DX);
       }
    } ELSE {
       /* Test if the address is in the scratchpad */
+      MOV_R32_R32(REG_DX, REG_AX);
       SUB_U32_R32(PSX_SCRATCHPAD_BASE, REG_AX);
       CMP_U32_R32(PSX_SCRATCHPAD_SIZE, REG_AX);
 
@@ -638,20 +640,20 @@ void dynarec_emit_sw(struct dynarec_compiler *compiler,
          if (value_r >= 0) {
             MOV_R32_PR64(value_r, REG_AX);
          } else {
-            MOV_R32_PR64(REG_DI, REG_AX);
+            MOV_R32_PR64(REG_SI, REG_AX);
          }
       } ELSE {
          /* We're writing to some device's memory, call the emulator
             code */
+
+         /* Make sure the value is in %rsi (arg1) */
          if (value_r >= 0) {
-            /* Move value to %edi */
-            MOV_R32_R32(value_r, REG_DI);
+            MOV_R32_R32(value_r, REG_SI);
          }
 
-         /* Move address to %esi */
-         MOV_R32_R32(REG_CX, REG_SI);
+         /* Move state pointer to %rdi (arg0) */
+         MOV_R32_R32(STATE_REG, REG_DI);
 
-         /* Save registers that are not preserved across calls */
          emit_call(compiler,
                    (uint64_t)dynarec_unhandled_memory_access);
       } ENDIF;
