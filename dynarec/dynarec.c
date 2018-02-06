@@ -114,7 +114,7 @@ static uint8_t *dynarec_maybe_realloc(struct dynarec_page *page,
    } else {
       used = pos - page->map;
 
-      if (used + DYNAREC_INSTRUCTION_MAX_LEN >= page->map_len) {
+      if (used + DYNAREC_INSTRUCTION_MAX_LEN < page->map_len) {
          /* We have enough space*/
          return pos;
       }
@@ -179,9 +179,11 @@ static int dynarec_recompile(struct dynarec_state *state,
          compiler to optimize this correctly, otherwise it might be
          better to move them to the instructions where they make
          sense.*/
+      uint8_t  reg_d  = (instruction >> 11) & 0x1f;
       uint8_t  reg_t  = (instruction >> 16) & 0x1f;
       uint8_t  reg_s  = (instruction >> 21) & 0x1f;
       uint16_t imm    = instruction & 0xffff;
+      uint8_t  shift  = (instruction >> 6) & 0x1f;
       uint8_t *instruction_start;
 
       printf("Compiling 0x%08x\n", instruction);
@@ -198,6 +200,51 @@ static int dynarec_recompile(struct dynarec_state *state,
       dynarec_counter_maintenance(&compiler);
 
       switch (instruction >> 26) {
+      case 0x00: /* ALU */
+         switch (instruction & 0x3f) {
+         case 0x00: /* SLL */
+            if (reg_d == 0 || (reg_t == reg_d && shift == 0)) {
+               /* NOP. This is the prefered encoding (full 0s) */
+               break;
+            }
+
+            if (reg_t == 0) {
+               dynarec_emit_li(&compiler, reg_d, 0);
+               break;
+            }
+
+            if (shift == 0) {
+               dynarec_emit_mov(&compiler, reg_d, reg_t);
+               break;
+            }
+
+            dynarec_emit_sll(&compiler, reg_d, reg_t, shift);
+            break;
+
+         default:
+            printf("Dynarec encountered unsupported instruction %08x\n",
+                   instruction);
+            return 0;
+         }
+      case 0x09: /* ADDIU */
+         if (reg_t == 0 || (reg_t == reg_s && imm == 0)) {
+            /* NOP */
+            break;
+         }
+
+         if (reg_s == 0) {
+            dynarec_emit_li(&compiler, reg_t, imm);
+            break;
+         }
+
+         if (imm == 0) {
+            dynarec_emit_mov(&compiler, reg_t, reg_s);
+            break;
+         }
+
+         dynarec_emit_addiu(&compiler, reg_t, reg_s, imm);
+         break;
+
       case 0x0d: /* ORI */
          if (reg_t == 0 || (reg_t == reg_s && imm == 0)) {
             /* NOP */

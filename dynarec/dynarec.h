@@ -191,6 +191,14 @@ extern void dynarec_emit_li(struct dynarec_compiler *compiler,
 extern void dynarec_emit_mov(struct dynarec_compiler *compiler,
                              enum PSX_REG reg_t,
                              enum PSX_REG reg_s);
+extern void dynarec_emit_sll(struct dynarec_compiler *compiler,
+                             enum PSX_REG reg_t,
+                             enum PSX_REG reg_s,
+                             uint8_t shift);
+extern void dynarec_emit_addiu(struct dynarec_compiler *compiler,
+                               enum PSX_REG reg_t,
+                               enum PSX_REG reg_s,
+                               uint16_t val);
 extern void dynarec_emit_ori(struct dynarec_compiler *compiler,
                              enum PSX_REG reg_t,
                              enum PSX_REG reg_s,

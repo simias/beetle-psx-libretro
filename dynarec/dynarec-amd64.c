@@ -530,6 +530,13 @@ void dynarec_emit_mov(struct dynarec_compiler *compiler,
    UNIMPLEMENTED;
 }
 
+extern void dynarec_emit_sll(struct dynarec_compiler *compiler,
+                             enum PSX_REG reg_t,
+                             enum PSX_REG reg_s,
+                             uint8_t shift) {
+   UNIMPLEMENTED;
+}
+
 void dynarec_emit_li(struct dynarec_compiler *compiler,
                      enum PSX_REG reg_t,
                      uint32_t val) {
@@ -541,6 +548,25 @@ void dynarec_emit_li(struct dynarec_compiler *compiler,
       MOV_U32_OFF_PR64(val,
                        DYNAREC_STATE_REG_OFFSET(reg_t),
                        STATE_REG);
+   }
+}
+
+void dynarec_emit_addiu(struct dynarec_compiler *compiler,
+                        enum PSX_REG reg_t,
+                        enum PSX_REG reg_s,
+                        uint16_t val) {
+   const int target = register_location(reg_t);
+   const int source = register_location(reg_s);
+
+   if (target >= 0 && source >= 0) {
+      if (target != source) {
+         /* MOV %source, %target */
+         UNIMPLEMENTED;
+      }
+
+      ADD_U32_R32(val, target);
+   } else {
+      UNIMPLEMENTED;
    }
 }
 
@@ -689,7 +715,4 @@ void dynarec_emit_sw(struct dynarec_compiler *compiler,
          EMULATOR_CALL(memory_sw);
       } ENDIF;
    } ENDIF;
-
-   /* XXX Finish me */
-   emit_trap(compiler);
 }
