@@ -930,6 +930,25 @@ uint32_t MDFN_FASTCALL PSX_MemRead32(int32_t &timestamp, uint32_t A)
    return(V);
 }
 
+#ifdef HAVE_DYNAREC
+/* Callbacks used by the dynarec to handle device memory access */
+
+int32_t dynarec_sw_cback(struct dynarec_state *s,
+                         uint32_t val,
+                         uint32_t addr,
+                         int32_t counter) {
+   int32_t timestamp = CPU->GetEventNT() - counter;
+
+   printf("dynarec sw %08x @ %08x (%d)\n", val, addr, counter);
+
+   PSX_MemWrite32(timestamp, addr, val);
+
+   /* recompute the timestap, it's possible that the "next event"
+      timestamp has been modified */
+   return CPU->GetEventNT() - timestamp;
+}
+#endif /* HAVE_DYNAREC */
+
 template<typename T, bool Access24> static INLINE uint32_t MemPeek(int32_t timestamp, uint32_t A)
 {
    if(A < 0x00800000)

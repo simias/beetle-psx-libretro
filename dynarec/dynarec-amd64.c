@@ -11,10 +11,10 @@
  * http://refspecs.linuxfoundation.org/elf/x86_64-abi-0.99.pdf
  */
 enum X86_REG {
-   REG_AX  = 0,  /* Temporary variable */
+   REG_AX  = 0,  /* Temporary variable, return value 0 */
    REG_BX  = 3,  /* [PAFC] */
-   REG_CX  = 1,  /* Temporary variable */
-   REG_DX  = 2,  /* Temporary variable, func arg 3 */
+   REG_CX  = 1,  /* Cycle counter, func arg 3 */
+   REG_DX  = 2,  /* Temporary variable, func arg 2, return value 1 */
    REG_BP  = 5,  /* Host BP [PAFC] */
    REG_SI  = 6,  /* Temporary variable, func arg 1 */
    REG_DI  = 7,  /* struct dynarec_state pointer, func arg 0 */
@@ -332,6 +332,7 @@ static void emit_pop_r64(struct dynarec_compiler *compiler,
  * ALU operations *
  ******************/
 
+/* ALU $val, %reg32 */
 static void emit_alu_u32_r32(struct dynarec_compiler *compiler,
                              uint8_t op,
                              uint32_t val,
@@ -361,6 +362,7 @@ static void emit_alu_u32_r32(struct dynarec_compiler *compiler,
 #define XOR_U32_R32(_v, _r) emit_alu_u32_r32(compiler, 0xf0, (_v), (_r))
 #define CMP_U32_R32(_v, _r) emit_alu_u32_r32(compiler, 0xf8, (_v), (_r))
 
+/* ALU off(%base64), %target32 */
 static void emit_alu_off_pr64_r32(struct dynarec_compiler *compiler,
                                   uint8_t op,
                                   uint32_t off,
@@ -383,6 +385,7 @@ static void emit_alu_off_pr64_r32(struct dynarec_compiler *compiler,
 #define AND_OFF_PR64_R32(_o, _b, _t)                            \
    emit_alu_off_pr64_r32(compiler, 0x23, (_o), (_b), (_t))
 
+/* ALU off(%b64, %i64, $s), %target32 */
 static void emit_alu_off_sib_r32(struct dynarec_compiler *compiler,
                                  uint8_t op,
                                  uint32_t off,
@@ -410,7 +413,7 @@ static void emit_alu_off_sib_r32(struct dynarec_compiler *compiler,
 #define AND_OFF_SIB_R32(_o, _b, _i, _s, _t)             \
    emit_alu_off_sib_r32(compiler, 0x23, (_o), (_b), (_i), (_s), (_t))
 
-
+/* SHIFT $shift, %reg32 */
 static void emit_shift_u32_r32(struct dynarec_compiler *compiler,
                                uint8_t op,
                                uint32_t shift,
@@ -428,6 +431,7 @@ static void emit_shift_u32_r32(struct dynarec_compiler *compiler,
 #define SHR_U32_R32(_u, _v) emit_shift_u32_r32(compiler, 0xe8, (_u), (_v))
 #define SAR_U32_R32(_u, _v) emit_shift_u32_r32(compiler, 0xf8, (_u), (_v))
 
+/* IMUL $a, %b32, %target32 */
 static void emit_imul_u32_r32_r32(struct dynarec_compiler *compiler,
                                   uint32_t a,
                                   enum X86_REG b,
@@ -453,35 +457,53 @@ static void emit_trap(struct dynarec_compiler *compiler) {
    *(compiler->map++) = 0xcc;
 }
 
-static void emit_call(struct dynarec_compiler *compiler,
-                      uint64_t func_addr) {
-   uint64_t local_addr = (uint64_t)compiler->map;
-   local_addr += 5;
+/* CALL *off(%reg64) */
+static void emit_call_off_pr64(struct dynarec_compiler *compiler,
+                               uint32_t off,
+                               enum X86_REG reg) {
+   emit_rex_prefix(compiler, reg, 0, 0);
 
-   /* compute relative function address */
-   func_addr -= local_addr;
+   *(compiler->map++) = 0xff;
+   if (is_imms8(off)) {
+      *(compiler->map++) = 0x50 | (reg & 7);
+      emit_imms8(compiler, off);
+   } else {
+      *(compiler->map++) = 0x90 | (reg & 7);
+      emit_imm32(compiler, off);
+   }
+}
 
-   /* Save registers that are not preserved across calls */
+#define CALL_OFF_PR64(_o, _r) emit_call_off_pr64(compiler, (_o), (_r))
+
+/* This will trash AX, DX and SI. CX value is loaded using the first
+   return value of the called function (I assume it returns the
+   counter there). The second return value (if any) will be available
+   in DX */
+static void emit_emulator_call(struct dynarec_compiler *compiler,
+                               uint32_t fn_offset) {
+   /* Save registers that we use and are not preserved across
+      calls */
    /* XXX should we save them back where they belong in
       dynarec_state instead? */
-   PUSH_R64(REG_DI);
+   PUSH_R64(STATE_REG);
    PUSH_R64(REG_R8);
    PUSH_R64(REG_R9);
    PUSH_R64(REG_R10);
    PUSH_R64(REG_R11);
 
-   /* call imm32 */
-   *(compiler->map++) = 0xe8;
-   /* XXX patch address after page recompilation in case of
-      relocation */
-   emit_imm32(compiler, func_addr);
+   CALL_OFF_PR64(fn_offset, STATE_REG);
+
+   /* Move first return value to the counter */
+   MOV_R32_R32(REG_AX, REG_CX);
 
    POP_R64(REG_R11);
    POP_R64(REG_R10);
    POP_R64(REG_R9);
    POP_R64(REG_R8);
-   POP_R64(REG_DI);
+   POP_R64(STATE_REG);
 }
+#define EMULATOR_CALL(_f) \
+   emit_emulator_call(compiler, offsetof(struct dynarec_state, _f))
 
 static void emit_exception(struct dynarec_compiler *compiler,
                            enum PSX_CPU_EXCEPTIONS exception) {
@@ -656,8 +678,7 @@ void dynarec_emit_sw(struct dynarec_compiler *compiler,
             MOV_R32_R32(value_r, REG_SI);
          }
 
-         emit_call(compiler,
-                   (uint64_t)dynarec_unhandled_memory_access);
+         EMULATOR_CALL(memory_sw);
       } ENDIF;
    } ENDIF;
 

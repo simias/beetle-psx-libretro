@@ -118,11 +118,14 @@ struct dynarec_page {
    uint32_t           instruction_offsets[DYNAREC_PAGE_INSTRUCTIONS + 1];
 };
 
+struct dynarec_state;
+
+typedef int32_t (*dynarec_store_cback)(struct dynarec_state *state,
+                                       uint32_t val,
+                                       uint32_t addr,
+                                       int32_t counter);
+
 struct dynarec_state {
-   /* Time until the next asynchronous event in CPU cycles (*not*
-      number of instructions). Can become negative if we've passed the
-      deadline. */
-   int32_t             next_event_cycle;
    /* Current value of the PC */
    uint32_t            pc;
    /* Region mask, it's used heavily in the dynarec'd code so it's
@@ -134,6 +137,11 @@ struct dynarec_state {
    uint32_t           *scratchpad;
    /* Pointer to the PSX BIOS */
    const uint32_t     *bios;
+   /* Called when a SW to an unsupported memory address is
+      encountered. Returns the new counter value. */
+   dynarec_store_cback memory_sw;
+   /* Private data for the caller */
+   void               *priv;
    /* All general purpose CPU registers except R0 */
    uint32_t            regs[31];
    struct dynarec_page pages[DYNAREC_TOTAL_PAGES];
@@ -142,18 +150,21 @@ struct dynarec_state {
 /* Get the offset of the location of a register within a struct
    dynarec_state. */
 #define DYNAREC_STATE_REG_OFFSET(_r)                                    \
-   (assert(_r != 0),                                                    \
-    offsetof(struct dynarec_state, regs) + (_r - 1) * sizeof(uint32_t))
+   (assert((_r) != 0),                                                  \
+    offsetof(struct dynarec_state, regs) + ((_r) - 1) * sizeof(uint32_t))
 
 extern struct dynarec_state *dynarec_init(uint32_t *ram,
                                           uint32_t *scratchpad,
-                                          const uint32_t *bios);
+                                          const uint32_t *bios,
+                                          dynarec_store_cback memory_sw);
+
 extern void dynarec_delete(struct dynarec_state *state);
 extern void dynarec_set_next_event(struct dynarec_state *state,
                                    int32_t cycles);
 extern void dynarec_set_pc(struct dynarec_state *state,
                            uint32_t pc);
-extern void dynarec_run(struct dynarec_state *state);
+extern int32_t dynarec_run(struct dynarec_state *state,
+                           int32_t cycles_to_run);
 
 /* Structure holding the temporary variables during the recompilation
    sequence */
@@ -184,9 +195,9 @@ extern void dynarec_emit_sw(struct dynarec_compiler *compiler,
                             enum PSX_REG reg_addr,
                             int16_t offset,
                             enum PSX_REG reg_val);
-
-extern void dynarec_execute(struct dynarec_state *state,
-                            dynarec_fn_t target);
+extern int32_t dynarec_execute(struct dynarec_state *state,
+                               dynarec_fn_t target,
+                               int32_t counter);
 
 #ifdef __cplusplus
 }

@@ -22,7 +22,8 @@ static uint32_t dynarec_mask_address(uint32_t addr) {
 
 struct dynarec_state *dynarec_init(uint32_t *ram,
                                    uint32_t *scratchpad,
-                                   const uint32_t *bios) {
+                                   const uint32_t *bios,
+                                   dynarec_store_cback memory_sw) {
    struct dynarec_state *state;
    unsigned i;
 
@@ -31,10 +32,10 @@ struct dynarec_state *dynarec_init(uint32_t *ram,
       return NULL;
    }
 
-   state->next_event_cycle = 0;
    state->ram = ram;
    state->scratchpad = scratchpad;
    state->bios = bios;
+   state->memory_sw = memory_sw;
 
    memcpy(state->region_mask, region_mask, sizeof(region_mask));
    memset(state->regs, 0, sizeof(state->regs));
@@ -62,10 +63,6 @@ void dynarec_delete(struct dynarec_state *state) {
    }
 
    free(state);
-}
-
-void dynarec_set_next_event(struct dynarec_state *state, int32_t cycles) {
-   state->next_event_cycle = cycles;
 }
 
 void dynarec_set_pc(struct dynarec_state *state, uint32_t pc) {
@@ -256,7 +253,7 @@ static int dynarec_recompile(struct dynarec_state *state,
    return 0;
 }
 
-void dynarec_run(struct dynarec_state *state) {
+int32_t dynarec_run(struct dynarec_state *state, int32_t cycles_to_run) {
    struct dynarec_page *page;
    int32_t page_index = dynarec_find_page_index(state, state->pc);
 
@@ -276,5 +273,5 @@ void dynarec_run(struct dynarec_state *state) {
 
    dynarec_fn_t f = (dynarec_fn_t)page->map;
 
-   dynarec_execute(state, f);
+   return dynarec_execute(state, f, cycles_to_run);
 }

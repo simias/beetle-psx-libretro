@@ -37,6 +37,9 @@ dynarec_execute:
         mov     SP_REG_OFFSET(%rdi), %r14d
         mov     RA_REG_OFFSET(%rdi), %r15d
 
+        /* Move cycles_to_run to %ecx */
+        mov     %edx, %ecx
+
         /* Call dynarec'd code */
         call    *%rsi
 

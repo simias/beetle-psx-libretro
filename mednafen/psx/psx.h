@@ -53,6 +53,13 @@ uint16_t MDFN_FASTCALL PSX_MemRead16(int32_t &timestamp, uint32_t A);
 uint32_t MDFN_FASTCALL PSX_MemRead24(int32_t &timestamp, uint32_t A);
 uint32_t MDFN_FASTCALL PSX_MemRead32(int32_t &timestamp, uint32_t A);
 
+#ifdef HAVE_DYNAREC
+int32_t dynarec_sw_cback(struct dynarec_state *s,
+                         uint32_t val,
+                         uint32_t addr,
+                         int32_t counter);
+#endif /* HAVE_DYNAREC */
+
 uint8_t PSX_MemPeek8(uint32_t A);
 uint16_t PSX_MemPeek16(uint32_t A);
 uint32_t PSX_MemPeek32(uint32_t A);

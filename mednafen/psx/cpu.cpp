@@ -2652,29 +2652,29 @@ pscpu_timestamp_t PS_CPU::RunDynarec(int32_t timestamp)
    uint32_t LDWhich;
    uint32_t LDValue;
 
+   BACKING_TO_ACTIVE;
+
    if (dynarec_state == NULL) {
       dynarec_state = dynarec_init(MainRAM.data32,
                                    ScratchRAM.data32,
-                                   BIOSROM->data32);
+                                   BIOSROM->data32,
+                                   dynarec_sw_cback);
       assert(dynarec_state != NULL);
-   }
 
-   BACKING_TO_ACTIVE;
+      dynarec_set_pc(dynarec_state, PC);
+   }
 
    do {
       int32_t cycles_to_run = next_event_ts - timestamp;
 
-      dynarec_set_next_event(dynarec_state, cycles_to_run);
-      dynarec_set_pc(dynarec_state, PC);
-
-      dynarec_run(dynarec_state);
+      dynarec_run(dynarec_state, cycles_to_run);
    } while(MDFN_LIKELY(PSX_EventHandler(timestamp)));
 
    ACTIVE_TO_BACKING;
 
    return 0;
 }
-#endif
+#endif /* HAVE_DYNAREC */
 
 pscpu_timestamp_t PS_CPU::Run(pscpu_timestamp_t timestamp_in, bool BIOSPrintMode, bool ILHMode)
 {

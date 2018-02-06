@@ -85,6 +85,10 @@ class PS_CPU
   next_event_ts = next_event_ts_arg;
  }
 
+ INLINE pscpu_timestamp_t GetEventNT(void) {
+  return next_event_ts;
+ }
+
  pscpu_timestamp_t Run(pscpu_timestamp_t timestamp_in, bool BIOSPrintMode, bool ILHMode);
 
  void Power(void) MDFN_COLD;
