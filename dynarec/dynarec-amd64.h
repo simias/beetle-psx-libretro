@@ -4,7 +4,7 @@
 #define __DYNAREC_AMD64_H__
 
 /* Maximum length of a recompiled instruction in bytes. */
-#define DYNAREC_INSTRUCTION_MAX_LEN  118U
+#define DYNAREC_INSTRUCTION_MAX_LEN  121U
 
 /* Average length of an instruction. Used while guessing how much
    space must be allocated for a page to try and avoid

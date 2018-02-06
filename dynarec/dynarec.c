@@ -194,6 +194,9 @@ static int dynarec_recompile(struct dynarec_state *state,
          return -1;
       }
 
+      /* Decrease the event counter before we continue */
+      dynarec_counter_maintenance(&compiler);
+
       switch (instruction >> 26) {
       case 0x0d: /* ORI */
          if (reg_t == 0 || (reg_t == reg_s && imm == 0)) {

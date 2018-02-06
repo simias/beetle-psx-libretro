@@ -472,7 +472,6 @@ static void emit_call_off_pr64(struct dynarec_compiler *compiler,
       emit_imm32(compiler, off);
    }
 }
-
 #define CALL_OFF_PR64(_o, _r) emit_call_off_pr64(compiler, (_o), (_r))
 
 /* This will trash AX, DX and SI. CX value is loaded using the first
@@ -510,6 +509,15 @@ static void emit_exception(struct dynarec_compiler *compiler,
    // XXX TODO
    (void)exception;
    emit_trap(compiler);
+}
+
+
+void dynarec_counter_maintenance(struct dynarec_compiler *compiler) {
+   /* For now I assume every instruction takes 5cycles. It's a pretty
+      decent average but obviously in practice it varies a lot
+      depending on the instruction, the icache, memory latency
+      etc... */
+   SUB_U32_R32(5, REG_CX);
 }
 
 /************************

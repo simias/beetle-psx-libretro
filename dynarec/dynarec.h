@@ -181,6 +181,10 @@ typedef void (*dynarec_fn_t)(void);
 
 /* These methods are provided by the various architecture-dependent
    backends */
+extern void dynarec_counter_maintenance(struct dynarec_compiler *compiler);
+extern int32_t dynarec_execute(struct dynarec_state *state,
+                               dynarec_fn_t target,
+                               int32_t counter);
 extern void dynarec_emit_li(struct dynarec_compiler *compiler,
                             enum PSX_REG reg,
                             uint32_t val);
@@ -195,9 +199,6 @@ extern void dynarec_emit_sw(struct dynarec_compiler *compiler,
                             enum PSX_REG reg_addr,
                             int16_t offset,
                             enum PSX_REG reg_val);
-extern int32_t dynarec_execute(struct dynarec_state *state,
-                               dynarec_fn_t target,
-                               int32_t counter);
 
 #ifdef __cplusplus
 }
