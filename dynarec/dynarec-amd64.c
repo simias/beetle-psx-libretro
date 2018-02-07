@@ -531,8 +531,8 @@ void dynarec_emit_mov(struct dynarec_compiler *compiler,
 }
 
 extern void dynarec_emit_sll(struct dynarec_compiler *compiler,
-                             enum PSX_REG reg_t,
-                             enum PSX_REG reg_s,
+                             enum PSX_REG reg_target,
+                             enum PSX_REG reg_op0,
                              uint8_t shift) {
    UNIMPLEMENTED;
 }

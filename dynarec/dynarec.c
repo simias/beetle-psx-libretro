@@ -149,6 +149,55 @@ static uint8_t *dynarec_maybe_realloc(struct dynarec_page *page,
    return page->map + used;
 }
 
+/* Gets the general purpose registers referenced by `instruction`. At
+ * most any instruction will reference one target and two "operand"
+ * registers. For instruction that reference fewer registers the
+ * remaining arguments are set to PSX_REG_R0.
+ */
+static void dynarec_instruction_registers(uint32_t instruction,
+                                          enum PSX_REG *reg_target,
+                                          enum PSX_REG *reg_op0,
+                                          enum PSX_REG *reg_op1) {
+   uint8_t reg_d = (instruction >> 11) & 0x1f;
+   uint8_t reg_t = (instruction >> 16) & 0x1f;
+   uint8_t reg_s = (instruction >> 21) & 0x1f;
+
+   *reg_target = PSX_REG_R0;
+   *reg_op0    = PSX_REG_R0;
+   *reg_op1    = PSX_REG_R0;
+
+   switch (instruction >> 26) {
+   case 0x00:
+      switch (instruction & 0x3f) {
+      case 0x00: /* SLL */
+         *reg_target = reg_d;
+         *reg_op0    = reg_t;
+         break;
+      default:
+         printf("Dynarec encountered unsupported instruction %08x\n",
+                instruction);
+         abort();
+      }
+      break;
+   case 0x09: /* ADDIU */
+   case 0x0d: /* ORI */
+      *reg_target = reg_t;
+      *reg_op0    = reg_s;
+      break;
+   case 0x0f: /* LUI */
+      *reg_target = reg_t;
+      break;
+   case 0x2b: /* SW */
+      *reg_op0 = reg_s;
+      *reg_op1 = reg_t;
+      break;
+   default:
+      printf("Dynarec encountered unsupported instruction %08x\n",
+             instruction);
+      abort();
+   }
+}
+
 static int dynarec_recompile(struct dynarec_state *state,
                              uint32_t page_index) {
    struct dynarec_page     *page;
@@ -179,14 +228,19 @@ static int dynarec_recompile(struct dynarec_state *state,
          compiler to optimize this correctly, otherwise it might be
          better to move them to the instructions where they make
          sense.*/
-      uint8_t  reg_d  = (instruction >> 11) & 0x1f;
-      uint8_t  reg_t  = (instruction >> 16) & 0x1f;
-      uint8_t  reg_s  = (instruction >> 21) & 0x1f;
+      enum PSX_REG reg_target;
+      enum PSX_REG reg_op0;
+      enum PSX_REG reg_op1;
       uint16_t imm    = instruction & 0xffff;
       uint8_t  shift  = (instruction >> 6) & 0x1f;
       uint8_t *instruction_start;
 
       printf("Compiling 0x%08x\n", instruction);
+
+      dynarec_instruction_registers(instruction,
+                                    &reg_target,
+                                    &reg_op0,
+                                    &reg_op1);
 
       compiler.map = dynarec_maybe_realloc(page, compiler.map);
 
@@ -200,79 +254,80 @@ static int dynarec_recompile(struct dynarec_state *state,
       dynarec_counter_maintenance(&compiler);
 
       switch (instruction >> 26) {
-      case 0x00: /* ALU */
+      case 0x00:
          switch (instruction & 0x3f) {
          case 0x00: /* SLL */
-            if (reg_d == 0 || (reg_t == reg_d && shift == 0)) {
+            if (reg_target == 0 || (reg_target == reg_op0 && shift == 0)) {
                /* NOP. This is the prefered encoding (full 0s) */
                break;
             }
 
-            if (reg_t == 0) {
-               dynarec_emit_li(&compiler, reg_d, 0);
+            if (reg_op0 == 0) {
+               dynarec_emit_li(&compiler, reg_target, 0);
                break;
             }
 
             if (shift == 0) {
-               dynarec_emit_mov(&compiler, reg_d, reg_t);
+               dynarec_emit_mov(&compiler, reg_target, reg_op0);
                break;
             }
 
-            dynarec_emit_sll(&compiler, reg_d, reg_t, shift);
+            dynarec_emit_sll(&compiler, reg_target, reg_op0, shift);
             break;
 
          default:
             printf("Dynarec encountered unsupported instruction %08x\n",
                    instruction);
-            return 0;
+            abort();
          }
+         break;
       case 0x09: /* ADDIU */
-         if (reg_t == 0 || (reg_t == reg_s && imm == 0)) {
+         if (reg_target == 0 || (reg_target == reg_op0 && imm == 0)) {
             /* NOP */
             break;
          }
 
-         if (reg_s == 0) {
-            dynarec_emit_li(&compiler, reg_t, imm);
+         if (reg_op0 == 0) {
+            dynarec_emit_li(&compiler, reg_target, imm);
             break;
          }
 
          if (imm == 0) {
-            dynarec_emit_mov(&compiler, reg_t, reg_s);
+            dynarec_emit_mov(&compiler, reg_target, reg_op0);
             break;
          }
 
-         dynarec_emit_addiu(&compiler, reg_t, reg_s, imm);
+         dynarec_emit_addiu(&compiler, reg_target, reg_op0, imm);
          break;
 
       case 0x0d: /* ORI */
-         if (reg_t == 0 || (reg_t == reg_s && imm == 0)) {
+         if (reg_target == 0 || (reg_target == reg_op0 && imm == 0)) {
             /* NOP */
             break;
          }
 
-         if (reg_s == 0) {
-            dynarec_emit_li(&compiler, reg_t, imm);
+         if (reg_op0 == 0) {
+            dynarec_emit_li(&compiler, reg_target, imm);
             break;
          }
 
          if (imm == 0) {
-            dynarec_emit_mov(&compiler, reg_t, reg_s);
+            dynarec_emit_mov(&compiler, reg_target, reg_op0);
             break;
          }
 
-         dynarec_emit_ori(&compiler, reg_t, reg_s, imm);
+         dynarec_emit_ori(&compiler, reg_target, reg_op0, imm);
          break;
       case 0x0f: /* LUI */
-         if (reg_t == 0) {
+         if (reg_target == 0) {
             /* nop */
             break;
          }
 
-         dynarec_emit_li(&compiler, reg_t, ((uint32_t)imm) << 16);
+         dynarec_emit_li(&compiler, reg_target, ((uint32_t)imm) << 16);
          break;
       case 0x2b: /* SW */
-         dynarec_emit_sw(&compiler, reg_s, imm, reg_t);
+         dynarec_emit_sw(&compiler, reg_op0, imm, reg_op1);
          break;
       default:
          printf("Dynarec encountered unsupported instruction %08x\n",
