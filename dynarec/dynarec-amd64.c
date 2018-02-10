@@ -457,6 +457,20 @@ static void emit_trap(struct dynarec_compiler *compiler) {
    *(compiler->map++) = 0xcc;
 }
 
+/* JMP off. Offset is from the address of this instruction (so off = 0
+   points at this jump) */
+static void emit_jmp_off(struct dynarec_compiler *compiler,
+                         uint32_t off) {
+   if (is_imms8(off - 2)) {
+      *(compiler->map++) = 0xeb;
+      emit_imms8(compiler, off - 2);
+   } else {
+      *(compiler->map++) = 0xe9;
+      emit_imms8(compiler, off - 5);
+   }
+}
+#define EMIT_JMP(_o) emit_jmp_off(compiler, (_o))
+
 /* CALL *off(%reg64) */
 static void emit_call_off_pr64(struct dynarec_compiler *compiler,
                                uint32_t off,
@@ -512,12 +526,10 @@ static void emit_exception(struct dynarec_compiler *compiler,
 }
 
 
-void dynarec_counter_maintenance(struct dynarec_compiler *compiler) {
-   /* For now I assume every instruction takes 5cycles. It's a pretty
-      decent average but obviously in practice it varies a lot
-      depending on the instruction, the icache, memory latency
-      etc... */
-   SUB_U32_R32(5, REG_CX);
+void dynarec_counter_maintenance(struct dynarec_compiler *compiler,
+                                 unsigned cycles) {
+
+   SUB_U32_R32(cycles, REG_CX);
 }
 
 /************************
@@ -715,4 +727,28 @@ void dynarec_emit_sw(struct dynarec_compiler *compiler,
          EMULATOR_CALL(memory_sw);
       } ENDIF;
    } ENDIF;
+}
+
+void dynarec_emit_page_local_jump(struct dynarec_compiler *compiler,
+                                  int32_t offset,
+                                  bool placeholder) {
+   if (placeholder == false) {
+      EMIT_JMP(offset);
+   } else {
+      /* We're adding placeholder code we'll patch later. */
+      /* XXX for not I assume the worst case scenario and make room
+         for a 32bit relative jump. Since "offset" contains the worst
+         case scenario we could use it to see if we could use a near
+         jump instead. */
+      /* JMP off32 */
+      *(compiler->map++) = 0xe9;
+      /* I'm supposed to put the offset here, but I don't know what it
+         is yet. I use 0x90 because it's a NOP, this way we'll be able
+         to patch a shorter instruction if we want later and not run
+         into any issues. */
+      *(compiler->map++) = 0x90;
+      *(compiler->map++) = 0x90;
+      *(compiler->map++) = 0x90;
+      *(compiler->map++) = 0x90;
+   }
 }

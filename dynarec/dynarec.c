@@ -149,18 +149,37 @@ static uint8_t *dynarec_maybe_realloc(struct dynarec_page *page,
    return page->map + used;
 }
 
+static void add_local_patch(struct dynarec_compiler *compiler,
+                            uint32_t page_offset,
+                            uint32_t target_index) {
+
+   uint32_t pos = compiler->local_patch_len;
+
+   assert(pos < DYNAREC_PAGE_INSTRUCTIONS);
+   compiler->local_patch[pos].page_offset = page_offset;
+   compiler->local_patch[pos].target_index = target_index;
+   compiler->local_patch_len++;
+}
+
 /* Gets the general purpose registers referenced by `instruction`. At
  * most any instruction will reference one target and two "operand"
  * registers. For instruction that reference fewer registers the
  * remaining arguments are set to PSX_REG_R0.
+ *
+ * Returns the number of cycles taken by this instruction to execute.
  */
-static void dynarec_instruction_registers(uint32_t instruction,
-                                          enum PSX_REG *reg_target,
-                                          enum PSX_REG *reg_op0,
-                                          enum PSX_REG *reg_op1) {
+static unsigned dynarec_instruction_registers(uint32_t instruction,
+                                              enum PSX_REG *reg_target,
+                                              enum PSX_REG *reg_op0,
+                                              enum PSX_REG *reg_op1) {
    uint8_t reg_d = (instruction >> 11) & 0x1f;
    uint8_t reg_t = (instruction >> 16) & 0x1f;
    uint8_t reg_s = (instruction >> 21) & 0x1f;
+   /* For now I assume every instruction takes exactly 5 cycles to
+      execute. It's a pretty decent average but obviously in practice
+      it varies a lot depending on the instruction, the icache, memory
+      latency etc... */
+   unsigned cycles = 5;
 
    *reg_target = PSX_REG_R0;
    *reg_op0    = PSX_REG_R0;
@@ -179,6 +198,10 @@ static void dynarec_instruction_registers(uint32_t instruction,
          abort();
       }
       break;
+   case 0x02: /* J */
+      /* We execute the delay slot *and* the jump */
+      cycles *= 2;
+      break;
    case 0x09: /* ADDIU */
    case 0x0d: /* ORI */
       *reg_target = reg_t;
@@ -196,32 +219,116 @@ static void dynarec_instruction_registers(uint32_t instruction,
              instruction);
       abort();
    }
+
+   return cycles;
+}
+
+static void emit_jump(struct dynarec_compiler *compiler,
+                      uint32_t instruction,
+                      uint32_t delay_slot) {
+   uint32_t imm_jump = (instruction & 0x3ffffff) << 2;
+   uint32_t target;
+   int32_t target_page;
+
+   if (delay_slot != 0) {
+      printf("Unsupported jump delay slot\n");
+      abort();
+   }
+
+   target = compiler->pc & 0xf0000000;
+   target |= imm_jump;
+
+   /* Test if the target is in the current page */
+   target_page = dynarec_find_page_index(compiler->state, target);
+   if (target_page < 0) {
+      printf("Dynarec: jump to unhandled address 0x%08x", target);
+   }
+
+   if (target_page == compiler->page_index) {
+      /* We're aiming at the current page, we don't have to worry
+         about the target being invalidated and we can hardcode the
+         jump target */
+      uint32_t pc_index = compiler->pc % DYNAREC_PAGE_SIZE;
+      uint32_t target_index = target % DYNAREC_PAGE_SIZE;
+
+      /* Convert from bytes to instructions */
+      pc_index >>= 2;
+      target_index >>= 2;
+
+      if (target_index <= pc_index) {
+         /* We're jumping backwards, we already know the offset of the
+            target instruction */
+         printf("Patch backward call\n");
+         abort();
+      } else {
+         /* We're jumping forward, we don't know where we're going (do
+            we ever?). Add placeholder code and patch the right
+            address later. */
+         /* As a hint we compute the maximum possible offset */
+         int32_t max_offset =
+            (target_index - pc_index) * DYNAREC_INSTRUCTION_MAX_LEN;
+
+         uint32_t page_offset = compiler->map - compiler->page->map;
+
+         dynarec_emit_page_local_jump(compiler,
+                                      max_offset,
+                                      true);
+         add_local_patch(compiler, page_offset, target_index);
+      }
+   } else {
+      printf("Encountered unimplemented non-local jump\n");
+      abort();
+   }
 }
 
 static int dynarec_recompile(struct dynarec_state *state,
                              uint32_t page_index) {
    struct dynarec_page     *page;
    const uint32_t          *emulated_page;
+   const uint32_t          *next_page;
    struct dynarec_compiler  compiler;
    unsigned                 i;
-
-   compiler.state = state;
 
    page = &state->pages[page_index];
    page->valid = 0;
 
+   compiler.state = state;
+   compiler.page_index = page_index;
+   compiler.page = page;
+   compiler.local_patch_len = 0;
+
    if (page_index < DYNAREC_RAM_PAGES) {
-      emulated_page = state->ram + DYNAREC_PAGE_INSTRUCTIONS * page_index;
-      compiler.pc = DYNAREC_PAGE_SIZE * page_index;
+      uint32_t ram_index = page_index;
+
+      emulated_page = state->ram + DYNAREC_PAGE_INSTRUCTIONS * ram_index;
+      compiler.pc = DYNAREC_PAGE_SIZE * ram_index;
+
+      /* XXX This is not accurate if we're at the very end of the last
+         mirror of memory. Not that I expect that it matters much. */
+      ram_index = (ram_index + 1) % DYNAREC_RAM_PAGES;
+      next_page = state->ram + DYNAREC_PAGE_INSTRUCTIONS * ram_index;
    } else {
       uint32_t bios_index = page_index - DYNAREC_RAM_PAGES;
+
       emulated_page = state->bios + DYNAREC_PAGE_INSTRUCTIONS * bios_index;
       compiler.pc = PSX_BIOS_BASE + DYNAREC_PAGE_SIZE * bios_index;
+
+      /* XXX This is not accurate if we're at the very end of the
+         BIOS. Not that I expect that it matters much. */
+      bios_index = (bios_index + 1) % DYNAREC_BIOS_PAGES;
+      next_page = state->bios + DYNAREC_PAGE_INSTRUCTIONS * bios_index;
    }
 
    /* Helper macros for instruction decoding */
    for (i = 0; i < DYNAREC_PAGE_INSTRUCTIONS; i++, compiler.pc += 4) {
       uint32_t instruction = emulated_page[i];
+      uint32_t next_instruction;
+
+      if (i + 1 < DYNAREC_PAGE_INSTRUCTIONS) {
+         next_instruction = emulated_page[i + 1];
+      } else {
+         next_instruction = next_page[0];
+      }
 
       /* Various decodings of the fields, of course they won't all be
          valid for a given instruction. For now I'll trust the
@@ -231,16 +338,18 @@ static int dynarec_recompile(struct dynarec_state *state,
       enum PSX_REG reg_target;
       enum PSX_REG reg_op0;
       enum PSX_REG reg_op1;
-      uint16_t imm    = instruction & 0xffff;
-      uint8_t  shift  = (instruction >> 6) & 0x1f;
+      uint16_t imm = instruction & 0xffff;
+      uint8_t  shift = (instruction >> 6) & 0x1f;
       uint8_t *instruction_start;
+      unsigned cycles;
 
       printf("Compiling 0x%08x\n", instruction);
 
-      dynarec_instruction_registers(instruction,
-                                    &reg_target,
-                                    &reg_op0,
-                                    &reg_op1);
+      cycles =
+         dynarec_instruction_registers(instruction,
+                                       &reg_target,
+                                       &reg_op0,
+                                       &reg_op1);
 
       compiler.map = dynarec_maybe_realloc(page, compiler.map);
 
@@ -250,8 +359,8 @@ static int dynarec_recompile(struct dynarec_state *state,
          return -1;
       }
 
-      /* Decrease the event counter before we continue */
-      dynarec_counter_maintenance(&compiler);
+      /* Decrease the event counter before we continue. */
+      dynarec_counter_maintenance(&compiler, cycles);
 
       switch (instruction >> 26) {
       case 0x00:
@@ -280,6 +389,9 @@ static int dynarec_recompile(struct dynarec_state *state,
                    instruction);
             abort();
          }
+         break;
+      case 0x02: /* J */
+         emit_jump(&compiler, instruction, next_instruction);
          break;
       case 0x09: /* ADDIU */
          if (reg_target == 0 || (reg_target == reg_op0 && imm == 0)) {

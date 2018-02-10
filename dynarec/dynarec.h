@@ -2,6 +2,7 @@
 #define __DYNAREC_H__
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stddef.h>
 
@@ -166,6 +167,13 @@ extern void dynarec_set_pc(struct dynarec_state *state,
 extern int32_t dynarec_run(struct dynarec_state *state,
                            int32_t cycles_to_run);
 
+struct dynarec_page_local_patch {
+   /* Offset in the recompiled page */
+   uint32_t page_offset;
+   /* Target instruction in the emulated page */
+   uint32_t target_index;
+};
+
 /* Structure holding the temporary variables during the recompilation
    sequence */
 struct dynarec_compiler {
@@ -175,13 +183,22 @@ struct dynarec_compiler {
    uint8_t *map;
    /* Current value of the PC */
    uint32_t pc;
+   /* Index of the page currently being recompiled */
+   uint32_t page_index;
+   /* Pointer to the page currently being recompiled */
+   struct dynarec_page *page;
+   /* Number of entries in local_patch */
+   uint32_t local_patch_len;
+   /* Contains offset of instructions that need patching */
+   struct dynarec_page_local_patch local_patch[DYNAREC_PAGE_INSTRUCTIONS];
 };
 
 typedef void (*dynarec_fn_t)(void);
 
 /* These methods are provided by the various architecture-dependent
    backends */
-extern void dynarec_counter_maintenance(struct dynarec_compiler *compiler);
+extern void dynarec_counter_maintenance(struct dynarec_compiler *compiler,
+                                        unsigned cycles);
 extern int32_t dynarec_execute(struct dynarec_state *state,
                                dynarec_fn_t target,
                                int32_t counter);
@@ -207,6 +224,9 @@ extern void dynarec_emit_sw(struct dynarec_compiler *compiler,
                             enum PSX_REG reg_addr,
                             int16_t offset,
                             enum PSX_REG reg_val);
+extern void dynarec_emit_page_local_jump(struct dynarec_compiler *compiler,
+                                         int32_t offset,
+                                         bool placeholder);
 
 #ifdef __cplusplus
 }
