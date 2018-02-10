@@ -247,19 +247,45 @@ static void emit_mop_off_pr64_r32(struct dynarec_compiler *compiler,
                                   enum X86_REG base,
                                   enum X86_REG target) {
    emit_rex_prefix(compiler, base, target, 0);
+   target &= 7;
+   base   &= 7;
 
    *(compiler->map++) = op;
 
    if (is_imms8(off)) {
-      *(compiler->map++) = 0x40 | (base & 7) | (target << 3);
+      *(compiler->map++) = 0x40 | base | (target << 3);
       emit_imms8(compiler, off);
    } else {
-      *(compiler->map++) = 0x80 | (base & 7) | (target << 3);
+      *(compiler->map++) = 0x80 | base | (target << 3);
       emit_imm32(compiler, off);
    }
 }
 #define MOV_OFF_PR64_R32(_off, _r1, _r2)                        \
    emit_mop_off_pr64_r32(compiler, 0x8b, (_off), (_r1), (_r2))
+
+/* MOP %source32, off(%base64) */
+static void emit_mop_r32_off_pr64(struct dynarec_compiler *compiler,
+                                  uint8_t op,
+                                  enum X86_REG source,
+                                  uint32_t off,
+                                  enum X86_REG base) {
+   emit_rex_prefix(compiler, base, source, 0);
+   source &= 7;
+   base   &= 7;
+
+   *(compiler->map++) = op;
+
+   if (is_imms8(off)) {
+      *(compiler->map++) = 0x40 | base | (source << 3);
+      emit_imms8(compiler, off);
+   } else {
+      *(compiler->map++) = 0x80 | base | (source << 3);
+      emit_imm32(compiler, off);
+   }
+}
+#define MOV_R32_OFF_PR64(_r1, _off, _r2)                         \
+   emit_mop_off_pr64_r32(compiler, 0x89, (_r1), (_off), (_r2))
+
 
 /* MOP off(%base32), %target32 */
 static void emit_mop_off_pr32_r32(struct dynarec_compiler *compiler,
@@ -320,7 +346,6 @@ static void emit_pop_r64(struct dynarec_compiler *compiler,
    *(compiler->map++) = 0x58 | (reg & 7);
 }
 #define POP_R64(_r) emit_pop_r64(compiler, (_r))
-
 
 /******************
  * ALU operations *
@@ -531,9 +556,45 @@ void dynasm_counter_maintenance(struct dynarec_compiler *compiler,
  ************************/
 
 void dynasm_emit_mov(struct dynarec_compiler *compiler,
-                     enum PSX_REG reg_t,
-                     enum PSX_REG reg_s) {
-   UNIMPLEMENTED;
+                      enum PSX_REG reg_t,
+                      enum PSX_REG reg_s) {
+   const int target = register_location(reg_t);
+   const int source = register_location(reg_s);
+
+   if (reg_t == PSX_REG_R0) {
+      /* NOP */
+      return;
+   }
+
+   if (reg_s == PSX_REG_R0) {
+      CLEAR_REG(reg_t);
+      return;
+   }
+
+   if (target >= 0) {
+      if (source >= 0) {
+         MOV_R32_R32(source, target);
+      } else {
+         MOV_OFF_PR64_R32(DYNAREC_STATE_REG_OFFSET(reg_s),
+                          STATE_REG,
+                          target);
+      }
+   } else {
+      if (source >= 0) {
+         MOV_R32_OFF_PR64(source,
+                          DYNAREC_STATE_REG_OFFSET(reg_t),
+                          STATE_REG);
+      } else {
+         /* Both registers are in memory, use EAX as temporary value */
+         MOV_OFF_PR64_R32(DYNAREC_STATE_REG_OFFSET(reg_s),
+                          STATE_REG,
+                          REG_AX);
+
+         MOV_R32_OFF_PR64(REG_AX,
+                          DYNAREC_STATE_REG_OFFSET(reg_t),
+                          STATE_REG);
+      }
+   }
 }
 
 extern void dynasm_emit_sll(struct dynarec_compiler *compiler,
