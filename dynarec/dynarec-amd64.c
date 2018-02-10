@@ -60,9 +60,9 @@ static int register_location(enum PSX_REG reg) {
    }
 }
 
-#define UNIMPLEMENTED do {                                       \
-      printf("%s:%d not implemented\n", __func__, __LINE__);     \
-      abort();                                                   \
+#define UNIMPLEMENTED do {                                      \
+      printf("%s:%d not implemented\n", __func__, __LINE__);    \
+      abort();                                                  \
    } while (0)
 
 /*******************************************
@@ -86,24 +86,24 @@ static int register_location(enum PSX_REG reg) {
  *                                     }
  *                                  }
  */
-#define IF(_opcode) do {                           \
-   uint8_t *_jump_patch;                           \
-   *((compiler)->map++) = (_opcode);               \
+#define IF(_opcode) do {                        \
+   uint8_t *_jump_patch;                        \
+   *((compiler)->map++) = (_opcode);            \
    _jump_patch = (compiler)->map++;
 
-#define ELSE {                                               \
-      uint32_t _jump_off = ((compiler)->map - _jump_patch) + 1;   \
-      assert(_jump_off < 128);                                    \
-      *_jump_patch = _jump_off;                                   \
-      /* JMP imms8 */                                             \
-      *((compiler)->map++) = 0xeb;                                \
-      _jump_patch = (compiler)->map++;                            \
+#define ELSE {                                                  \
+      uint32_t _jump_off = ((compiler)->map - _jump_patch) + 1; \
+      assert(_jump_off < 128);                                  \
+      *_jump_patch = _jump_off;                                 \
+      /* JMP imms8 */                                           \
+      *((compiler)->map++) = 0xeb;                              \
+      _jump_patch = (compiler)->map++;                          \
    }
 
-#define ENDIF {                                              \
-      uint32_t _jump_off = ((compiler)->map - _jump_patch) - 1;   \
-      assert(_jump_off < 128);                                    \
-      *_jump_patch = _jump_off;                                   \
+#define ENDIF {                                                 \
+      uint32_t _jump_off = ((compiler)->map - _jump_patch) - 1; \
+      assert(_jump_off < 128);                                  \
+      *_jump_patch = _jump_off;                                 \
    }} while (0)
 
 #define IF_NOT_EQUAL     IF(0x74)
@@ -153,12 +153,6 @@ static void emit_sib(struct dynarec_compiler *compiler,
 
    *(compiler->map++) = s | (base & 7) | ((index & 7) << 3);
 
-}
-
-void dynarec_unhandled_memory_access(struct dynarec_state *compiler,
-                                     uint32_t val,
-                                     uint32_t addr) {
-   printf("memory access: %08x @ %08x\n", val, addr);
 }
 
 static void emit_imm32(struct dynarec_compiler *compiler,
@@ -232,7 +226,7 @@ static void emit_mov_u32_off_pr64(struct dynarec_compiler *compiler,
    }
    emit_imm32(compiler, val);
 }
-#define MOV_U32_OFF_PR64(_v, _off, _r) \
+#define MOV_U32_OFF_PR64(_v, _off, _r)                  \
    emit_mov_u32_off_pr64(compiler, (_v), (_off), (_r))
 
 static void emit_mov_r32_r32(struct dynarec_compiler *compiler,
@@ -264,7 +258,7 @@ static void emit_mop_off_pr64_r32(struct dynarec_compiler *compiler,
       emit_imm32(compiler, off);
    }
 }
-#define MOV_OFF_PR64_R32(_off, _r1, _r2) \
+#define MOV_OFF_PR64_R32(_off, _r1, _r2)                        \
    emit_mop_off_pr64_r32(compiler, 0x8b, (_off), (_r1), (_r2))
 
 /* MOP off(%base32), %target32 */
@@ -277,7 +271,7 @@ static void emit_mop_off_pr32_r32(struct dynarec_compiler *compiler,
 
    emit_mop_off_pr64_r32(compiler, op, off, base, target);
 }
-#define LEA_OFF_PR32_R32(_off, _r1, _r2) \
+#define LEA_OFF_PR32_R32(_off, _r1, _r2)                        \
    emit_mop_off_pr32_r32(compiler, 0x8d, (_off), (_r1), (_r2))
 
 /* MOV $val, off(%base64, %index64, $scale) */
@@ -320,7 +314,7 @@ static void emit_push_r64(struct dynarec_compiler *compiler,
 
 /* POP %reg64 */
 static void emit_pop_r64(struct dynarec_compiler *compiler,
-                          enum X86_REG reg) {
+                         enum X86_REG reg) {
    emit_rex_prefix(compiler, reg, 0, 0);
 
    *(compiler->map++) = 0x58 | (reg & 7);
@@ -408,9 +402,9 @@ static void emit_alu_off_sib_r32(struct dynarec_compiler *compiler,
    }
 }
 
-#define ADD_OFF_SIB_R32(_o, _b, _i, _s, _t)             \
+#define ADD_OFF_SIB_R32(_o, _b, _i, _s, _t)                             \
    emit_alu_off_sib_r32(compiler, 0x03, (_o), (_b), (_i), (_s), (_t))
-#define AND_OFF_SIB_R32(_o, _b, _i, _s, _t)             \
+#define AND_OFF_SIB_R32(_o, _b, _i, _s, _t)                             \
    emit_alu_off_sib_r32(compiler, 0x23, (_o), (_b), (_i), (_s), (_t))
 
 /* SHIFT $shift, %reg32 */
@@ -436,20 +430,20 @@ static void emit_imul_u32_r32_r32(struct dynarec_compiler *compiler,
                                   uint32_t a,
                                   enum X86_REG b,
                                   enum X86_REG target) {
-     emit_rex_prefix(compiler, b, target, 0);
+   emit_rex_prefix(compiler, b, target, 0);
 
-     if (is_imms8(a)) {
-        *(compiler->map++) = 0x6b;
-        *(compiler->map++) = 0xc0 | (b & 7) | ((target & 7) << 3);
-        emit_imms8(compiler, a);
-     } else {
-        *(compiler->map++) = 0x69;
-        *(compiler->map++) = 0xc0 | (b & 7) | ((target & 7) << 3);
-        emit_imm32(compiler, a);
-     }
+   if (is_imms8(a)) {
+      *(compiler->map++) = 0x6b;
+      *(compiler->map++) = 0xc0 | (b & 7) | ((target & 7) << 3);
+      emit_imms8(compiler, a);
+   } else {
+      *(compiler->map++) = 0x69;
+      *(compiler->map++) = 0xc0 | (b & 7) | ((target & 7) << 3);
+      emit_imm32(compiler, a);
+   }
 }
 
-#define IMUL_U32_R32_R32(_a, _b, _t) \
+#define IMUL_U32_R32_R32(_a, _b, _t)                    \
    emit_imul_u32_r32_r32(compiler, (_a), (_b), (_t))
 
 static void emit_trap(struct dynarec_compiler *compiler) {
@@ -515,7 +509,7 @@ static void emit_emulator_call(struct dynarec_compiler *compiler,
    POP_R64(REG_R8);
    POP_R64(STATE_REG);
 }
-#define EMULATOR_CALL(_f) \
+#define EMULATOR_CALL(_f)                                               \
    emit_emulator_call(compiler, offsetof(struct dynarec_state, _f))
 
 static void emit_exception(struct dynarec_compiler *compiler,
@@ -526,8 +520,8 @@ static void emit_exception(struct dynarec_compiler *compiler,
 }
 
 
-void dynarec_counter_maintenance(struct dynarec_compiler *compiler,
-                                 unsigned cycles) {
+void dynasm_counter_maintenance(struct dynarec_compiler *compiler,
+                                unsigned cycles) {
 
    SUB_U32_R32(cycles, REG_CX);
 }
@@ -536,22 +530,22 @@ void dynarec_counter_maintenance(struct dynarec_compiler *compiler,
  * Opcode recompilation *
  ************************/
 
-void dynarec_emit_mov(struct dynarec_compiler *compiler,
-                      enum PSX_REG reg_t,
-                      enum PSX_REG reg_s) {
-   UNIMPLEMENTED;
-}
-
-extern void dynarec_emit_sll(struct dynarec_compiler *compiler,
-                             enum PSX_REG reg_target,
-                             enum PSX_REG reg_op0,
-                             uint8_t shift) {
-   UNIMPLEMENTED;
-}
-
-void dynarec_emit_li(struct dynarec_compiler *compiler,
+void dynasm_emit_mov(struct dynarec_compiler *compiler,
                      enum PSX_REG reg_t,
-                     uint32_t val) {
+                     enum PSX_REG reg_s) {
+   UNIMPLEMENTED;
+}
+
+extern void dynasm_emit_sll(struct dynarec_compiler *compiler,
+                            enum PSX_REG reg_target,
+                            enum PSX_REG reg_op0,
+                            uint8_t shift) {
+   UNIMPLEMENTED;
+}
+
+void dynasm_emit_li(struct dynarec_compiler *compiler,
+                    enum PSX_REG reg_t,
+                    uint32_t val) {
    const int target = register_location(reg_t);
 
    if (target >= 0) {
@@ -563,10 +557,10 @@ void dynarec_emit_li(struct dynarec_compiler *compiler,
    }
 }
 
-void dynarec_emit_addiu(struct dynarec_compiler *compiler,
-                        enum PSX_REG reg_t,
-                        enum PSX_REG reg_s,
-                        uint16_t val) {
+void dynasm_emit_addiu(struct dynarec_compiler *compiler,
+                       enum PSX_REG reg_t,
+                       enum PSX_REG reg_s,
+                       uint16_t val) {
    const int target = register_location(reg_t);
    const int source = register_location(reg_s);
 
@@ -582,10 +576,10 @@ void dynarec_emit_addiu(struct dynarec_compiler *compiler,
    }
 }
 
-void dynarec_emit_ori(struct dynarec_compiler *compiler,
-                      enum PSX_REG reg_t,
-                      enum PSX_REG reg_s,
-                      uint16_t val) {
+void dynasm_emit_ori(struct dynarec_compiler *compiler,
+                     enum PSX_REG reg_t,
+                     enum PSX_REG reg_s,
+                     uint16_t val) {
    const int target = register_location(reg_t);
    const int source = register_location(reg_s);
 
@@ -601,10 +595,10 @@ void dynarec_emit_ori(struct dynarec_compiler *compiler,
    }
 }
 
-void dynarec_emit_sw(struct dynarec_compiler *compiler,
-                     enum PSX_REG reg_addr,
-                     int16_t offset,
-                     enum PSX_REG reg_val) {
+void dynasm_emit_sw(struct dynarec_compiler *compiler,
+                    enum PSX_REG reg_addr,
+                    int16_t offset,
+                    enum PSX_REG reg_val) {
    int addr_r  = register_location(reg_addr);
    int value_r = register_location(reg_val);
 
@@ -729,9 +723,9 @@ void dynarec_emit_sw(struct dynarec_compiler *compiler,
    } ENDIF;
 }
 
-void dynarec_emit_page_local_jump(struct dynarec_compiler *compiler,
-                                  int32_t offset,
-                                  bool placeholder) {
+void dynasm_emit_page_local_jump(struct dynarec_compiler *compiler,
+                                 int32_t offset,
+                                 bool placeholder) {
    if (placeholder == false) {
       EMIT_JMP(offset);
    } else {

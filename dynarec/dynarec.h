@@ -197,36 +197,36 @@ typedef void (*dynarec_fn_t)(void);
 
 /* These methods are provided by the various architecture-dependent
    backends */
-extern void dynarec_counter_maintenance(struct dynarec_compiler *compiler,
-                                        unsigned cycles);
-extern int32_t dynarec_execute(struct dynarec_state *state,
-                               dynarec_fn_t target,
-                               int32_t counter);
-extern void dynarec_emit_li(struct dynarec_compiler *compiler,
-                            enum PSX_REG reg,
-                            uint32_t val);
-extern void dynarec_emit_mov(struct dynarec_compiler *compiler,
-                             enum PSX_REG reg_t,
-                             enum PSX_REG reg_s);
-extern void dynarec_emit_sll(struct dynarec_compiler *compiler,
-                             enum PSX_REG reg_target,
-                             enum PSX_REG reg_op,
-                             uint8_t shift);
-extern void dynarec_emit_addiu(struct dynarec_compiler *compiler,
-                               enum PSX_REG reg_t,
-                               enum PSX_REG reg_s,
-                               uint16_t val);
-extern void dynarec_emit_ori(struct dynarec_compiler *compiler,
-                             enum PSX_REG reg_t,
-                             enum PSX_REG reg_s,
-                             uint16_t val);
-extern void dynarec_emit_sw(struct dynarec_compiler *compiler,
-                            enum PSX_REG reg_addr,
-                            int16_t offset,
-                            enum PSX_REG reg_val);
-extern void dynarec_emit_page_local_jump(struct dynarec_compiler *compiler,
-                                         int32_t offset,
-                                         bool placeholder);
+extern void dynasm_counter_maintenance(struct dynarec_compiler *compiler,
+                                       unsigned cycles);
+extern int32_t dynasm_execute(struct dynarec_state *state,
+                              dynarec_fn_t target,
+                              int32_t counter);
+extern void dynasm_emit_li(struct dynarec_compiler *compiler,
+                           enum PSX_REG reg,
+                           uint32_t val);
+extern void dynasm_emit_mov(struct dynarec_compiler *compiler,
+                            enum PSX_REG reg_t,
+                            enum PSX_REG reg_s);
+extern void dynasm_emit_sll(struct dynarec_compiler *compiler,
+                            enum PSX_REG reg_target,
+                            enum PSX_REG reg_op,
+                            uint8_t shift);
+extern void dynasm_emit_addiu(struct dynarec_compiler *compiler,
+                              enum PSX_REG reg_t,
+                              enum PSX_REG reg_s,
+                              uint16_t val);
+extern void dynasm_emit_ori(struct dynarec_compiler *compiler,
+                            enum PSX_REG reg_t,
+                            enum PSX_REG reg_s,
+                            uint16_t val);
+extern void dynasm_emit_sw(struct dynarec_compiler *compiler,
+                           enum PSX_REG reg_addr,
+                           int16_t offset,
+                           enum PSX_REG reg_val);
+extern void dynasm_emit_page_local_jump(struct dynarec_compiler *compiler,
+                                        int32_t offset,
+                                        bool placeholder);
 
 #ifdef __cplusplus
 }

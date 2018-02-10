@@ -12,10 +12,10 @@
 
 .text
 
-.global dynarec_execute
-.type   dynarec_execute, function
+.global dynasm_execute
+.type   dynasm_execute, function
 
-dynarec_execute:
+dynasm_execute:
         /* Be a good function and create a stack frame */
         push    %rbp
         mov     %rsp, %rbp

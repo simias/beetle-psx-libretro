@@ -270,9 +270,9 @@ static void emit_jump(struct dynarec_compiler *compiler,
 
          uint32_t page_offset = compiler->map - compiler->page->map;
 
-         dynarec_emit_page_local_jump(compiler,
-                                      max_offset,
-                                      true);
+         dynasm_emit_page_local_jump(compiler,
+                                     max_offset,
+                                     true);
          add_local_patch(compiler, page_offset, target_index);
       }
    } else {
@@ -360,7 +360,7 @@ static int dynarec_recompile(struct dynarec_state *state,
       }
 
       /* Decrease the event counter before we continue. */
-      dynarec_counter_maintenance(&compiler, cycles);
+      dynasm_counter_maintenance(&compiler, cycles);
 
       switch (instruction >> 26) {
       case 0x00:
@@ -372,16 +372,16 @@ static int dynarec_recompile(struct dynarec_state *state,
             }
 
             if (reg_op0 == 0) {
-               dynarec_emit_li(&compiler, reg_target, 0);
+               dynasm_emit_li(&compiler, reg_target, 0);
                break;
             }
 
             if (shift == 0) {
-               dynarec_emit_mov(&compiler, reg_target, reg_op0);
+               dynasm_emit_mov(&compiler, reg_target, reg_op0);
                break;
             }
 
-            dynarec_emit_sll(&compiler, reg_target, reg_op0, shift);
+            dynasm_emit_sll(&compiler, reg_target, reg_op0, shift);
             break;
 
          default:
@@ -400,16 +400,16 @@ static int dynarec_recompile(struct dynarec_state *state,
          }
 
          if (reg_op0 == 0) {
-            dynarec_emit_li(&compiler, reg_target, imm);
+            dynasm_emit_li(&compiler, reg_target, imm);
             break;
          }
 
          if (imm == 0) {
-            dynarec_emit_mov(&compiler, reg_target, reg_op0);
+            dynasm_emit_mov(&compiler, reg_target, reg_op0);
             break;
          }
 
-         dynarec_emit_addiu(&compiler, reg_target, reg_op0, imm);
+         dynasm_emit_addiu(&compiler, reg_target, reg_op0, imm);
          break;
 
       case 0x0d: /* ORI */
@@ -419,16 +419,16 @@ static int dynarec_recompile(struct dynarec_state *state,
          }
 
          if (reg_op0 == 0) {
-            dynarec_emit_li(&compiler, reg_target, imm);
+            dynasm_emit_li(&compiler, reg_target, imm);
             break;
          }
 
          if (imm == 0) {
-            dynarec_emit_mov(&compiler, reg_target, reg_op0);
+            dynasm_emit_mov(&compiler, reg_target, reg_op0);
             break;
          }
 
-         dynarec_emit_ori(&compiler, reg_target, reg_op0, imm);
+         dynasm_emit_ori(&compiler, reg_target, reg_op0, imm);
          break;
       case 0x0f: /* LUI */
          if (reg_target == 0) {
@@ -436,10 +436,10 @@ static int dynarec_recompile(struct dynarec_state *state,
             break;
          }
 
-         dynarec_emit_li(&compiler, reg_target, ((uint32_t)imm) << 16);
+         dynasm_emit_li(&compiler, reg_target, ((uint32_t)imm) << 16);
          break;
       case 0x2b: /* SW */
-         dynarec_emit_sw(&compiler, reg_op0, imm, reg_op1);
+         dynasm_emit_sw(&compiler, reg_op0, imm, reg_op1);
          break;
       default:
          printf("Dynarec encountered unsupported instruction %08x\n",
@@ -490,5 +490,5 @@ int32_t dynarec_run(struct dynarec_state *state, int32_t cycles_to_run) {
 
    dynarec_fn_t f = (dynarec_fn_t)page->map;
 
-   return dynarec_execute(state, f, cycles_to_run);
+   return dynasm_execute(state, f, cycles_to_run);
 }
