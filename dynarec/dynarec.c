@@ -319,6 +319,8 @@ static unsigned dynarec_instruction_registers(uint32_t instruction,
       case 0x10: /* MFHI */
          *reg_target = reg_d;
          break;
+      case 0x13: /* MTLO */
+         *reg_op0 = reg_s;
       case 0x1f:
       case 0x34:
          /* Illegal */
@@ -336,6 +338,8 @@ static unsigned dynarec_instruction_registers(uint32_t instruction,
       break;
    case 0x08: /* ADDI */
    case 0x09: /* ADDIU */
+   case 0x0b: /* SLTIU */
+   case 0x0c: /* ANDI */
    case 0x0d: /* ORI */
       *reg_target = reg_t;
       *reg_op0    = reg_s;
@@ -347,6 +351,7 @@ static unsigned dynarec_instruction_registers(uint32_t instruction,
       *reg_op0 = reg_s;
       *reg_op1 = reg_t;
       break;
+   case 0x18:
    case 0x19:
    case 0x1b:
    case 0x1d:
@@ -463,6 +468,9 @@ static int dynarec_recompile(struct dynarec_state *state,
          case 0x10: /* MFHI */
             dynasm_emit_mfhi(&compiler, reg_target);
             break;
+         case 0x13: /* MTLO */
+            dynasm_emit_mtlo(&compiler, reg_op0);
+            break;
          case 0x1f:
          case 0x34:
             /* Illegal */
@@ -486,6 +494,18 @@ static int dynarec_recompile(struct dynarec_state *state,
       case 0x09: /* ADDIU */
          emit_alu_imm(&compiler, reg_target, reg_op0, imm_se, dynasm_emit_addiu);
          break;
+      case 0x0b: /* SLTIU */
+         if (imm_se == 0) {
+            /* Nothing is less than 0 */
+            dynasm_emit_li(&compiler, reg_target, 0);
+            break;
+         }
+
+         dynasm_emit_sltiu(&compiler, reg_target, reg_op0, imm_se);
+         break;
+      case 0x0c: /* ANDI */
+         emit_alu_imm(&compiler, reg_target, reg_op0, imm, dynasm_emit_andi);
+         break;
       case 0x0d: /* ORI */
          emit_alu_imm(&compiler, reg_target, reg_op0, imm, dynasm_emit_ori);
          break;
@@ -500,6 +520,7 @@ static int dynarec_recompile(struct dynarec_state *state,
       case 0x2b: /* SW */
          dynasm_emit_sw(&compiler, reg_op0, imm, reg_op1);
          break;
+      case 0x18:
       case 0x19:
       case 0x1b:
       case 0x1d:

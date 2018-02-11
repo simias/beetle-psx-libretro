@@ -232,6 +232,14 @@ extern void dynasm_emit_ori(struct dynarec_compiler *compiler,
                             enum PSX_REG reg_t,
                             enum PSX_REG reg_s,
                             uint32_t val);
+extern void dynasm_emit_andi(struct dynarec_compiler *compiler,
+                             enum PSX_REG reg_t,
+                             enum PSX_REG reg_s,
+                             uint32_t val);
+extern void dynasm_emit_sltiu(struct dynarec_compiler *compiler,
+                              enum PSX_REG reg_t,
+                              enum PSX_REG reg_s,
+                              uint32_t val);
 extern void dynasm_emit_sw(struct dynarec_compiler *compiler,
                            enum PSX_REG reg_addr,
                            int16_t offset,
@@ -241,6 +249,8 @@ extern void dynasm_emit_page_local_jump(struct dynarec_compiler *compiler,
                                         bool placeholder);
 extern void dynasm_emit_mfhi(struct dynarec_compiler *compiler,
                              enum PSX_REG ret_target);
+extern void dynasm_emit_mtlo(struct dynarec_compiler *compiler,
+                             enum PSX_REG ret_source);
 
 #ifdef __cplusplus
 }
