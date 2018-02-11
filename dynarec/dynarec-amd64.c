@@ -106,6 +106,7 @@ static int register_location(enum PSX_REG reg) {
       *_jump_patch = _jump_off;                                 \
    }} while (0)
 
+#define IF_OVERFLOW      IF(0x71)
 #define IF_NOT_EQUAL     IF(0x74)
 #define IF_LESS_THAN     IF(0x73)
 
@@ -284,8 +285,7 @@ static void emit_mop_r32_off_pr64(struct dynarec_compiler *compiler,
    }
 }
 #define MOV_R32_OFF_PR64(_r1, _off, _r2)                         \
-   emit_mop_off_pr64_r32(compiler, 0x89, (_r1), (_off), (_r2))
-
+   emit_mop_r32_off_pr64(compiler, 0x89, (_r1), (_off), (_r2))
 
 /* MOP off(%base32), %target32 */
 static void emit_mop_off_pr32_r32(struct dynarec_compiler *compiler,
@@ -537,17 +537,15 @@ static void emit_emulator_call(struct dynarec_compiler *compiler,
 #define EMULATOR_CALL(_f)                                               \
    emit_emulator_call(compiler, offsetof(struct dynarec_state, _f))
 
-static void emit_exception(struct dynarec_compiler *compiler,
-                           enum PSX_CPU_EXCEPTIONS exception) {
+void dynasm_emit_exception(struct dynarec_compiler *compiler,
+                           enum PSX_CPU_EXCEPTION exception) {
    // XXX TODO
    (void)exception;
    emit_trap(compiler);
 }
 
-
 void dynasm_counter_maintenance(struct dynarec_compiler *compiler,
                                 unsigned cycles) {
-
    SUB_U32_R32(cycles, REG_CX);
 }
 
@@ -604,6 +602,13 @@ extern void dynasm_emit_sll(struct dynarec_compiler *compiler,
    UNIMPLEMENTED;
 }
 
+extern void dynasm_emit_sra(struct dynarec_compiler *compiler,
+                            enum PSX_REG reg_target,
+                            enum PSX_REG reg_op0,
+                            uint8_t shift) {
+   UNIMPLEMENTED;
+}
+
 void dynasm_emit_li(struct dynarec_compiler *compiler,
                     enum PSX_REG reg_t,
                     uint32_t val) {
@@ -621,7 +626,7 @@ void dynasm_emit_li(struct dynarec_compiler *compiler,
 void dynasm_emit_addiu(struct dynarec_compiler *compiler,
                        enum PSX_REG reg_t,
                        enum PSX_REG reg_s,
-                       uint16_t val) {
+                       uint32_t val) {
    const int target = register_location(reg_t);
    const int source = register_location(reg_s);
 
@@ -637,10 +642,41 @@ void dynasm_emit_addiu(struct dynarec_compiler *compiler,
    }
 }
 
+void dynasm_emit_addi(struct dynarec_compiler *compiler,
+                      enum PSX_REG reg_t,
+                      enum PSX_REG reg_s,
+                      uint32_t val) {
+   const int target = register_location(reg_t);
+   const int source = register_location(reg_s);
+
+   /* Add to EAX (the target register shouldn't be modified in case of
+      an overflow) */
+   if (source >= 0) {
+      MOV_R32_R32(source, REG_AX);
+   } else {
+      MOV_OFF_PR64_R32(DYNAREC_STATE_REG_OFFSET(reg_t),
+                       STATE_REG,
+                       REG_AX);
+   }
+
+   ADD_U32_R32(val, REG_AX);
+   IF_OVERFLOW {
+      dynasm_emit_exception(compiler, PSX_OVERFLOW);
+   } ENDIF;
+
+   if (target >= 0) {
+      MOV_R32_R32(REG_AX, target);
+   } else {
+      MOV_R32_OFF_PR64(REG_AX,
+                       DYNAREC_STATE_REG_OFFSET(reg_t),
+                       STATE_REG);
+   }
+}
+
 void dynasm_emit_ori(struct dynarec_compiler *compiler,
                      enum PSX_REG reg_t,
                      enum PSX_REG reg_s,
-                     uint16_t val) {
+                     uint32_t val) {
    const int target = register_location(reg_t);
    const int source = register_location(reg_s);
 
@@ -699,7 +735,7 @@ void dynasm_emit_sw(struct dynarec_compiler *compiler,
 
    IF_NOT_EQUAL {
       /* Address is not aligned correctly. */
-      emit_exception(compiler, PSX_EXCEPTION_LOAD_ALIGN);
+      dynasm_emit_exception(compiler, PSX_EXCEPTION_LOAD_ALIGN);
    } ENDIF;
 
    /* Move address to %eax */
@@ -806,4 +842,9 @@ void dynasm_emit_page_local_jump(struct dynarec_compiler *compiler,
       *(compiler->map++) = 0x90;
       *(compiler->map++) = 0x90;
    }
+}
+
+void dynasm_emit_mfhi(struct dynarec_compiler *compiler,
+                      enum PSX_REG ret_target) {
+   emit_trap(compiler);
 }

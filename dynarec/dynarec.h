@@ -84,7 +84,7 @@ enum PSX_REG {
    PSX_REG_RA = 31,
 };
 
-enum PSX_CPU_EXCEPTIONS {
+enum PSX_CPU_EXCEPTION {
     /// Interrupt Request
     PSX_EXCEPTION_INTERRUPT = 0x0,
     /// Alignment error on load
@@ -101,6 +101,8 @@ enum PSX_CPU_EXCEPTIONS {
     PSX_COPROCESSOR_ERROR = 0xb,
     /// Arithmetic overflow
     PSX_OVERFLOW = 0xc,
+    /// Fake exception for dynarec use
+    PSX_DYNAREC_UNIMPLEMENTED = 0xdead,
 };
 
 struct dynarec_page {
@@ -202,6 +204,8 @@ extern void dynasm_counter_maintenance(struct dynarec_compiler *compiler,
 extern int32_t dynasm_execute(struct dynarec_state *state,
                               dynarec_fn_t target,
                               int32_t counter);
+extern void dynasm_emit_exception(struct dynarec_compiler *compiler,
+                                  enum PSX_CPU_EXCEPTION exception);
 extern void dynasm_emit_li(struct dynarec_compiler *compiler,
                            enum PSX_REG reg,
                            uint32_t val);
@@ -212,14 +216,22 @@ extern void dynasm_emit_sll(struct dynarec_compiler *compiler,
                             enum PSX_REG reg_target,
                             enum PSX_REG reg_op,
                             uint8_t shift);
+extern void dynasm_emit_sra(struct dynarec_compiler *compiler,
+                            enum PSX_REG reg_target,
+                            enum PSX_REG reg_op,
+                            uint8_t shift);
+extern void dynasm_emit_addi(struct dynarec_compiler *compiler,
+                             enum PSX_REG reg_t,
+                             enum PSX_REG reg_s,
+                             uint32_t val);
 extern void dynasm_emit_addiu(struct dynarec_compiler *compiler,
                               enum PSX_REG reg_t,
                               enum PSX_REG reg_s,
-                              uint16_t val);
+                              uint32_t val);
 extern void dynasm_emit_ori(struct dynarec_compiler *compiler,
                             enum PSX_REG reg_t,
                             enum PSX_REG reg_s,
-                            uint16_t val);
+                            uint32_t val);
 extern void dynasm_emit_sw(struct dynarec_compiler *compiler,
                            enum PSX_REG reg_addr,
                            int16_t offset,
@@ -227,6 +239,8 @@ extern void dynasm_emit_sw(struct dynarec_compiler *compiler,
 extern void dynasm_emit_page_local_jump(struct dynarec_compiler *compiler,
                                         int32_t offset,
                                         bool placeholder);
+extern void dynasm_emit_mfhi(struct dynarec_compiler *compiler,
+                             enum PSX_REG ret_target);
 
 #ifdef __cplusplus
 }

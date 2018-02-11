@@ -161,68 +161,6 @@ static void add_local_patch(struct dynarec_compiler *compiler,
    compiler->local_patch_len++;
 }
 
-/* Gets the general purpose registers referenced by `instruction`. At
- * most any instruction will reference one target and two "operand"
- * registers. For instruction that reference fewer registers the
- * remaining arguments are set to PSX_REG_R0.
- *
- * Returns the number of cycles taken by this instruction to execute.
- */
-static unsigned dynarec_instruction_registers(uint32_t instruction,
-                                              enum PSX_REG *reg_target,
-                                              enum PSX_REG *reg_op0,
-                                              enum PSX_REG *reg_op1) {
-   uint8_t reg_d = (instruction >> 11) & 0x1f;
-   uint8_t reg_t = (instruction >> 16) & 0x1f;
-   uint8_t reg_s = (instruction >> 21) & 0x1f;
-   /* For now I assume every instruction takes exactly 5 cycles to
-      execute. It's a pretty decent average but obviously in practice
-      it varies a lot depending on the instruction, the icache, memory
-      latency etc... */
-   unsigned cycles = 5;
-
-   *reg_target = PSX_REG_R0;
-   *reg_op0    = PSX_REG_R0;
-   *reg_op1    = PSX_REG_R0;
-
-   switch (instruction >> 26) {
-   case 0x00:
-      switch (instruction & 0x3f) {
-      case 0x00: /* SLL */
-         *reg_target = reg_d;
-         *reg_op0    = reg_t;
-         break;
-      default:
-         printf("Dynarec encountered unsupported instruction %08x\n",
-                instruction);
-         abort();
-      }
-      break;
-   case 0x02: /* J */
-      /* We execute the delay slot *and* the jump */
-      cycles *= 2;
-      break;
-   case 0x09: /* ADDIU */
-   case 0x0d: /* ORI */
-      *reg_target = reg_t;
-      *reg_op0    = reg_s;
-      break;
-   case 0x0f: /* LUI */
-      *reg_target = reg_t;
-      break;
-   case 0x2b: /* SW */
-      *reg_op0 = reg_s;
-      *reg_op1 = reg_t;
-      break;
-   default:
-      printf("Dynarec encountered unsupported instruction %08x\n",
-             instruction);
-      abort();
-   }
-
-   return cycles;
-}
-
 static void emit_jump(struct dynarec_compiler *compiler,
                       uint32_t instruction,
                       uint32_t delay_slot) {
@@ -279,6 +217,149 @@ static void emit_jump(struct dynarec_compiler *compiler,
       printf("Encountered unimplemented non-local jump\n");
       abort();
    }
+}
+
+static void emit_blez(struct dynarec_compiler *compiler,
+                      uint32_t instruction,
+                      uint32_t delay_slot) {
+   (void)instruction;
+   (void)delay_slot;
+   dynasm_emit_exception(compiler, PSX_DYNAREC_UNIMPLEMENTED);
+}
+
+typedef void (*shift_emit_fn_t)(struct dynarec_compiler *compiler,
+                                enum PSX_REG reg_target,
+                                enum PSX_REG reg_source,
+                                uint8_t shift);
+
+static void emit_shift_imm(struct dynarec_compiler *compiler,
+                           enum PSX_REG reg_target,
+                           enum PSX_REG reg_source,
+                           uint8_t shift,
+                           shift_emit_fn_t emit_fn) {
+   if (reg_target == 0 || (reg_target == reg_source && shift == 0)) {
+      /* NOP */
+      return;
+   }
+
+   if (reg_source == 0) {
+      dynasm_emit_li(compiler, reg_target, 0);
+      return;
+   }
+
+   if (shift == 0) {
+      dynasm_emit_mov(compiler, reg_target, reg_source);
+      return;
+   }
+
+   emit_fn(compiler, reg_target, reg_source, shift);
+}
+
+typedef void (*alu_imm_emit_fn_t)(struct dynarec_compiler *compiler,
+                                  enum PSX_REG reg_target,
+                                  enum PSX_REG reg_source,
+                                  uint32_t imm);
+
+static void emit_alu_imm(struct dynarec_compiler *compiler,
+                         enum PSX_REG reg_target,
+                         enum PSX_REG reg_source,
+                         uint16_t imm,
+                         alu_imm_emit_fn_t emit_fn) {
+
+   if (reg_target == 0 || (reg_target == reg_source && imm == 0)) {
+      /* NOP */
+      return;
+   }
+
+   if (reg_source == 0) {
+      dynasm_emit_li(compiler, reg_target, imm);
+      return;
+   }
+
+   if (imm == 0) {
+      dynasm_emit_mov(compiler, reg_target, reg_source);
+      return;
+   }
+
+   emit_fn(compiler, reg_target, reg_source, imm);
+}
+
+/* Gets the general purpose registers referenced by `instruction`. At
+ * most any instruction will reference one target and two "operand"
+ * registers. For instruction that reference fewer registers the
+ * remaining arguments are set to PSX_REG_R0.
+ *
+ * Returns the number of cycles taken by this instruction to execute.
+ */
+static unsigned dynarec_instruction_registers(uint32_t instruction,
+                                              enum PSX_REG *reg_target,
+                                              enum PSX_REG *reg_op0,
+                                              enum PSX_REG *reg_op1) {
+   uint8_t reg_d = (instruction >> 11) & 0x1f;
+   uint8_t reg_t = (instruction >> 16) & 0x1f;
+   uint8_t reg_s = (instruction >> 21) & 0x1f;
+   /* For now I assume every instruction takes exactly 5 cycles to
+      execute. It's a pretty decent average but obviously in practice
+      it varies a lot depending on the instruction, the icache, memory
+      latency etc... */
+   unsigned cycles = 5;
+
+   *reg_target = PSX_REG_R0;
+   *reg_op0    = PSX_REG_R0;
+   *reg_op1    = PSX_REG_R0;
+
+   switch (instruction >> 26) {
+   case 0x00:
+      switch (instruction & 0x3f) {
+      case 0x00: /* SLL */
+      case 0x03: /* SRA */
+         *reg_target = reg_d;
+         *reg_op0    = reg_t;
+         break;
+      case 0x10: /* MFHI */
+         *reg_target = reg_d;
+         break;
+      case 0x1f:
+      case 0x34:
+         /* Illegal */
+         break;
+      default:
+         printf("Dynarec encountered unsupported instruction %08x\n",
+                instruction);
+         abort();
+      }
+      break;
+   case 0x02: /* J */
+   case 0x06: /* BLEZ */
+      /* We execute the delay slot *and* the jump */
+      cycles *= 2;
+      break;
+   case 0x08: /* ADDI */
+   case 0x09: /* ADDIU */
+   case 0x0d: /* ORI */
+      *reg_target = reg_t;
+      *reg_op0    = reg_s;
+      break;
+   case 0x0f: /* LUI */
+      *reg_target = reg_t;
+      break;
+   case 0x2b: /* SW */
+      *reg_op0 = reg_s;
+      *reg_op1 = reg_t;
+      break;
+   case 0x19:
+   case 0x1b:
+   case 0x1d:
+   case 0x1e:
+         /* Illegal */
+         break;
+   default:
+      printf("Dynarec encountered unsupported instruction %08x\n",
+             instruction);
+      abort();
+   }
+
+   return cycles;
 }
 
 static int dynarec_recompile(struct dynarec_state *state,
@@ -339,6 +420,7 @@ static int dynarec_recompile(struct dynarec_state *state,
       enum PSX_REG reg_op0;
       enum PSX_REG reg_op1;
       uint16_t imm = instruction & 0xffff;
+      uint32_t imm_se = (int32_t)((int16_t)(instruction & 0xffff));
       uint8_t  shift = (instruction >> 6) & 0x1f;
       uint8_t *instruction_start;
       unsigned cycles;
@@ -366,24 +448,26 @@ static int dynarec_recompile(struct dynarec_state *state,
       case 0x00:
          switch (instruction & 0x3f) {
          case 0x00: /* SLL */
-            if (reg_target == 0 || (reg_target == reg_op0 && shift == 0)) {
-               /* NOP. This is the prefered encoding (full 0s) */
-               break;
-            }
-
-            if (reg_op0 == 0) {
-               dynasm_emit_li(&compiler, reg_target, 0);
-               break;
-            }
-
-            if (shift == 0) {
-               dynasm_emit_mov(&compiler, reg_target, reg_op0);
-               break;
-            }
-
-            dynasm_emit_sll(&compiler, reg_target, reg_op0, shift);
+            emit_shift_imm(&compiler,
+                           reg_target,
+                           reg_op0,
+                           shift,
+                           dynasm_emit_sll);
+         case 0x03: /* SRA */
+            emit_shift_imm(&compiler,
+                           reg_target,
+                           reg_op0,
+                           shift,
+                           dynasm_emit_sra);
             break;
-
+         case 0x10: /* MFHI */
+            dynasm_emit_mfhi(&compiler, reg_target);
+            break;
+         case 0x1f:
+         case 0x34:
+            /* Illegal */
+            dynasm_emit_exception(&compiler, PSX_EXCEPTION_ILLEGAL_INSTRUCTION);
+            break;
          default:
             printf("Dynarec encountered unsupported instruction %08x\n",
                    instruction);
@@ -393,42 +477,17 @@ static int dynarec_recompile(struct dynarec_state *state,
       case 0x02: /* J */
          emit_jump(&compiler, instruction, next_instruction);
          break;
-      case 0x09: /* ADDIU */
-         if (reg_target == 0 || (reg_target == reg_op0 && imm == 0)) {
-            /* NOP */
-            break;
-         }
-
-         if (reg_op0 == 0) {
-            dynasm_emit_li(&compiler, reg_target, imm);
-            break;
-         }
-
-         if (imm == 0) {
-            dynasm_emit_mov(&compiler, reg_target, reg_op0);
-            break;
-         }
-
-         dynasm_emit_addiu(&compiler, reg_target, reg_op0, imm);
+      case 0x06: /* BLEZ */
+         emit_blez(&compiler, instruction, next_instruction);
          break;
-
+      case 0x08: /* ADDI */
+         emit_alu_imm(&compiler, reg_target, reg_op0, imm_se, dynasm_emit_addi);
+         break;
+      case 0x09: /* ADDIU */
+         emit_alu_imm(&compiler, reg_target, reg_op0, imm_se, dynasm_emit_addiu);
+         break;
       case 0x0d: /* ORI */
-         if (reg_target == 0 || (reg_target == reg_op0 && imm == 0)) {
-            /* NOP */
-            break;
-         }
-
-         if (reg_op0 == 0) {
-            dynasm_emit_li(&compiler, reg_target, imm);
-            break;
-         }
-
-         if (imm == 0) {
-            dynasm_emit_mov(&compiler, reg_target, reg_op0);
-            break;
-         }
-
-         dynasm_emit_ori(&compiler, reg_target, reg_op0, imm);
+         emit_alu_imm(&compiler, reg_target, reg_op0, imm, dynasm_emit_ori);
          break;
       case 0x0f: /* LUI */
          if (reg_target == 0) {
@@ -440,6 +499,13 @@ static int dynarec_recompile(struct dynarec_state *state,
          break;
       case 0x2b: /* SW */
          dynasm_emit_sw(&compiler, reg_op0, imm, reg_op1);
+         break;
+      case 0x19:
+      case 0x1b:
+      case 0x1d:
+      case 0x1e:
+         /* Illegal */
+         dynasm_emit_exception(&compiler, PSX_EXCEPTION_ILLEGAL_INSTRUCTION);
          break;
       default:
          printf("Dynarec encountered unsupported instruction %08x\n",
