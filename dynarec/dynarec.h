@@ -27,7 +27,7 @@ extern "C" {
 #define PSX_SCRATCHPAD_BASE        0x1F800000U
 
 /* Log in base 2 of the page size*/
-#define DYNAREC_PAGE_SIZE_SHIFT    11U
+#define DYNAREC_PAGE_SIZE_SHIFT    9U
 /* Length of a recompilation page in bytes */
 #define DYNAREC_PAGE_SIZE          (1U << DYNAREC_PAGE_SIZE_SHIFT)
 /* Number of instructions per page */
@@ -210,8 +210,8 @@ extern void dynasm_emit_li(struct dynarec_compiler *compiler,
                            enum PSX_REG reg,
                            uint32_t val);
 extern void dynasm_emit_mov(struct dynarec_compiler *compiler,
-                            enum PSX_REG reg_t,
-                            enum PSX_REG reg_s);
+                            enum PSX_REG reg_target,
+                            enum PSX_REG reg_source);
 extern void dynasm_emit_sll(struct dynarec_compiler *compiler,
                             enum PSX_REG reg_target,
                             enum PSX_REG reg_op,
@@ -228,6 +228,10 @@ extern void dynasm_emit_addiu(struct dynarec_compiler *compiler,
                               enum PSX_REG reg_t,
                               enum PSX_REG reg_s,
                               uint32_t val);
+extern void dynasm_emit_or(struct dynarec_compiler *compiler,
+                           enum PSX_REG reg_target,
+                           enum PSX_REG reg_op0,
+                           enum PSX_REG reg_op1);
 extern void dynasm_emit_ori(struct dynarec_compiler *compiler,
                             enum PSX_REG reg_t,
                             enum PSX_REG reg_s,

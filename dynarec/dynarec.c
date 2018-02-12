@@ -255,18 +255,11 @@ static void emit_shift_imm(struct dynarec_compiler *compiler,
    emit_fn(compiler, reg_target, reg_source, shift);
 }
 
-typedef void (*alu_imm_emit_fn_t)(struct dynarec_compiler *compiler,
-                                  enum PSX_REG reg_target,
-                                  enum PSX_REG reg_source,
-                                  uint32_t imm);
-
-static void emit_alu_imm(struct dynarec_compiler *compiler,
-                         enum PSX_REG reg_target,
-                         enum PSX_REG reg_source,
-                         uint16_t imm,
-                         alu_imm_emit_fn_t emit_fn) {
-
-   if (reg_target == 0 || (reg_target == reg_source && imm == 0)) {
+static void emit_addi(struct dynarec_compiler *compiler,
+                      enum PSX_REG reg_target,
+                      enum PSX_REG reg_source,
+                      uint16_t imm) {
+   if (reg_target == 0) {
       /* NOP */
       return;
    }
@@ -277,11 +270,106 @@ static void emit_alu_imm(struct dynarec_compiler *compiler,
    }
 
    if (imm == 0) {
-      dynasm_emit_mov(compiler, reg_target, reg_source);
+      if (reg_target != reg_source) {
+         dynasm_emit_mov(compiler, reg_target, reg_source);
+      }
       return;
    }
 
-   emit_fn(compiler, reg_target, reg_source, imm);
+   dynasm_emit_addi(compiler, reg_target, reg_source, imm);
+}
+
+static void emit_addiu(struct dynarec_compiler *compiler,
+                     enum PSX_REG reg_target,
+                     enum PSX_REG reg_source,
+                     uint16_t imm) {
+   if (reg_target == 0) {
+      /* NOP */
+      return;
+   }
+
+   if (reg_source == 0) {
+      dynasm_emit_li(compiler, reg_target, imm);
+      return;
+   }
+
+   if (imm == 0) {
+      if (reg_target != reg_source) {
+         dynasm_emit_mov(compiler, reg_target, reg_source);
+      }
+      return;
+   }
+
+   dynasm_emit_addiu(compiler, reg_target, reg_source, imm);
+}
+
+static void emit_andi(struct dynarec_compiler *compiler,
+                     enum PSX_REG reg_target,
+                     enum PSX_REG reg_source,
+                     uint16_t imm) {
+   if (reg_target == 0) {
+      /* NOP */
+      return;
+   }
+
+   if (imm == 0 || reg_source == 0) {
+      dynasm_emit_li(compiler, reg_target, 0);
+   }
+
+   dynasm_emit_andi(compiler, reg_target, reg_source, imm);
+
+}
+
+static void emit_ori(struct dynarec_compiler *compiler,
+                     enum PSX_REG reg_target,
+                     enum PSX_REG reg_source,
+                     uint16_t imm) {
+   if (reg_target == 0) {
+      /* NOP */
+      return;
+   }
+
+   if (reg_source == 0) {
+      dynasm_emit_li(compiler, reg_target, imm);
+      return;
+   }
+
+   if (imm == 0) {
+      if (reg_target != reg_source) {
+         dynasm_emit_mov(compiler, reg_target, reg_source);
+      }
+      return;
+   }
+
+   dynasm_emit_ori(compiler, reg_target, reg_source, imm);
+}
+
+static void emit_or(struct dynarec_compiler *compiler,
+                    enum PSX_REG reg_target,
+                    enum PSX_REG reg_op0,
+                    enum PSX_REG reg_op1) {
+   if (reg_target == 0) {
+      /* NOP */
+      return;
+   }
+
+   if (reg_op0 == 0) {
+      if (reg_op1 == 0) {
+         dynasm_emit_li(compiler, reg_target, 0);
+      } else {
+         if (reg_target != reg_op1) {
+            dynasm_emit_mov(compiler, reg_target, reg_op1);
+         }
+      }
+   } else {
+      if (reg_op1 == 0) {
+         if (reg_target != reg_op0) {
+            dynasm_emit_mov(compiler, reg_target, reg_op0);
+         }
+      } else {
+         dynasm_emit_or(compiler, reg_target, reg_op0, reg_op1);
+      }
+   }
 }
 
 /* Gets the general purpose registers referenced by `instruction`. At
@@ -321,6 +409,12 @@ static unsigned dynarec_instruction_registers(uint32_t instruction,
          break;
       case 0x13: /* MTLO */
          *reg_op0 = reg_s;
+         break;
+      case 0x25: /* OR */
+         *reg_target = reg_d;
+         *reg_op0 = reg_s;
+         *reg_op1 = reg_t;
+         break;
       case 0x1f:
       case 0x34:
          /* Illegal */
@@ -471,6 +565,12 @@ static int dynarec_recompile(struct dynarec_state *state,
          case 0x13: /* MTLO */
             dynasm_emit_mtlo(&compiler, reg_op0);
             break;
+         case 0x25: /* OR */
+            emit_or(&compiler,
+                    reg_target,
+                    reg_op0,
+                    reg_op1);
+            break;
          case 0x1f:
          case 0x34:
             /* Illegal */
@@ -489,10 +589,10 @@ static int dynarec_recompile(struct dynarec_state *state,
          emit_blez(&compiler, instruction, next_instruction);
          break;
       case 0x08: /* ADDI */
-         emit_alu_imm(&compiler, reg_target, reg_op0, imm_se, dynasm_emit_addi);
+         emit_addi(&compiler, reg_target, reg_op0, imm_se);
          break;
       case 0x09: /* ADDIU */
-         emit_alu_imm(&compiler, reg_target, reg_op0, imm_se, dynasm_emit_addiu);
+         emit_addiu(&compiler, reg_target, reg_op0, imm_se);
          break;
       case 0x0b: /* SLTIU */
          if (imm_se == 0) {
@@ -504,10 +604,10 @@ static int dynarec_recompile(struct dynarec_state *state,
          dynasm_emit_sltiu(&compiler, reg_target, reg_op0, imm_se);
          break;
       case 0x0c: /* ANDI */
-         emit_alu_imm(&compiler, reg_target, reg_op0, imm, dynasm_emit_andi);
+         emit_andi(&compiler, reg_target, reg_op0, imm);
          break;
       case 0x0d: /* ORI */
-         emit_alu_imm(&compiler, reg_target, reg_op0, imm, dynasm_emit_ori);
+         emit_ori(&compiler, reg_target, reg_op0, imm);
          break;
       case 0x0f: /* LUI */
          if (reg_target == 0) {

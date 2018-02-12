@@ -589,42 +589,35 @@ void dynasm_counter_maintenance(struct dynarec_compiler *compiler,
  ************************/
 
 void dynasm_emit_mov(struct dynarec_compiler *compiler,
-                      enum PSX_REG reg_t,
-                      enum PSX_REG reg_s) {
-   const int target = register_location(reg_t);
-   const int source = register_location(reg_s);
+                      enum PSX_REG reg_target,
+                      enum PSX_REG reg_source) {
+   const int target = register_location(reg_target);
+   const int source = register_location(reg_source);
 
-   if (reg_t == PSX_REG_R0) {
-      /* NOP */
-      return;
-   }
-
-   if (reg_s == PSX_REG_R0) {
-      CLEAR_REG(reg_t);
-      return;
-   }
+   assert(reg_target != 0);
+   assert(reg_source != 0);
 
    if (target >= 0) {
       if (source >= 0) {
          MOV_R32_R32(source, target);
       } else {
-         MOV_OFF_PR64_R32(DYNAREC_STATE_REG_OFFSET(reg_s),
+         MOV_OFF_PR64_R32(DYNAREC_STATE_REG_OFFSET(reg_source),
                           STATE_REG,
                           target);
       }
    } else {
       if (source >= 0) {
          MOV_R32_OFF_PR64(source,
-                          DYNAREC_STATE_REG_OFFSET(reg_t),
+                          DYNAREC_STATE_REG_OFFSET(reg_target),
                           STATE_REG);
       } else {
          /* Both registers are in memory, use EAX as temporary value */
-         MOV_OFF_PR64_R32(DYNAREC_STATE_REG_OFFSET(reg_s),
+         MOV_OFF_PR64_R32(DYNAREC_STATE_REG_OFFSET(reg_source),
                           STATE_REG,
                           REG_AX);
 
          MOV_R32_OFF_PR64(REG_AX,
-                          DYNAREC_STATE_REG_OFFSET(reg_t),
+                          DYNAREC_STATE_REG_OFFSET(reg_target),
                           STATE_REG);
       }
    }
@@ -650,7 +643,11 @@ void dynasm_emit_li(struct dynarec_compiler *compiler,
    const int target = register_location(reg_t);
 
    if (target >= 0) {
-      MOV_U32_R32(val, target);
+      if (val > 0) {
+         MOV_U32_R32(val, target);
+      } else {
+         CLEAR_REG(target);
+      }
    } else {
       MOV_U32_OFF_PR64(val,
                        DYNAREC_STATE_REG_OFFSET(reg_t),
@@ -706,6 +703,13 @@ void dynasm_emit_addi(struct dynarec_compiler *compiler,
                        DYNAREC_STATE_REG_OFFSET(reg_t),
                        STATE_REG);
    }
+}
+
+void dynasm_emit_or(struct dynarec_compiler *compiler,
+                    enum PSX_REG reg_target,
+                    enum PSX_REG reg_op0,
+                    enum PSX_REG reg_op1) {
+   UNIMPLEMENTED;
 }
 
 void dynasm_emit_ori(struct dynarec_compiler *compiler,
