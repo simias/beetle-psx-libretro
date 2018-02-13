@@ -686,7 +686,7 @@ void dynasm_emit_addi(struct dynarec_compiler *compiler,
    if (source >= 0) {
       MOV_R32_R32(source, REG_AX);
    } else {
-      MOV_OFF_PR64_R32(DYNAREC_STATE_REG_OFFSET(reg_t),
+      MOV_OFF_PR64_R32(DYNAREC_STATE_REG_OFFSET(reg_s),
                        STATE_REG,
                        REG_AX);
    }
