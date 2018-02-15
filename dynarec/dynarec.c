@@ -20,14 +20,32 @@ static uint32_t dynarec_mask_address(uint32_t addr) {
    return addr & region_mask[addr >> 29];
 }
 
+/* Returns the maximum size a recompiled page can take, in bytes. */
+static uint32_t dynarec_max_page_size(void) {
+   uint32_t s;
+
+   /* We may end up duplicating instructions in the load delay slots,
+      and we need an additional pseudo-instruction at the end to jump
+      to the next page. The typical page size will be a fraction of
+      that but we'll rely on the kernel's lazy memory allocation to
+      avoid wasting memory. */
+   s = (DYNAREC_PAGE_INSTRUCTIONS * 2 + 1) * DYNAREC_INSTRUCTION_MAX_LEN;
+
+   /* Align to a real hardware page size to avoid having a dynarec
+      page starting at the end of a hardware page. Assume that pages
+      are always 4096B long. */
+   s = (s + 4095) & ~4095U;
+
+   return s;
+}
+
 struct dynarec_state *dynarec_init(uint32_t *ram,
                                    uint32_t *scratchpad,
                                    const uint32_t *bios,
                                    dynarec_store_cback memory_sw) {
    struct dynarec_state *state;
-   unsigned i;
 
-   state = malloc(sizeof(*state));
+   state = calloc(1, sizeof(*state));
    if (state == NULL) {
       return NULL;
    }
@@ -37,15 +55,23 @@ struct dynarec_state *dynarec_init(uint32_t *ram,
    state->bios = bios;
    state->memory_sw = memory_sw;
 
-   memcpy(state->region_mask, region_mask, sizeof(region_mask));
-   memset(state->regs, 0, sizeof(state->regs));
+   state->map_len = dynarec_max_page_size() * DYNAREC_TOTAL_PAGES;
+   state->map = mmap(NULL,
+                     state->map_len,
+#ifdef DYNAREC_DEBUG
+                     PROT_READ |
+#endif
+                     PROT_WRITE | PROT_EXEC,
+                     MAP_PRIVATE | MAP_ANONYMOUS,
+                     -1,
+                     0);
 
-   /* Initialize all pages as unmapped/invalid */
-   for (i = 0; i < ARRAY_SIZE(state->pages); i++) {
-      state->pages[i].valid = 0;
-      state->pages[i].map = NULL;
-      state->pages[i].map_len = 0;
+   if (state->map == MAP_FAILED) {
+      free(state);
+      return NULL;
    }
+
+   memcpy(state->region_mask, region_mask, sizeof(region_mask));
 
    return state;
 }
@@ -54,14 +80,7 @@ void dynarec_delete(struct dynarec_state *state) {
    struct dynarec_page *page;
    unsigned i;
 
-   for (i = 0; i < ARRAY_SIZE(state->pages); i++) {
-      page = &state->pages[i];
-
-      if (page->map_len > 0) {
-         munmap(page->map, page->map_len);
-      }
-   }
-
+   munmap(state->map, state->map_len);
    free(state);
 }
 
@@ -93,71 +112,20 @@ static int32_t dynarec_find_page_index(struct dynarec_state *state,
    return -1;
 }
 
-/* Make sure that there's enough space after `pos` in `page` to add a
-   new instruction. Otherwise reallocate a bigger buffer. Safe to call
-   on an empty page.
-
-   Returns `pos` if no reallocation is needed, the same position in
-   the new buffer in case of reallocation or NULL if the reallocation
-   fails. */
-static uint8_t *dynarec_maybe_realloc(struct dynarec_page *page,
-                                      uint8_t *pos) {
-   uint8_t *new_map;
-   uint32_t new_len;
-   size_t   used;
-
-   if (page->map_len == 0) {
-      used = 0;
-      /* Allocate twice the space required for a page where all
-         instructions have the average size. */
-      new_len = DYNAREC_INSTRUCTION_AVG_LEN * DYNAREC_PAGE_INSTRUCTIONS * 2;
-   } else {
-      used = pos - page->map;
-
-      if (used + DYNAREC_INSTRUCTION_MAX_LEN < page->map_len) {
-         /* We have enough space*/
-         return pos;
-      }
-
-      /* Double the page size. May be a bit overkill, instead we could
-         do something proportional to the number of instructions left
-         to recompile ? */
-      new_len = page->map_len * 2;
-   }
-
-   /* Reallocate */
-   new_map = mmap(NULL,
-                  new_len,
-                  PROT_READ | PROT_WRITE | PROT_EXEC,
-                  MAP_PRIVATE | MAP_ANONYMOUS,
-                  -1,
-                  0);
-
-   if (new_map == MAP_FAILED) {
-      perror("Dynarec mmap failed");
-      return NULL;
-   }
-
-   if (page->map_len != 0) {
-      /* Recopy the contents of the old page */
-      memcpy(new_map, page->map, used);
-      munmap(page->map, page->map_len);
-   }
-   page->map = new_map;
-   page->map_len = new_len;
-
-   return page->map + used;
+static uint8_t *dynarec_page_start(struct dynarec_state *state,
+                                   uint32_t page_index) {
+   return state->map + (dynarec_max_page_size() * page_index);
 }
 
 static void add_local_patch(struct dynarec_compiler *compiler,
-                            uint32_t page_offset,
-                            uint32_t target_index) {
+                            uint8_t *patch_loc,
+                            uint32_t target) {
 
    uint32_t pos = compiler->local_patch_len;
 
    assert(pos < DYNAREC_PAGE_INSTRUCTIONS);
-   compiler->local_patch[pos].page_offset = page_offset;
-   compiler->local_patch[pos].target_index = target_index;
+   compiler->local_patch[pos].patch_loc = patch_loc;
+   compiler->local_patch[pos].target = target;
    compiler->local_patch_len++;
 }
 
@@ -206,12 +174,12 @@ static void emit_jump(struct dynarec_compiler *compiler,
          int32_t max_offset =
             (target_index - pc_index) * DYNAREC_INSTRUCTION_MAX_LEN;
 
-         uint32_t page_offset = compiler->map - compiler->page->map;
+         uint8_t *patch_pos = compiler->map;
 
          dynasm_emit_page_local_jump(compiler,
                                      max_offset,
                                      true);
-         add_local_patch(compiler, page_offset, target_index);
+         add_local_patch(compiler, patch_pos, target);
       }
    } else {
       printf("Encountered unimplemented non-local jump\n");
@@ -466,16 +434,18 @@ static int dynarec_recompile(struct dynarec_state *state,
    struct dynarec_page     *page;
    const uint32_t          *emulated_page;
    const uint32_t          *next_page;
+   uint8_t                 *page_start;
    struct dynarec_compiler  compiler;
    unsigned                 i;
 
-   page = &state->pages[page_index];
-   page->valid = 0;
+   state->page_valid[page_index] = 0;
+
+   page_start = dynarec_page_start(state, page_index);
 
    compiler.state = state;
    compiler.page_index = page_index;
-   compiler.page = page;
    compiler.local_patch_len = 0;
+   compiler.map = page_start;
 
    if (page_index < DYNAREC_RAM_PAGES) {
       uint32_t ram_index = page_index;
@@ -531,8 +501,6 @@ static int dynarec_recompile(struct dynarec_state *state,
                                        &reg_target,
                                        &reg_op0,
                                        &reg_op1);
-
-      compiler.map = dynarec_maybe_realloc(page, compiler.map);
 
       instruction_start = compiler.map;
 
@@ -646,14 +614,14 @@ static int dynarec_recompile(struct dynarec_state *state,
       {
          int fd = open("/tmp/dump.amd64", O_WRONLY | O_CREAT| O_TRUNC, 0644);
 
-         write(fd, page->map, compiler.map - page->map);
+         write(fd, page_start, compiler.map - page_start);
 
          close(fd);
       }
 #endif
    }
 
-   page->valid = 1;
+   state->page_valid[page_index] = 1;
    return 0;
 }
 
@@ -666,16 +634,14 @@ int32_t dynarec_run(struct dynarec_state *state, int32_t cycles_to_run) {
       abort();
    }
 
-   page = &state->pages[page_index];
-
-   if (!page->valid) {
+   if (!state->page_valid[page_index]) {
       if (dynarec_recompile(state, page_index) < 0) {
          printf("Dynarec recompilation failed\n");
          abort();
       }
    }
 
-   dynarec_fn_t f = (dynarec_fn_t)page->map;
+   dynarec_fn_t f = (dynarec_fn_t)dynarec_page_start(state, page_index);
 
    return dynasm_execute(state, f, cycles_to_run);
 }

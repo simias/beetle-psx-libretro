@@ -166,6 +166,11 @@ static void emit_imm32(struct dynarec_compiler *compiler,
    }
 }
 
+static void emit_imm8(struct dynarec_compiler *compiler,
+                      uint8_t val) {
+   *(compiler->map++) = val;
+}
+
 /* Return true if the variable fits in a signed 8bit value (many
    instructions have shorter encodins for 8bit litterals) */
 static int is_imms8(uint32_t v) {
@@ -300,7 +305,7 @@ static void emit_mop_off_pr32_r32(struct dynarec_compiler *compiler,
 #define LEA_OFF_PR32_R32(_off, _r1, _r2)                        \
    emit_mop_off_pr32_r32(compiler, 0x8d, (_off), (_r1), (_r2))
 
-/* MOV $val, off(%base64, %index64, $scale) */
+/* MOV $imm32, off(%base64, %index64, $scale) */
 static void emit_mov_u32_off_sib(struct dynarec_compiler *compiler,
                                  uint32_t val,
                                  uint32_t off,
@@ -310,9 +315,20 @@ static void emit_mov_u32_off_sib(struct dynarec_compiler *compiler,
    emit_rex_prefix(compiler, base, 0, index);
 
    *(compiler->map++) = 0xc7;
-   *(compiler->map++) = 0x84;
+   if (is_imms8(off)) {
+      *(compiler->map++) = 0x44;
+   } else {
+      *(compiler->map++) = 0x84;
+   }
+
    emit_sib(compiler, base, index, scale);
-   emit_imm32(compiler, off);
+
+   if (is_imms8(off)) {
+      emit_imms8(compiler, off);
+   } else {
+      emit_imm32(compiler, off);
+   }
+
    emit_imm32(compiler, val);
 }
 #define MOV_U32_OFF_SIB(_v, _o, _b, _i, _s)                     \
@@ -328,6 +344,36 @@ static void emit_mov_r32_pr64(struct dynarec_compiler *compiler,
    *(compiler->map++) = (target & 7) | ((val & 7) << 3);
 }
 #define MOV_R32_PR64(_v, _t) emit_mov_r32_pr64(compiler, (_v), (_t))
+
+/* MOV $imm8, off(%base64, %index64, $scale) */
+static void emit_mov_u8_off_sib(struct dynarec_compiler *compiler,
+                                uint8_t val,
+                                uint32_t off,
+                                enum X86_REG base,
+                                enum X86_REG index,
+                                uint32_t scale) {
+   emit_rex_prefix(compiler, base, 0, index);
+
+   *(compiler->map++) = 0xc6;
+
+   if (is_imms8(off)) {
+      *(compiler->map++) = 0x44;
+   } else {
+      *(compiler->map++) = 0x84;
+   }
+
+   emit_sib(compiler, base, index, scale);
+
+   if (is_imms8(off)) {
+      emit_imms8(compiler, off);
+   } else {
+      emit_imm32(compiler, off);
+   }
+
+   emit_imm8(compiler, val);
+}
+#define MOV_U8_OFF_SIB(_v, _o, _b, _i, _s)                      \
+   emit_mov_u8_off_sib(compiler, (_v), (_o), (_b), (_i), (_s))
 
 /* PUSH %reg64 */
 static void emit_push_r64(struct dynarec_compiler *compiler,
@@ -877,17 +923,12 @@ void dynasm_emit_sw(struct dynarec_compiler *compiler,
       MOV_R32_R32(REG_DX, REG_AX);
       SHR_U32_R32(DYNAREC_PAGE_SIZE_SHIFT, REG_AX);
 
-      /* Compute offset in the page table */
-      IMUL_U32_R32_R32(sizeof(struct dynarec_page),
-                       REG_AX,
-                       REG_AX);
-
       /* Clear valid flag */
-      MOV_U32_OFF_SIB(0,
-                      offsetof(struct dynarec_state, pages),
-                      STATE_REG,
-                      REG_AX,
-                      1);
+      MOV_U8_OFF_SIB(0,
+                     offsetof(struct dynarec_state, page_valid),
+                     STATE_REG,
+                     REG_AX,
+                     1);
 
       /* Add the address of the RAM buffer in host memory */
       ADD_OFF_PR64_R32(offsetof(struct dynarec_state, ram),

@@ -105,22 +105,6 @@ enum PSX_CPU_EXCEPTION {
     PSX_DYNAREC_UNIMPLEMENTED = 0xdead,
 };
 
-struct dynarec_page {
-   /* If true the page contains up-to-date recompiled code. Otherwise
-      the page needs to be recompiled prior to execution. */
-   uint32_t           valid;
-   /* Executable portion of memory containing the recompiled code. */
-   uint8_t           *map;
-   /* Length of the mapped region */
-   uint32_t           map_len;
-   /* Offsets into `map` to retreive the location of individual
-      instructions. We have one additional pseudo-instruction in the
-      end which is used either to cross the boundary to the next page
-      or to trigger the recompiler if the next page is not yet
-      recompiled. */
-   uint32_t           instruction_offsets[DYNAREC_PAGE_INSTRUCTIONS + 1];
-};
-
 struct dynarec_state;
 
 typedef int32_t (*dynarec_store_cback)(struct dynarec_state *state,
@@ -147,7 +131,13 @@ struct dynarec_state {
    void               *priv;
    /* All general purpose CPU registers except R0 */
    uint32_t            regs[31];
-   struct dynarec_page pages[DYNAREC_TOTAL_PAGES];
+   /* Executable region of memory containing the dynarec'd code */
+   uint8_t            *map;
+   /* Length of the map */
+   uint32_t            map_len;
+   /* Keeps track of whether each page is valid or needs to be
+      recompiled */
+   uint8_t             page_valid[DYNAREC_TOTAL_PAGES];
 };
 
 /* Get the offset of the location of a register within a struct
@@ -170,10 +160,10 @@ extern int32_t dynarec_run(struct dynarec_state *state,
                            int32_t cycles_to_run);
 
 struct dynarec_page_local_patch {
-   /* Offset in the recompiled page */
-   uint32_t page_offset;
-   /* Target instruction in the emulated page */
-   uint32_t target_index;
+   /* Location of the instruction that needs patching */
+   uint8_t *patch_loc;
+   /* Address of the target PSX instruction */
+   uint32_t target;
 };
 
 /* Structure holding the temporary variables during the recompilation
@@ -187,8 +177,6 @@ struct dynarec_compiler {
    uint32_t pc;
    /* Index of the page currently being recompiled */
    uint32_t page_index;
-   /* Pointer to the page currently being recompiled */
-   struct dynarec_page *page;
    /* Number of entries in local_patch */
    uint32_t local_patch_len;
    /* Contains offset of instructions that need patching */
