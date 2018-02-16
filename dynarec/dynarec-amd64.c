@@ -2,7 +2,7 @@
 #include <stddef.h>
 #include <assert.h>
 
-#include "dynarec.h"
+#include "dynarec-compiler.h"
 
 /* AMD64 register encoding.
  *

@@ -6,6 +6,7 @@
 #include <fcntl.h>
 
 #include "dynarec.h"
+#include "dynarec-compiler.h"
 
 static const uint32_t region_mask[8] = {
    0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, /* KUSEG: 2048MB */
@@ -438,6 +439,8 @@ static int dynarec_recompile(struct dynarec_state *state,
    struct dynarec_compiler  compiler;
    unsigned                 i;
 
+   DYNAREC_LOG("Recompiling page %u\n", page_index);
+
    state->page_valid[page_index] = 0;
 
    page_start = dynarec_page_start(state, page_index);
@@ -494,7 +497,7 @@ static int dynarec_recompile(struct dynarec_state *state,
       uint8_t *instruction_start;
       unsigned cycles;
 
-      printf("Compiling 0x%08x\n", instruction);
+      DYNAREC_LOG("Compiling 0x%08x\n", instruction);
 
       cycles =
          dynarec_instruction_registers(instruction,
