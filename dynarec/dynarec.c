@@ -42,8 +42,7 @@ static uint32_t dynarec_max_page_size(void) {
 
 struct dynarec_state *dynarec_init(uint32_t *ram,
                                    uint32_t *scratchpad,
-                                   const uint32_t *bios,
-                                   dynarec_store_cback memory_sw) {
+                                   const uint32_t *bios) {
    struct dynarec_state *state;
 
    state = calloc(1, sizeof(*state));
@@ -54,7 +53,6 @@ struct dynarec_state *dynarec_init(uint32_t *ram,
    state->ram = ram;
    state->scratchpad = scratchpad;
    state->bios = bios;
-   state->memory_sw = memory_sw;
 
    state->map_len = dynarec_max_page_size() * DYNAREC_TOTAL_PAGES;
    state->map = mmap(NULL,
@@ -66,6 +64,8 @@ struct dynarec_state *dynarec_init(uint32_t *ram,
                      MAP_PRIVATE | MAP_ANONYMOUS,
                      -1,
                      0);
+
+   printf("map: %p, execute: %p\n", state->map, dynabi_exception);
 
    if (state->map == MAP_FAILED) {
       free(state);
@@ -341,6 +341,19 @@ static void emit_or(struct dynarec_compiler *compiler,
    }
 }
 
+static void emit_mtc0(struct dynarec_compiler *compiler,
+                      enum PSX_REG reg_source,
+                      uint8_t cop_reg) {
+
+   switch (cop_reg) {
+   case 12: /* SR */
+      break;
+   default:
+      printf("Dynarec: unhandled write to cop0r%d\n", cop_reg);
+      abort();
+   }
+}
+
 /* Gets the general purpose registers referenced by `instruction`. At
  * most any instruction will reference one target and two "operand"
  * registers. For instruction that reference fewer registers the
@@ -409,6 +422,22 @@ static unsigned dynarec_instruction_registers(uint32_t instruction,
       break;
    case 0x0f: /* LUI */
       *reg_target = reg_t;
+      break;
+   case 0x10: /* COP0 */
+      switch ((instruction >> 21) & 0x1f) {
+      case 0x00: /* MFC0 */
+         *reg_target = reg_t;
+         break;
+      case 0x04: /* MTC0 */
+         *reg_op0 = reg_t;
+         break;
+      case 0x10: /* RFE */
+         break;
+      default:
+         printf("Dynarec encountered unsupported COP0 instruction %08x\n",
+                instruction);
+         abort();
+      }
       break;
    case 0x2b: /* SW */
       *reg_op0 = reg_s;
@@ -587,6 +616,19 @@ static int dynarec_recompile(struct dynarec_state *state,
          }
 
          dynasm_emit_li(&compiler, reg_target, ((uint32_t)imm) << 16);
+         break;
+      case 0x10: /* COP0 */
+         switch ((instruction >> 21) & 0x1f) {
+         case 0x04: /* MTC0 */
+            emit_mtc0(&compiler, reg_op0, (instruction >> 11) & 0x1f);
+            break;
+         case 0x00: /* MFC0 */
+         case 0x10: /* RFE */
+         default:
+            printf("Dynarec encountered unsupported COP0 instruction %08x\n",
+                   instruction);
+            abort();
+         }
          break;
       case 0x2b: /* SW */
          dynasm_emit_sw(&compiler, reg_op0, imm, reg_op1);

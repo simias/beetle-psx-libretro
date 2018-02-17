@@ -157,13 +157,18 @@ static void emit_sib(struct dynarec_compiler *compiler,
 }
 
 static void emit_imm32(struct dynarec_compiler *compiler,
-                       uint32_t val) {
+                        int32_t val) {
    int i;
 
    for (i = 0; i < 4; i++) {
       *(compiler->map++) = val & 0xff;
       val >>= 8;
    }
+}
+
+/* Return true if the variable fits in a signed 32bit value */
+static int is_imms32(int64_t v) {
+   return v >= -0x80000000L && v <= 0x7fffffffL;
 }
 
 static void emit_imm8(struct dynarec_compiler *compiler,
@@ -548,14 +553,8 @@ static void emit_imul_u32_r32_r32(struct dynarec_compiler *compiler,
       emit_imm32(compiler, a);
    }
 }
-
 #define IMUL_U32_R32_R32(_a, _b, _t)                    \
    emit_imul_u32_r32_r32(compiler, (_a), (_b), (_t))
-
-static void emit_trap(struct dynarec_compiler *compiler) {
-   /* INT 3 */
-   *(compiler->map++) = 0xcc;
-}
 
 /* JMP off. Offset is from the address of this instruction (so off = 0
    points at this jump) */
@@ -588,41 +587,27 @@ static void emit_call_off_pr64(struct dynarec_compiler *compiler,
 }
 #define CALL_OFF_PR64(_o, _r) emit_call_off_pr64(compiler, (_o), (_r))
 
-/* This will trash AX, DX and SI. CX value is loaded using the first
-   return value of the called function (I assume it returns the
-   counter there). The second return value (if any) will be available
-   in DX */
-static void emit_emulator_call(struct dynarec_compiler *compiler,
-                               uint32_t fn_offset) {
-   /* Save registers that we use and are not preserved across
-      calls */
-   /* XXX should we save them back where they belong in
-      dynarec_state instead? */
-   PUSH_R64(STATE_REG);
-   PUSH_R64(REG_R8);
-   PUSH_R64(REG_R9);
-   PUSH_R64(REG_R10);
-   PUSH_R64(REG_R11);
+static void emit_call(struct dynarec_compiler *compiler,
+                      dynarec_fn_t fn) {
+   uint8_t *target = (void*)fn;
+   intptr_t offset = target - compiler->map;
 
-   CALL_OFF_PR64(fn_offset, STATE_REG);
+   printf("%p %p offset: %ld\n", target, compiler->map, offset);
 
-   /* Move first return value to the counter */
-   MOV_R32_R32(REG_AX, REG_CX);
+   assert(is_imms32(offset));
 
-   POP_R64(REG_R11);
-   POP_R64(REG_R10);
-   POP_R64(REG_R9);
-   POP_R64(REG_R8);
-   POP_R64(STATE_REG);
+   /* Offset is relative to the end of the instruction */
+   offset -= 5;
+
+   *(compiler->map++) = 0xe8;
+   emit_imm32(compiler, offset);
 }
-#define EMULATOR_CALL(_f)                                               \
-   emit_emulator_call(compiler, offsetof(struct dynarec_state, _f))
+#define CALL(_fn) emit_call(compiler, (dynarec_fn_t)_fn)
 
 void dynasm_emit_exception(struct dynarec_compiler *compiler,
                            enum PSX_CPU_EXCEPTION exception) {
-   // XXX TODO
-   (void)exception;
-   emit_trap(compiler);
+   MOV_U32_R32(exception, REG_SI);
+   CALL(dynabi_exception);
 }
 
 void dynasm_counter_maintenance(struct dynarec_compiler *compiler,
@@ -969,7 +954,7 @@ void dynasm_emit_sw(struct dynarec_compiler *compiler,
             MOV_R32_R32(value_r, REG_SI);
          }
 
-         EMULATOR_CALL(memory_sw);
+         CALL(dynabi_device_sw);
       } ENDIF;
    } ENDIF;
 }

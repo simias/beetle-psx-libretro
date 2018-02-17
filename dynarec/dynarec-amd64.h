@@ -6,9 +6,9 @@
 /* Maximum length of a recompiled instruction in bytes. */
 #define DYNAREC_INSTRUCTION_MAX_LEN  121U
 
-/* Average length of an instruction. Used while guessing how much
-   space must be allocated for a page to try and avoid
-   reallocations */
-#define DYNAREC_INSTRUCTION_AVG_LEN  10U
+/* Helper assembly functions. They use a custom ABI and are not meant
+ * to be called directly from C code */
+extern void dynabi_exception(void);
+extern void dynabi_device_sw(void);
 
 #endif /* __DYNAREC_AMD64_H__ */

@@ -45,21 +45,14 @@ extern "C" {
 # define ARRAY_SIZE(_a) (sizeof(_a) / sizeof((_a)[0]))
 #endif
 
-
 #ifdef DYNAREC_DEBUG
 #define DYNAREC_LOG(fmt, ...)     \
    fprintf(stderr, "[DYNAREC]: " fmt, __VA_ARGS__)
 #else
-#define DYNAREC_LOG(fmt, ...) do{} while (0)
+#define DYNAREC_LOG(fmt, ...) do {} while (0)
 #endif
 
-
 struct dynarec_state;
-
-typedef int32_t (*dynarec_store_cback)(struct dynarec_state *state,
-                                       uint32_t val,
-                                       uint32_t addr,
-                                       int32_t counter);
 
 struct dynarec_state {
    /* Current value of the PC */
@@ -73,11 +66,6 @@ struct dynarec_state {
    uint32_t           *scratchpad;
    /* Pointer to the PSX BIOS */
    const uint32_t     *bios;
-   /* Called when a SW to an unsupported memory address is
-      encountered. Returns the new counter value. */
-   dynarec_store_cback memory_sw;
-   /* Private data for the caller */
-   void               *priv;
    /* All general purpose CPU registers except R0 */
    uint32_t            regs[31];
    /* Executable region of memory containing the dynarec'd code */
@@ -92,8 +80,7 @@ struct dynarec_state {
 
 extern struct dynarec_state *dynarec_init(uint32_t *ram,
                                           uint32_t *scratchpad,
-                                          const uint32_t *bios,
-                                          dynarec_store_cback memory_sw);
+                                          const uint32_t *bios);
 
 extern void dynarec_delete(struct dynarec_state *state);
 extern void dynarec_set_next_event(struct dynarec_state *state,

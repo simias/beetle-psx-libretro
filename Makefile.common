@@ -263,7 +263,7 @@ ifneq ($(HAVE_GRIFFIN), 1)
       SOURCES_C += $(DYNAREC_DIR)/dynarec.c
       ifeq ($(DYNAREC_ARCH), AMD64)
          SOURCES_C   += $(DYNAREC_DIR)/dynarec-amd64.c
-         SOURCES_ASM += $(DYNAREC_DIR)/dynarec-amd64-execute.s
+         SOURCES_ASM += $(DYNAREC_DIR)/dynarec-amd64-helpers.s
       endif
    endif
 endif ## ifneq($(HAVE_GRIFFIN, 1))

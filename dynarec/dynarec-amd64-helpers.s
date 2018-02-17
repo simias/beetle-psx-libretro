@@ -14,7 +14,8 @@
 
 .global dynasm_execute
 .type   dynasm_execute, function
-
+/* Switch to dynarec register layout, call the dynarec code then
+ * revert to the proper C calling convention. */
 dynasm_execute:
         /* Be a good function and create a stack frame */
         push    %rbp
@@ -43,9 +44,9 @@ dynasm_execute:
         /* Call dynarec'd code */
         call    *%rsi
 
-        /* Store the "cached" PSX registers back into the struct
+        /* Store the "cached" PSX registers back into the state struct.
          * Dynarec'd code always keeps the dynarec_state pointer in
-	 * %rdi, so we don't have to worry about preserving it here */
+	 * %rdi, so we don't have to worry about preserving it here. */
         mov     %r8d,  AT_REG_OFFSET(%rdi)
         mov     %r9d,  V0_REG_OFFSET(%rdi)
         mov     %r10d, V1_REG_OFFSET(%rdi)
@@ -63,3 +64,42 @@ dynasm_execute:
 
         pop     %rbp
         ret
+
+.global dynabi_device_sw
+.type   dynabi_device_sw, function
+/* Called by the dynarec code when a SW instruction targets device
+ * memory */
+dynabi_device_sw:
+        /* Preserve dynarec_state pointer */
+        push    %rdi
+
+        /* Bank the registers not preserved by function calls */
+        mov     %r8d,  AT_REG_OFFSET(%rdi)
+        mov     %r9d,  V0_REG_OFFSET(%rdi)
+        mov     %r10d, V1_REG_OFFSET(%rdi)
+        mov     %r11d, A0_REG_OFFSET(%rdi)
+
+        /* Call emulator code */
+        call    dynarec_callback_sw
+
+        /* Move return value to the counter */
+        mov     %eax, %ecx
+
+        /* Reload registers */
+        mov     AT_REG_OFFSET(%rdi), %r8d
+        mov     V0_REG_OFFSET(%rdi), %r9d
+        mov     V1_REG_OFFSET(%rdi), %r10d
+        mov     A0_REG_OFFSET(%rdi), %r11d
+
+        /* Restore dynarec_state pointer */
+        pop     %rdi
+
+        ret
+
+.global dynabi_exception
+.type   dynabi_exception, function
+/* Called by the dynarec code when an exception must be
+ * generated. Exception number is in %rsi. */
+dynabi_exception:
+        /* TODO */
+        int $3

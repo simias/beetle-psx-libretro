@@ -932,11 +932,10 @@ uint32_t MDFN_FASTCALL PSX_MemRead32(int32_t &timestamp, uint32_t A)
 
 #ifdef HAVE_DYNAREC
 /* Callbacks used by the dynarec to handle device memory access */
-
-int32_t dynarec_sw_cback(struct dynarec_state *s,
-                         uint32_t val,
-                         uint32_t addr,
-                         int32_t counter) {
+extern "C" int32_t dynarec_callback_sw(struct dynarec_state *s,
+                                       uint32_t val,
+                                       uint32_t addr,
+                                       int32_t counter) {
    int32_t timestamp = CPU->GetEventNT() - counter;
 
    printf("dynarec sw %08x @ %08x (%d)\n", val, addr, counter);
@@ -1578,7 +1577,7 @@ static void InitCommon(std::vector<CDIF *> *CDInterfaces, const bool EmulateMemc
 
    CDC->SetDisc(true, NULL, NULL);
    SetDiscWrapper(CD_TrayOpen);
-   
+
 
    BIOSROM = new MultiAccessSizeMem<512 * 1024, uint32, false>();
    PIOMem  = NULL;
@@ -1623,7 +1622,7 @@ static void InitCommon(std::vector<CDIF *> *CDInterfaces, const bool EmulateMemc
       abort();
 
    {
-      const char *biospath = MDFN_MakeFName(MDFNMKF_FIRMWARE, 
+      const char *biospath = MDFN_MakeFName(MDFNMKF_FIRMWARE,
             0, MDFN_GetSettingS(biospath_sname).c_str());
       RFILE *BIOSFile      = filestream_open(biospath,
             RETRO_VFS_FILE_ACCESS_READ,
@@ -3948,8 +3947,8 @@ bool retro_serialize(void *data, size_t size)
    st.malloced       = size;
    st.initial_malloc = 0;
 
-   /* there are still some errors with the save states, 
-    * the size seems to change on some games for now 
+   /* there are still some errors with the save states,
+    * the size seems to change on some games for now
     * just log when this happens */
    if (!logged && st.len != size)
    {
