@@ -6,7 +6,6 @@
 
 #include <map>
 #include <queue>
-#include <cmath>
 #include <math.h>
 #include "FastFIFO.h"
 

@@ -20,6 +20,8 @@ ifneq ($(GIT_VERSION)," unknown")
    FLAGS += -DGIT_VERSION=\"$(GIT_VERSION)\"
 endif
 
+platform = switch
+
 ifeq ($(platform),)
    platform = unix
    ifeq ($(shell uname -a),)
@@ -256,6 +258,16 @@ else ifeq ($(platform), gcw0)
    FLAGS   += -ffast-math -march=mips32 -mtune=mips32r2 -mhard-float
    GLES     = 1
    GL_LIB  := -lGLESv2
+
+else ifeq ($(platform), switch)
+   include $(LIBTRANSISTOR_HOME)/libtransistor.mk
+
+   EXT      = a
+   TARGET  := $(TARGET_NAME)libretro$(platform).$(EXT)
+
+   STATIC_LINKING      = 1
+   STATIC_LINKING_LINK = 1
+   NEED_THREADING      = 0
 
 # Emscripten
 else ifeq ($(platform), emscripten)
