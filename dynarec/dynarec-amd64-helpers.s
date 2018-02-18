@@ -9,6 +9,7 @@
 .EQU T0_REG_OFFSET,    (STATE_REG_OFFSET + 4 * 7)
 .EQU SP_REG_OFFSET,    (STATE_REG_OFFSET + 4 * 28)
 .EQU RA_REG_OFFSET,    (STATE_REG_OFFSET + 4 * 30)
+.EQU DT_REG_OFFSET,    (STATE_REG_OFFSET + 4 * 31)
 
 .text
 
@@ -23,6 +24,7 @@ dynasm_execute:
 
         /* Push registers that the dynarec'd code is going to modify
 	 * but must be saved per the calling convention */
+        push    %rbx
         push    %r15
         push    %r14
         push    %r13
@@ -37,6 +39,7 @@ dynasm_execute:
         mov     T0_REG_OFFSET(%rdi), %r13d
         mov     SP_REG_OFFSET(%rdi), %r14d
         mov     RA_REG_OFFSET(%rdi), %r15d
+        mov     DT_REG_OFFSET(%rdi), %rbx
 
         /* Move cycles_to_run to %ecx */
         mov     %edx, %ecx
@@ -55,12 +58,14 @@ dynasm_execute:
         mov     %r13d, T0_REG_OFFSET(%rdi)
         mov     %r14d, SP_REG_OFFSET(%rdi)
         mov     %r15d, RA_REG_OFFSET(%rdi)
+        mov     %rbx,  DT_REG_OFFSET(%rdi)
 
         /* Pop the preserved registers */
         pop     %r12
         pop     %r13
         pop     %r14
         pop     %r15
+        pop     %rbx
 
         pop     %rbp
         ret
@@ -99,7 +104,15 @@ dynabi_device_sw:
 .global dynabi_exception
 .type   dynabi_exception, function
 /* Called by the dynarec code when an exception must be
- * generated. Exception number is in %rsi. */
+ * generated. Exception number is in %rsi, exception PC in %rdx. */
 dynabi_exception:
         /* TODO */
+        int $3
+
+.global dynabi_set_cop0_sr
+.type   dynabi_set_cop0_sr, function
+/* Called by the dynarec code when storing the value of the SR
+ * register. The value is in %esi.*/
+dynabi_set_cop0_sr:
+        /* TODO: check for interrupt, check for cache isolation. */
         int $3

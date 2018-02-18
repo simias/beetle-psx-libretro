@@ -12,7 +12,7 @@
  */
 enum X86_REG {
    REG_AX  = 0,  /* Temporary variable, return value 0 */
-   REG_BX  = 3,  /* [PAFC] */
+   REG_BX  = 3,  /* Dynarec temporary register [PAFC] */
    REG_CX  = 1,  /* Cycle counter, func arg 3 */
    REG_DX  = 2,  /* Temporary variable, func arg 2, return value 1 */
    REG_BP  = 5,  /* Host BP [PAFC] */
@@ -55,6 +55,8 @@ static int register_location(enum PSX_REG reg) {
       return REG_R14;
    case PSX_REG_RA:
       return REG_R15;
+   case PSX_REG_DT:
+      return REG_BX;
    default:
       return -1;
    }
@@ -607,6 +609,7 @@ static void emit_call(struct dynarec_compiler *compiler,
 void dynasm_emit_exception(struct dynarec_compiler *compiler,
                            enum PSX_CPU_EXCEPTION exception) {
    MOV_U32_R32(exception, REG_SI);
+   MOV_U32_R32(compiler->pc, REG_DX);
    CALL(dynabi_exception);
 }
 
@@ -991,4 +994,30 @@ void dynasm_emit_mfhi(struct dynarec_compiler *compiler,
 void dynasm_emit_mtlo(struct dynarec_compiler *compiler,
                       enum PSX_REG ret_source) {
    dynasm_emit_exception(compiler, PSX_DYNAREC_UNIMPLEMENTED);
+}
+
+void dynasm_emit_mtc0(struct dynarec_compiler *compiler,
+                      enum PSX_REG reg_source,
+                      enum PSX_COP0_REG reg_cop0) {
+   int source = register_location(reg_source);
+
+   switch (reg_cop0) {
+   case PSX_COP0_SR:
+      /* Move value to SI */
+      if (source >= 0) {
+         MOV_R32_R32(source, REG_SI);
+      } else {
+         if (reg_source == 0) {
+            CLEAR_REG(REG_SI);
+         } else {
+            MOV_OFF_PR64_R32(DYNAREC_STATE_REG_OFFSET(reg_source),
+                             STATE_REG,
+                             REG_SI);
+         }
+      }
+      CALL(dynabi_set_cop0_sr);
+      break;
+   default:
+      UNIMPLEMENTED;
+   }
 }

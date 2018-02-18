@@ -40,6 +40,29 @@ enum PSX_REG {
    PSX_REG_SP = 29,
    PSX_REG_FP = 30,
    PSX_REG_RA = 31,
+   /* Dynarec temporary: not a real hardware register, used by the
+      dynarec when it needs to reorder code for delay slots. */
+   PSX_REG_DT = 32,
+};
+
+/* Coprocessor 0 registers (accessed with mtc0/mfc0) */
+enum PSX_COP0_REG {
+   PSX_COP0_R0 = 0,       /* N/A */
+   PSX_COP0_R1 = 1,       /* N/A */
+   PSX_COP0_R2 = 2,       /* N/A */
+   PSX_COP0_BPC = 3,      /* Breakpoint on execute (RW) */
+   PSX_COP0_R4 = 4,       /* N/A */
+   PSX_COP0_BDA = 5,      /* Breakpoint on data access (RW) */
+   PSX_COP0_JUMPDEST = 6, /* Jump address (RO) */
+   PSX_COP0_DCIC = 7,     /* Breakpoint control (RW) */
+   PSX_COP0_BADVADDR = 8, /* Bad virtual address (RO) */
+   PSX_COP0_BDAM = 9,     /* Data access breakpoint mask (RW) */
+   PSX_COP0_R10 = 10,     /* N/A */
+   PSX_COP0_BCPM = 11,    /* Execute breakpoint mask (RW) */
+   PSX_COP0_SR = 12,      /* System status (RW) */
+   PSX_COP0_CAUSE = 13,   /* Exception cause (RW) */
+   PSX_COP0_EPC = 14,     /* Exception PC (R) */
+   PSX_COP0_PRID = 15,    /* CPU ID (R) */
 };
 
 enum PSX_CPU_EXCEPTION {
@@ -154,5 +177,9 @@ extern void dynasm_emit_mfhi(struct dynarec_compiler *compiler,
                              enum PSX_REG ret_target);
 extern void dynasm_emit_mtlo(struct dynarec_compiler *compiler,
                              enum PSX_REG ret_source);
+
+extern void dynasm_emit_mtc0(struct dynarec_compiler *compiler,
+                             enum PSX_REG reg_source,
+                             enum PSX_COP0_REG reg_cop0);
 
 #endif /* __DYNAREC_COMPILER_H__ */

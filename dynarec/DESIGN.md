@@ -111,6 +111,34 @@ region (in the same way that we recompile the BIOS and RAM
 independantly at the moment). That would increase RAM usage and make
 page lookups slightly more expensive.
 
+# Branch delay slot
+
+## Register hazards
+
+Consider the following branch and delay slot:
+
+```asm
+    bne     t2, t3, 0x250
+    addi    t2, t2, 0x80
+```
+
+When recompiling this code we need to make sure that the `addi` in the
+delay slot gets executed before we actually execute the branch. That
+means effectively swapping the order: we run the `addi`, then the
+`bne`. Except that in this situation there's a problem: the `addi`
+changes `t2` which is also an operand in `bne`. If we blindly swap the
+instructions we end up with broken code. Therefore we do something
+like that instead:
+
+```asm
+   mov      rx, t2
+   addi     t2, t2, 0x80
+   bne      rx, t3, 0x250
+```
+
+That is, we use an additional temporary register to hold the
+problematic variable.
+
 # To-do list
 ## Allow executing out of parport extension
 

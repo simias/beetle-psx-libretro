@@ -27,7 +27,7 @@ extern "C" {
 #define PSX_SCRATCHPAD_BASE        0x1F800000U
 
 /* Log in base 2 of the page size*/
-#define DYNAREC_PAGE_SIZE_SHIFT    9U
+#define DYNAREC_PAGE_SIZE_SHIFT    11U
 /* Length of a recompilation page in bytes */
 #define DYNAREC_PAGE_SIZE          (1U << DYNAREC_PAGE_SIZE_SHIFT)
 /* Number of instructions per page */
@@ -46,11 +46,16 @@ extern "C" {
 #endif
 
 #ifdef DYNAREC_DEBUG
-#define DYNAREC_LOG(fmt, ...)     \
-   fprintf(stderr, "[DYNAREC]: " fmt, __VA_ARGS__)
+#define DYNAREC_LOG(...)     \
+   fprintf(stderr, "[DYNAREC]: " __VA_ARGS__)
 #else
-#define DYNAREC_LOG(fmt, ...) do {} while (0)
+#define DYNAREC_LOG(...) do {} while (0)
 #endif
+
+#define DYNAREC_FATAL(...) do {                    \
+      fprintf(stderr, "[DYNAREC]: " __VA_ARGS__);  \
+      abort();                                     \
+   } while(0)
 
 struct dynarec_state;
 
@@ -66,8 +71,11 @@ struct dynarec_state {
    uint32_t           *scratchpad;
    /* Pointer to the PSX BIOS */
    const uint32_t     *bios;
-   /* All general purpose CPU registers except R0 */
-   uint32_t            regs[31];
+   /* All general purpose CPU registers except R0 plus the "dynarec
+      temporary" register. */
+   uint32_t            regs[32];
+   /* Cop0r12: status register */
+   uint32_t            sr;
    /* Executable region of memory containing the dynarec'd code */
    uint8_t            *map;
    /* Length of the map */
@@ -76,7 +84,6 @@ struct dynarec_state {
       recompiled */
    uint8_t             page_valid[DYNAREC_TOTAL_PAGES];
 };
-
 
 extern struct dynarec_state *dynarec_init(uint32_t *ram,
                                           uint32_t *scratchpad,
