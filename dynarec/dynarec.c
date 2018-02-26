@@ -337,6 +337,16 @@ static void emit_or(struct dynarec_compiler *compiler,
    }
 }
 
+static void emit_skip_next_instruction(struct dynarec_compiler *compiler) {
+   uint8_t *patch_pos;
+
+   patch_pos = compiler->map;
+   dynasm_emit_page_local_jump(compiler,
+                               DYNAREC_INSTRUCTION_MAX_LEN,
+                               true);
+   add_local_patch(compiler, patch_pos, compiler->pc + 8);
+}
+
 enum delay_slot {
    NO_DELAY = 0,
    BRANCH_DELAY_SLOT,
@@ -428,6 +438,11 @@ static enum delay_slot dynarec_instruction_registers(uint32_t instruction,
                 instruction);
          abort();
       }
+      break;
+   case 0x23: /* LW */
+      *reg_target = reg_t;
+      *reg_op0 = reg_s;
+      ds = LOAD_DELAY_SLOT;
       break;
    case 0x2b: /* SW */
       *reg_op0 = reg_s;
@@ -549,6 +564,9 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
          abort();
       }
       break;
+   case 0x23: /* LW */
+      dynasm_emit_lw(compiler, reg_target, imm, reg_op0);
+      break;
    case 0x2b: /* SW */
       dynasm_emit_sw(compiler, reg_op0, imm, reg_op1);
       break;
@@ -640,13 +658,7 @@ static int dynarec_recompile(struct dynarec_state *state,
          execute. It's a pretty decent average but obviously in practice
          it varies a lot depending on the instruction, the icache, memory
          latency etc... */
-      if (delay_slot == BRANCH_DELAY_SLOT) {
-         /* We execute the delay slot *and* the jump */
-         cycles = 10;
-      } else {
-         cycles = 5;
-      }
-
+      cycles = 5;
       /* Decrease the event counter before we continue. */
       dynasm_counter_maintenance(&compiler, cycles);
 
@@ -656,11 +668,92 @@ static int dynarec_recompile(struct dynarec_state *state,
          ds_instruction = next_page[0];
       }
 
-      if (delay_slot == LOAD_DELAY_SLOT) {
-         DYNAREC_FATAL("Implement LDS\n");
+      if (delay_slot == LOAD_DELAY_SLOT &&
+          reg_target != PSX_REG_R0 &&
+          ds_instruction != 0) {
+         /* We have to check if the next instruction references the
+            load target */
+         enum delay_slot ds_delay_slot;
+         enum PSX_REG ds_target;
+         enum PSX_REG ds_op0;
+         enum PSX_REG ds_op1;
+
+         ds_delay_slot =
+            dynarec_instruction_registers(ds_instruction,
+                                          &ds_target,
+                                          &ds_op0,
+                                          &ds_op1);
+
+         if (ds_target == reg_target) {
+            /* The instruction in the delay slot overwrites the value,
+               effectively making the LW useless (or only useful for
+               side-effect). Seems odd but easy enough to implement,
+               we can just pretend that this load just targets R0
+               since it's functionally equivalent. */
+            reg_target = PSX_REG_R0;
+         } else if (reg_target == ds_op0 || reg_target == ds_op1) {
+            /* That's a bit trickier, we need to make sure that the
+               previous value of `reg_target` is used in the load
+               delay. The only way to have this work in all cases
+               (consider if we have a branch in the delay slot for
+               instance) */
+
+            if (ds_delay_slot != NO_DELAY) {
+               /* If the instruction in the delay slot is a branch we
+                  can't reorder (otherwise we'll jump away before we
+                  have a chance to execute the load). If this needs
+                  implementing we'll have to be clever. */
+               DYNAREC_FATAL("Nested delay slot in load delay slot\n");
+            } else {
+               /* We can simply swap the order of the instructions
+                  (while keeping the old value in a temporary register,
+                  like branch delay slots). We need to be careful however
+                  if the load references the target as operand. */
+               int needs_dt = 0;
+
+               if (reg_op0 == ds_target) {
+                  needs_dt = 1;
+                  reg_op0 = PSX_REG_DT;
+               }
+
+               if (reg_op1 == ds_target) {
+                  needs_dt = 1;
+                  reg_op1 = PSX_REG_DT;
+               }
+
+               if (needs_dt) {
+                  /* The instruction in the delay slot targets a register
+                     used by the branch, we need to keep a copy. */
+                  dynasm_emit_mov(&compiler, PSX_REG_DT, ds_target);
+
+                  /* Emit instruction in load delay slot */
+                  compiler.pc += 4;
+                  dynarec_emit_instruction(&compiler, ds_instruction,
+                                           ds_target, ds_op0, ds_op1);
+                  compiler.pc -= 4;
+
+                  /* Emit load instruction */
+                  dynarec_emit_instruction(&compiler, instruction,
+                                           reg_target, reg_op0, reg_op1);
+
+                  /* Then we want to step over the instruction in the
+                     delay slot that's going to be emitted next since
+                     we've already executed it here. */
+                  emit_skip_next_instruction(&compiler);
+               }
+               dynasm_counter_maintenance(&compiler, cycles * 2);
+            }
+         } else {
+            /* We don't have any hazard, we can emit the load */
+            dynasm_counter_maintenance(&compiler, cycles);
+            dynarec_emit_instruction(&compiler, instruction,
+                                     reg_target, reg_op0, reg_op1);
+         }
+
       } else if (delay_slot == BRANCH_DELAY_SLOT &&
                  /* Special case a NOP in the delay slot since it's
-                    fairly common. */
+                    fairly common. A branch with a NOP in the delay
+                    slot behaves like a common instruction. */
                  ds_instruction != 0) {
          /* We have to run the delay slot before the actual
           * jump. First let's make sure that we don't have a data
@@ -671,7 +764,6 @@ static int dynarec_recompile(struct dynarec_state *state,
          enum PSX_REG ds_op1;
          enum delay_slot ds_delay_slot;
          int needs_dt = 0;
-         uint8_t *patch_pos;
 
          ds_delay_slot =
             dynarec_instruction_registers(ds_instruction,
@@ -684,8 +776,10 @@ static int dynarec_recompile(struct dynarec_state *state,
                average game doesn't require something like that. */
             dynasm_emit_exception(&compiler, PSX_DYNAREC_UNIMPLEMENTED);
          } else if (ds_delay_slot == LOAD_DELAY_SLOT) {
-            /* This is technically inaccurate but probably
-               fine. Remove after running more tests */
+            /* This is technically inaccurate but probably fine the
+               vast majority of the time (relying on load delay slot
+               behaviour across a jump sounds nasty, but who
+               knows). Remove after running more tests. */
             dynasm_emit_exception(&compiler, PSX_DYNAREC_UNIMPLEMENTED);
          }
 
@@ -716,7 +810,9 @@ static int dynarec_recompile(struct dynarec_state *state,
             }
          }
 
-         /* Emit instruction in branch delay */
+         dynasm_counter_maintenance(&compiler, cycles * 2);
+
+         /* Emit instruction in branch delay slot */
          compiler.pc += 4;
          dynarec_emit_instruction(&compiler, ds_instruction,
                                   ds_target, ds_op0, ds_op1);
@@ -729,13 +825,10 @@ static int dynarec_recompile(struct dynarec_state *state,
          /* In case this is a conditional branch we want to jump over
             the delay slot if it's not taken (otherwise we'll execute
             the instruction twice). */
-         patch_pos = compiler.map;
-         dynasm_emit_page_local_jump(&compiler,
-                                     DYNAREC_INSTRUCTION_MAX_LEN,
-                                     true);
-         add_local_patch(&compiler, patch_pos, compiler.pc + 8);
+         emit_skip_next_instruction(&compiler);
       } else {
          /* Boring old instruction, no delay slot involved. */
+         dynasm_counter_maintenance(&compiler, cycles);
          dynarec_emit_instruction(&compiler, instruction,
                                   reg_target, reg_op0, reg_op1);
       }

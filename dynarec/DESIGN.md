@@ -131,13 +131,27 @@ instructions we end up with broken code. Therefore we do something
 like that instead:
 
 ```asm
-   mov      rx, t2
+   mov      tmp, t2
    addi     t2, t2, 0x80
-   bne      rx, t3, 0x250
+   bne      tmp, t3, 0x250
 ```
 
 That is, we use an additional temporary register to hold the
-problematic variable.
+problematic variable. For this reason an additional "fake" PSX
+register is added to dynarec, `PSX_REG_DT`, which is used to recompile
+these instructions.
+
+# Load delay slots
+
+Load delay slots seem relatively straightforward to implement at first
+but they compound poorly with branch delay slots. Consider the
+following code:
+
+```asm
+lw    ra, 20(sp)
+jr    ra
+addi  sp, sp, 20
+```
 
 # To-do list
 ## Allow executing out of parport extension

@@ -170,6 +170,10 @@ extern void dynasm_emit_sw(struct dynarec_compiler *compiler,
                            enum PSX_REG reg_addr,
                            int16_t offset,
                            enum PSX_REG reg_val);
+extern void dynasm_emit_lw(struct dynarec_compiler *compiler,
+                           enum PSX_REG reg_target,
+                           int16_t offset,
+                           enum PSX_REG reg_addr);
 extern void dynasm_emit_page_local_jump(struct dynarec_compiler *compiler,
                                         int32_t offset,
                                         bool placeholder);

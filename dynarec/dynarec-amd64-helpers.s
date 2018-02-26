@@ -101,6 +101,13 @@ dynabi_device_sw:
 
         ret
 
+.global dynabi_device_lw
+.type   dynabi_device_lw, function
+/* Called by the dynarec code when a LW instruction targets device
+ * memory */
+dynabi_device_lw:
+        int $3
+
 .global dynabi_exception
 .type   dynabi_exception, function
 /* Called by the dynarec code when an exception must be

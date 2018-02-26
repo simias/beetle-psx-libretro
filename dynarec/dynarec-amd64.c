@@ -352,6 +352,18 @@ static void emit_mov_r32_pr64(struct dynarec_compiler *compiler,
 }
 #define MOV_R32_PR64(_v, _t) emit_mov_r32_pr64(compiler, (_v), (_t))
 
+
+/* MOV (%target64), %r32 */
+static void emit_mov_pr64_r32(struct dynarec_compiler *compiler,
+                              enum X86_REG addr,
+                              enum X86_REG target) {
+
+   emit_rex_prefix(compiler, addr, target, 0);
+   *(compiler->map++) = 0x8b;
+   *(compiler->map++) = (addr & 7) | ((target & 7) << 3);
+}
+#define MOV_PR64_R32(_a, _t) emit_mov_r32_pr64(compiler, (_a), (_t))
+
 /* MOV $imm8, off(%base64, %index64, $scale) */
 static void emit_mov_u8_off_sib(struct dynarec_compiler *compiler,
                                 uint8_t val,
@@ -839,10 +851,23 @@ extern void dynasm_emit_sltiu(struct dynarec_compiler *compiler,
    dynasm_emit_exception(compiler, PSX_DYNAREC_UNIMPLEMENTED);
 }
 
-void dynasm_emit_sw(struct dynarec_compiler *compiler,
-                    enum PSX_REG reg_addr,
-                    int16_t offset,
-                    enum PSX_REG reg_val) {
+enum MEM_DIR {
+   DIR_LOAD,
+   DIR_STORE,
+};
+
+enum MEM_WIDTH {
+   WIDTH_BYTE = 1,
+   WIDTH_HALFWORD = 2,
+   WIDTH_WORD = 4,
+};
+
+static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
+                               enum PSX_REG reg_addr,
+                               int16_t offset,
+                               enum PSX_REG reg_val,
+                               enum MEM_DIR dir,
+                               enum MEM_WIDTH width) {
    int addr_r  = register_location(reg_addr);
    int value_r = register_location(reg_val);
 
@@ -864,26 +889,42 @@ void dynasm_emit_sw(struct dynarec_compiler *compiler,
    }
 
    if (value_r < 0) {
-      /* Load value into %rsi */
-      if (reg_val == PSX_REG_R0) {
-         CLEAR_REG(REG_SI);
-      } else {
-         MOV_OFF_PR64_R32(DYNAREC_STATE_REG_OFFSET(reg_val),
-                          STATE_REG,
-                          REG_SI);
+      /* Use %rsi as temporary register */
+
+      if (dir == DIR_STORE) {
+         /* Load value to be stored */
+         if (reg_val == PSX_REG_R0) {
+            CLEAR_REG(REG_SI);
+         } else {
+            MOV_OFF_PR64_R32(DYNAREC_STATE_REG_OFFSET(reg_val),
+                             STATE_REG,
+                             REG_SI);
+         }
       }
+
+      value_r = REG_SI;
    }
 
-   /* Copy address to %eax */
-   MOV_R32_R32(REG_DX, REG_AX);
+   if (width != WIDTH_BYTE) {
+      /* Copy address to %eax */
+      MOV_R32_R32(REG_DX, REG_AX);
 
-   /* Check alignment */
-   AND_U32_R32(3, REG_AX);
+      /* Check alignment */
+      AND_U32_R32((uint32_t)width - 1, REG_AX);
 
-   IF_NOT_EQUAL {
-      /* Address is not aligned correctly. */
-      dynasm_emit_exception(compiler, PSX_EXCEPTION_LOAD_ALIGN);
-   } ENDIF;
+      IF_NOT_EQUAL {
+         /* Address is not aligned correctly. */
+         enum PSX_CPU_EXCEPTION e;
+
+         if (dir == DIR_LOAD) {
+            e = PSX_EXCEPTION_LOAD_ALIGN;
+         } else {
+            e = PSX_EXCEPTION_STORE_ALIGN;
+         }
+
+         dynasm_emit_exception(compiler, e);
+      } ENDIF;
+   }
 
    /* Move address to %eax */
    MOV_R32_R32(REG_DX, REG_AX);
@@ -911,22 +952,49 @@ void dynasm_emit_sw(struct dynarec_compiler *compiler,
       MOV_R32_R32(REG_DX, REG_AX);
       SHR_U32_R32(DYNAREC_PAGE_SIZE_SHIFT, REG_AX);
 
-      /* Clear valid flag */
-      MOV_U8_OFF_SIB(0,
-                     offsetof(struct dynarec_state, page_valid),
-                     STATE_REG,
-                     REG_AX,
-                     1);
+      if (dir == DIR_STORE) {
+         /* Clear valid flag */
+         MOV_U8_OFF_SIB(0,
+                        offsetof(struct dynarec_state, page_valid),
+                        STATE_REG,
+                        REG_AX,
+                        1);
+      }
 
       /* Add the address of the RAM buffer in host memory */
       ADD_OFF_PR64_R32(offsetof(struct dynarec_state, ram),
                        STATE_REG,
                        REG_DX);
-      if (value_r >= 0) {
-         MOV_R32_PR64(value_r, REG_DX);
-      } else {
-         MOV_R32_PR64(REG_SI, REG_DX);
+
+      switch (dir) {
+      case DIR_STORE:
+         switch (width) {
+         case WIDTH_WORD:
+            MOV_R32_PR64(value_r, REG_DX);
+            break;
+         default:
+            UNIMPLEMENTED;
+         }
+         break;
+      case DIR_LOAD:
+         switch (width) {
+         case WIDTH_WORD:
+            MOV_PR64_R32(REG_DX, value_r);
+            break;
+         default:
+            UNIMPLEMENTED;
+         }
+
+         /* If we were using SI as temporary register and the target
+            register isn't R0 we have to store the value to the real
+            register location */
+         if (value_r == REG_SI && reg_val != PSX_REG_R0) {
+            MOV_R32_OFF_PR64(REG_SI,
+                             DYNAREC_STATE_REG_OFFSET(reg_val),
+                             STATE_REG);
+         }
       }
+
    } ELSE {
       /* Test if the address is in the scratchpad */
       MOV_R32_R32(REG_DX, REG_AX);
@@ -943,13 +1011,36 @@ void dynasm_emit_sw(struct dynarec_compiler *compiler,
                           STATE_REG,
                           REG_AX);
 
-         if (value_r >= 0) {
-            MOV_R32_PR64(value_r, REG_AX);
-         } else {
-            MOV_R32_PR64(REG_SI, REG_AX);
+         switch (dir) {
+         case DIR_STORE:
+            switch (width) {
+            case WIDTH_WORD:
+               MOV_R32_PR64(value_r, REG_DX);
+               break;
+            default:
+               UNIMPLEMENTED;
+            }
+            break;
+         case DIR_LOAD:
+            switch (width) {
+            case WIDTH_WORD:
+               MOV_PR64_R32(REG_DX, value_r);
+               break;
+            default:
+               UNIMPLEMENTED;
+            }
+
+            /* If we were using SI as temporary register and the target
+               register isn't R0 we have to store the value to the real
+               register location */
+            if (value_r == REG_SI && reg_val != PSX_REG_R0) {
+               MOV_R32_OFF_PR64(REG_SI,
+                                DYNAREC_STATE_REG_OFFSET(reg_val),
+                                STATE_REG);
+            }
          }
       } ELSE {
-         /* We're writing to some device's memory, call the emulator
+         /* We're accessing some device's memory, call the emulator
             code */
 
          /* Make sure the value is in %rsi (arg1) */
@@ -957,9 +1048,53 @@ void dynasm_emit_sw(struct dynarec_compiler *compiler,
             MOV_R32_R32(value_r, REG_SI);
          }
 
-         CALL(dynabi_device_sw);
+         switch (dir) {
+         case DIR_STORE:
+            switch (width) {
+            case WIDTH_WORD:
+               CALL(dynabi_device_sw);
+               break;
+            default:
+               UNIMPLEMENTED;
+            }
+            break;
+         case DIR_LOAD:
+            switch (width) {
+            case WIDTH_WORD:
+               CALL(dynabi_device_lw);
+               break;
+            default:
+               UNIMPLEMENTED;
+            }
+            break;
+         }
+
       } ENDIF;
    } ENDIF;
+}
+
+
+void dynasm_emit_sw(struct dynarec_compiler *compiler,
+                    enum PSX_REG reg_addr,
+                    int16_t offset,
+                    enum PSX_REG reg_val) {
+   dynasm_emit_mem_rw(compiler,
+                      reg_addr,
+                      offset,
+                      reg_val,
+                      DIR_STORE, WIDTH_WORD);
+}
+
+void dynasm_emit_lw(struct dynarec_compiler *compiler,
+                    enum PSX_REG reg_target,
+                    int16_t offset,
+                    enum PSX_REG reg_addr) {
+   dynasm_emit_mem_rw(compiler,
+                      reg_addr,
+                      offset,
+                      reg_target,
+                      DIR_LOAD,
+                      WIDTH_WORD);
 }
 
 void dynasm_emit_page_local_jump(struct dynarec_compiler *compiler,
