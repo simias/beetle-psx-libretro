@@ -12,5 +12,7 @@ extern void dynabi_exception(void);
 extern void dynabi_device_sw(void);
 extern void dynabi_device_lw(void);
 extern void dynabi_set_cop0_sr(void);
+extern void dynabi_set_cop0_cause(void);
+extern void dynabi_set_cop0_misc(void);
 
 #endif /* __DYNAREC_AMD64_H__ */

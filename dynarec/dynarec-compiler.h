@@ -58,7 +58,7 @@ enum PSX_COP0_REG {
    PSX_COP0_BADVADDR = 8, /* Bad virtual address (RO) */
    PSX_COP0_BDAM = 9,     /* Data access breakpoint mask (RW) */
    PSX_COP0_R10 = 10,     /* N/A */
-   PSX_COP0_BCPM = 11,    /* Execute breakpoint mask (RW) */
+   PSX_COP0_BPCM = 11,    /* Execute breakpoint mask (RW) */
    PSX_COP0_SR = 12,      /* System status (RW) */
    PSX_COP0_CAUSE = 13,   /* Exception cause (RW) */
    PSX_COP0_EPC = 14,     /* Exception PC (R) */

@@ -123,3 +123,20 @@ dynabi_exception:
 dynabi_set_cop0_sr:
         /* TODO: check for interrupt, check for cache isolation. */
         int $3
+
+.global dynabi_set_cop0_cause
+.type   dynabi_set_cop0_cause, function
+/* Called by the dynarec code when storing the value of the CAUSE
+ * register. The value is in %esi.*/
+dynabi_set_cop0_cause:
+        /* TODO: check for interrupt, check for cache isolation. */
+        int $3
+
+.global dynabi_set_cop0_misc
+.type   dynabi_set_cop0_misc, function
+/* Called by the dynarec code when storing the value of a COP0
+ * register that's neither SR or CAUSE. The value is in %esi, the
+ * register index in %edx */
+dynabi_set_cop0_misc:
+        /* TODO: check for interrupt, check for cache isolation. */
+        int $3

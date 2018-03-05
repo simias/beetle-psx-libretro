@@ -1136,21 +1136,38 @@ void dynasm_emit_mtc0(struct dynarec_compiler *compiler,
                       enum PSX_COP0_REG reg_cop0) {
    int source = register_location(reg_source);
 
+   /* Move value to SI */
+   if (source >= 0) {
+      MOV_R32_R32(source, REG_SI);
+   } else {
+      if (reg_source == 0) {
+         CLEAR_REG(REG_SI);
+      } else {
+         MOV_OFF_PR64_R32(DYNAREC_STATE_REG_OFFSET(reg_source),
+                          STATE_REG,
+                          REG_SI);
+      }
+   }
+
    switch (reg_cop0) {
    case PSX_COP0_SR:
-      /* Move value to SI */
-      if (source >= 0) {
-         MOV_R32_R32(source, REG_SI);
-      } else {
-         if (reg_source == 0) {
-            CLEAR_REG(REG_SI);
-         } else {
-            MOV_OFF_PR64_R32(DYNAREC_STATE_REG_OFFSET(reg_source),
-                             STATE_REG,
-                             REG_SI);
-         }
-      }
       CALL(dynabi_set_cop0_sr);
+      break;
+   case PSX_COP0_CAUSE:
+      CALL(dynabi_set_cop0_cause);
+      break;
+   case PSX_COP0_BPC:
+   case PSX_COP0_BDA:
+   case PSX_COP0_DCIC:
+   case PSX_COP0_BDAM:
+   case PSX_COP0_BPCM:
+      /* Move COP0 register index to DX */
+      MOV_U32_R32(reg_cop0, REG_DX);
+
+      CALL(dynabi_set_cop0_misc);
+      break;
+   case PSX_COP0_JUMPDEST:
+      /* NOP */
       break;
    default:
       UNIMPLEMENTED;
