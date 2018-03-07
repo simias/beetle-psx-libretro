@@ -388,6 +388,7 @@ static enum delay_slot dynarec_instruction_registers(uint32_t instruction,
          *reg_op0 = reg_s;
          break;
       case 0x25: /* OR */
+      case 0x2b: /* SLTU */
          *reg_target = reg_d;
          *reg_op0 = reg_s;
          *reg_op1 = reg_t;
@@ -502,6 +503,15 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
                  reg_op0,
                  reg_op1);
          break;
+      case 0x2b: /* SLTU */
+         if (reg_op1 == PSX_REG_R0) {
+            /* Nothing is less than 0 */
+            dynasm_emit_li(compiler, reg_target, 0);
+            break;
+         }
+
+         dynasm_emit_sltu(compiler, reg_target, reg_op0, reg_op1);
+         break;
       case 0x1f:
       case 0x34:
          /* Illegal */
@@ -529,6 +539,11 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
       emit_addiu(compiler, reg_target, reg_op0, imm_se);
       break;
    case 0x0b: /* SLTIU */
+      if (reg_target == PSX_REG_R0) {
+         /* NOP */
+         break;
+      }
+
       if (imm_se == 0) {
          /* Nothing is less than 0 */
          dynasm_emit_li(compiler, reg_target, 0);
@@ -544,8 +559,8 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
       emit_ori(compiler, reg_target, reg_op0, imm);
       break;
    case 0x0f: /* LUI */
-      if (reg_target == 0) {
-         /* nop */
+      if (reg_target == PSX_REG_R0) {
+         /* NOP */
          break;
       }
 

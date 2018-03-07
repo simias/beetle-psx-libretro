@@ -352,7 +352,6 @@ static void emit_mov_r32_pr64(struct dynarec_compiler *compiler,
 }
 #define MOV_R32_PR64(_v, _t) emit_mov_r32_pr64(compiler, (_v), (_t))
 
-
 /* MOV (%target64), %r32 */
 static void emit_mov_pr64_r32(struct dynarec_compiler *compiler,
                               enum X86_REG addr,
@@ -412,6 +411,19 @@ static void emit_pop_r64(struct dynarec_compiler *compiler,
 }
 #define POP_R64(_r) emit_pop_r64(compiler, (_r))
 
+/* SETB %reg8 */
+static void emit_setb(struct dynarec_compiler *compiler,
+                      enum X86_REG reg) {
+   emit_rex_prefix(compiler, reg, 0, 0);
+
+   reg &= 7;
+
+   *(compiler->map++) = 0x0f;
+   *(compiler->map++) = 0x92;
+   *(compiler->map++) = 0xc0 + reg;
+}
+#define SETB_R8(_r) emit_setb(compiler, (_r))
+
 /******************
  * ALU operations *
  ******************/
@@ -438,13 +450,32 @@ static void emit_alu_u32_r32(struct dynarec_compiler *compiler,
       emit_imm32(compiler, val);
    }
 }
-
 #define ADD_U32_R32(_v, _r) emit_alu_u32_r32(compiler, 0xc0, (_v), (_r))
 #define OR_U32_R32(_v, _r)  emit_alu_u32_r32(compiler, 0xc8, (_v), (_r))
 #define AND_U32_R32(_v, _r) emit_alu_u32_r32(compiler, 0xe0, (_v), (_r))
 #define SUB_U32_R32(_v, _r) emit_alu_u32_r32(compiler, 0xe8, (_v), (_r))
 #define XOR_U32_R32(_v, _r) emit_alu_u32_r32(compiler, 0xf0, (_v), (_r))
 #define CMP_U32_R32(_v, _r) emit_alu_u32_r32(compiler, 0xf8, (_v), (_r))
+
+/* ALU %reg32, %reg32 */
+static void emit_alu_r32_r32(struct dynarec_compiler *compiler,
+                             uint8_t op,
+                             enum X86_REG op0,
+                             enum X86_REG op1) {
+   emit_rex_prefix(compiler, op0, op1, 0);
+
+   op0 &= 7;
+   op1 &= 7;
+
+   *(compiler->map++) = op;
+   *(compiler->map++) = 0xc0 | (op0 << 3) | op1;
+}
+#define ADD_R32_R32(_op0, _op1) emit_alu_r32_r32(compiler, 0x01, (_op0), (_op1))
+#define OR_R32_R32(_op0, _op1)  emit_alu_r32_r32(compiler, 0x09, (_op0), (_op1))
+#define AND_R32_R32(_op0, _op1) emit_alu_r32_r32(compiler, 0x21, (_op0), (_op1))
+#define SUB_R32_R32(_op0, _op1) emit_alu_r32_r32(compiler, 0x29, (_op0), (_op1))
+#define XOR_R32_R32(_op0, _op1) emit_alu_r32_r32(compiler, 0x31, (_op0), (_op1))
+#define CMP_R32_R32(_op0, _op1) emit_alu_r32_r32(compiler, 0x39, (_op0), (_op1))
 
 /* ALU off(%base64), %target32 */
 static void emit_alu_off_pr64_r32(struct dynarec_compiler *compiler,
@@ -618,6 +649,16 @@ static void emit_call(struct dynarec_compiler *compiler,
 }
 #define CALL(_fn) emit_call(compiler, (dynarec_fn_t)_fn)
 
+#define MOVE_TO_BANKED(_host_reg, _psx_reg)             \
+   MOV_R32_OFF_PR64(_host_reg,                          \
+                    DYNAREC_STATE_REG_OFFSET(_psx_reg), \
+                    STATE_REG);
+
+#define MOVE_FROM_BANKED(_psx_reg, _host_reg)           \
+   MOV_OFF_PR64_R32(DYNAREC_STATE_REG_OFFSET(_psx_reg), \
+                    STATE_REG,                          \
+                    _host_reg);                         \
+
 void dynasm_emit_exception(struct dynarec_compiler *compiler,
                            enum PSX_CPU_EXCEPTION exception) {
    MOV_U32_R32(exception, REG_SI);
@@ -647,9 +688,7 @@ void dynasm_emit_mov(struct dynarec_compiler *compiler,
       if (source >= 0) {
          MOV_R32_R32(source, target);
       } else {
-         MOV_OFF_PR64_R32(DYNAREC_STATE_REG_OFFSET(reg_source),
-                          STATE_REG,
-                          target);
+         MOVE_FROM_BANKED(reg_source, target);
       }
    } else {
       if (source >= 0) {
@@ -837,18 +876,74 @@ void dynasm_emit_andi(struct dynarec_compiler *compiler,
       AND_U32_R32(val, tmp_target);
 
       if (target != tmp_target) {
-         MOV_R32_OFF_PR64(tmp_target,
-                          DYNAREC_STATE_REG_OFFSET(reg_t),
-                          STATE_REG);
+         MOVE_TO_BANKED(tmp_target, reg_t);
       }
    }
 }
 
+extern void dynasm_emit_sltu(struct dynarec_compiler *compiler,
+                             enum PSX_REG reg_target,
+                             enum PSX_REG reg_op0,
+                             enum PSX_REG reg_op1) {
+   int target = register_location(reg_target);
+   int op0 = register_location(reg_op0);
+   int op1 = register_location(reg_op1);
+
+   if (target < 0) {
+      /* Use AX as temporary */
+      target = REG_AX;
+   }
+
+   if (op0 < 0) {
+      /* Use SI as temporary */
+      op0 = REG_SI;
+
+      MOVE_FROM_BANKED(reg_op0, REG_SI);
+   }
+
+   if (op1 < 0) {
+      /* Use DX as temporary */
+      op1 = REG_DX;
+
+      MOVE_FROM_BANKED(reg_op1, REG_DX);
+   }
+
+   CLEAR_REG(target);
+   CMP_R32_R32(op1, op0);
+   SETB_R8(target);
+
+   if (target == REG_AX) {
+      MOVE_TO_BANKED(target, reg_target);
+   }
+}
+
 extern void dynasm_emit_sltiu(struct dynarec_compiler *compiler,
-                              enum PSX_REG reg_t,
-                              enum PSX_REG reg_s,
+                              enum PSX_REG reg_target,
+                              enum PSX_REG reg_op,
                               uint32_t val) {
-   dynasm_emit_exception(compiler, PSX_DYNAREC_UNIMPLEMENTED);
+   int target = register_location(reg_target);
+   int op = register_location(reg_op);
+
+   if (target < 0) {
+      /* Use AX as temporary */
+      target = REG_AX;
+   }
+
+   if (op < 0) {
+      /* Use SI as temporary */
+      op = REG_SI;
+
+      MOVE_FROM_BANKED(reg_op, REG_SI);
+   }
+
+   CLEAR_REG(target);
+   CMP_U32_R32(val, op);
+   SETB_R8(target);
+
+   if (target == REG_AX) {
+      MOVE_TO_BANKED(target, reg_target);
+   }
+
 }
 
 enum MEM_DIR {
