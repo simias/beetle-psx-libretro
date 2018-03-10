@@ -744,18 +744,35 @@ void dynasm_emit_addiu(struct dynarec_compiler *compiler,
                        enum PSX_REG reg_t,
                        enum PSX_REG reg_s,
                        uint32_t val) {
-   const int target = register_location(reg_t);
-   const int source = register_location(reg_s);
+   int target = register_location(reg_t);
+   int source = register_location(reg_s);
 
-   if (target >= 0 && source >= 0) {
-      if (target != source) {
-         /* MOV %source, %target */
-         UNIMPLEMENTED;
+   if (reg_t == reg_s) {
+      /* We add the register to itself */
+      if (target < 0) {
+         ADD_U32_OFF_PR64(val,
+                          DYNAREC_STATE_REG_OFFSET(reg_t),
+                          STATE_REG);
+      } else {
+         ADD_U32_R32(val, target);
+      }
+   } else {
+      if (target < 0) {
+         /* Use SI as intermediary */
+         target = REG_SI;
+      }
+
+      if (source < 0) {
+         MOVE_FROM_BANKED(reg_s, target);
+      } else {
+         MOV_R32_R32(source, target);
       }
 
       ADD_U32_R32(val, target);
-   } else {
-      UNIMPLEMENTED;
+
+      if (target == REG_SI) {
+         MOVE_TO_BANKED(target, reg_t);
+      }
    }
 }
 
