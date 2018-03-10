@@ -985,7 +985,11 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
 
    /* First we load the address into %edx and we add the offset */
    if (addr_r >= 0) {
-      LEA_OFF_PR32_R32((int32_t)offset, addr_r, REG_DX);
+      if (offset != 0) {
+         LEA_OFF_PR32_R32((int32_t)offset, addr_r, REG_DX);
+      } else {
+         MOV_R32_R32(addr_r, REG_DX);
+      }
    } else {
       if (reg_addr == PSX_REG_R0) {
          /* XXX We could optimize this since it means that the offset
@@ -996,7 +1000,9 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
          MOV_OFF_PR64_R32(DYNAREC_STATE_REG_OFFSET(reg_addr),
                           STATE_REG,
                           REG_DX);
-         ADD_U32_R32((int32_t)offset, REG_DX);
+         if (offset != 0) {
+            ADD_U32_R32((int32_t)offset, REG_DX);
+         }
       }
    }
 
