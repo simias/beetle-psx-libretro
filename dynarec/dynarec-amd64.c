@@ -511,9 +511,9 @@ static void emit_alu_u32_off_pr64(struct dynarec_compiler *compiler,
    base &= 7;
 
    if (is_imms8(v)) {
-      *(compiler->map++) = 0x81;
-   } else {
       *(compiler->map++) = 0x83;
+   } else {
+      *(compiler->map++) = 0x81;
    }
 
    if (is_imms8(off)) {
