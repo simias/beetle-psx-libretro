@@ -674,8 +674,6 @@ static int dynarec_recompile(struct dynarec_state *state,
          it varies a lot depending on the instruction, the icache, memory
          latency etc... */
       cycles = 5;
-      /* Decrease the event counter before we continue. */
-      dynasm_counter_maintenance(&compiler, cycles);
 
       if (i + 1 < DYNAREC_PAGE_INSTRUCTIONS) {
          ds_instruction = emulated_page[i + 1];
