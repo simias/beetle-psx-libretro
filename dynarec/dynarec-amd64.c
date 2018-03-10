@@ -800,11 +800,18 @@ void dynasm_emit_addi(struct dynarec_compiler *compiler,
 
    if (target >= 0) {
       MOV_R32_R32(REG_AX, target);
-   } else {
+   } else if (reg_t != PSX_REG_R0) {
       MOV_R32_OFF_PR64(REG_AX,
                        DYNAREC_STATE_REG_OFFSET(reg_t),
                        STATE_REG);
    }
+}
+
+void dynasm_emit_addu(struct dynarec_compiler *compiler,
+                      enum PSX_REG reg_target,
+                      enum PSX_REG reg_op0,
+                      enum PSX_REG reg_op1) {
+   UNIMPLEMENTED;
 }
 
 void dynasm_emit_or(struct dynarec_compiler *compiler,

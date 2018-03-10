@@ -224,11 +224,6 @@ static void emit_addi(struct dynarec_compiler *compiler,
                       enum PSX_REG reg_target,
                       enum PSX_REG reg_source,
                       uint16_t imm) {
-   if (reg_target == 0) {
-      /* NOP */
-      return;
-   }
-
    if (reg_source == 0) {
       dynasm_emit_li(compiler, reg_target, imm);
       return;
@@ -241,6 +236,9 @@ static void emit_addi(struct dynarec_compiler *compiler,
       return;
    }
 
+   /* Watch out: we have to call this even if reg_target is R0 because
+      it might still raise an exception so unlike ADDIU it's not a NOP
+      in this case. */
    dynasm_emit_addi(compiler, reg_target, reg_source, imm);
 }
 
@@ -307,6 +305,34 @@ static void emit_ori(struct dynarec_compiler *compiler,
    }
 
    dynasm_emit_ori(compiler, reg_target, reg_source, imm);
+}
+
+static void emit_addu(struct dynarec_compiler *compiler,
+                      enum PSX_REG reg_target,
+                      enum PSX_REG reg_op0,
+                      enum PSX_REG reg_op1) {
+   if (reg_target == 0) {
+      /* NOP */
+      return;
+   }
+
+   if (reg_op0 == 0) {
+      if (reg_op1 == 0) {
+         dynasm_emit_li(compiler, reg_target, 0);
+      } else {
+         if (reg_target != reg_op1) {
+            dynasm_emit_mov(compiler, reg_target, reg_op1);
+         }
+      }
+   } else {
+      if (reg_op1 == 0) {
+         if (reg_target != reg_op0) {
+            dynasm_emit_mov(compiler, reg_target, reg_op0);
+         }
+      } else {
+         dynasm_emit_addu(compiler, reg_target, reg_op0, reg_op1);
+      }
+   }
 }
 
 static void emit_or(struct dynarec_compiler *compiler,
@@ -387,6 +413,7 @@ static enum delay_slot dynarec_instruction_registers(uint32_t instruction,
       case 0x13: /* MTLO */
          *reg_op0 = reg_s;
          break;
+      case 0x21: /* ADDU */
       case 0x25: /* OR */
       case 0x2b: /* SLTU */
          *reg_target = reg_d;
@@ -496,6 +523,12 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
          break;
       case 0x13: /* MTLO */
          dynasm_emit_mtlo(compiler, reg_op0);
+         break;
+      case 0x21: /* ADDU */
+         emit_addu(compiler,
+                   reg_target,
+                   reg_op0,
+                   reg_op1);
          break;
       case 0x25: /* OR */
          emit_or(compiler,
