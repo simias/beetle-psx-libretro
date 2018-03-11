@@ -352,6 +352,20 @@ static void emit_mov_r32_pr64(struct dynarec_compiler *compiler,
 }
 #define MOV_R32_PR64(_v, _t) emit_mov_r32_pr64(compiler, (_v), (_t))
 
+/* MOV %val16, (%target64) */
+static void emit_mov_r16_pr64(struct dynarec_compiler *compiler,
+                              enum X86_REG val,
+                              enum X86_REG target) {
+
+   /* Operand-size prefix to force the move to use 16bit operands. x86
+      is a marvel. Note that the REX prefix follows the operand-size
+      prefix. */
+   *(compiler->map++) = 0x66;
+
+   emit_mov_r32_pr64(compiler, val, target);
+}
+#define MOV_R16_PR64(_v, _t) emit_mov_r16_pr64(compiler, (_v), (_t))
+
 /* MOV (%target64), %r32 */
 static void emit_mov_pr64_r32(struct dynarec_compiler *compiler,
                               enum X86_REG addr,
@@ -1097,6 +1111,9 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
          case WIDTH_WORD:
             MOV_R32_PR64(value_r, REG_DX);
             break;
+         case WIDTH_HALFWORD:
+            MOV_R16_PR64(value_r, REG_DX);
+            break;
          default:
             UNIMPLEMENTED;
          }
@@ -1142,6 +1159,9 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
             case WIDTH_WORD:
                MOV_R32_PR64(value_r, REG_DX);
                break;
+            case WIDTH_HALFWORD:
+               MOV_R16_PR64(value_r, REG_DX);
+               break;
             default:
                UNIMPLEMENTED;
             }
@@ -1179,6 +1199,9 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
             case WIDTH_WORD:
                CALL(dynabi_device_sw);
                break;
+            case WIDTH_HALFWORD:
+               CALL(dynabi_device_sh);
+               break;
             default:
                UNIMPLEMENTED;
             }
@@ -1198,6 +1221,16 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
    } ENDIF;
 }
 
+void dynasm_emit_sh(struct dynarec_compiler *compiler,
+                    enum PSX_REG reg_addr,
+                    int16_t offset,
+                    enum PSX_REG reg_val) {
+   dynasm_emit_mem_rw(compiler,
+                      reg_addr,
+                      offset,
+                      reg_val,
+                      DIR_STORE, WIDTH_HALFWORD);
+}
 
 void dynasm_emit_sw(struct dynarec_compiler *compiler,
                     enum PSX_REG reg_addr,

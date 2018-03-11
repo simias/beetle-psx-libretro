@@ -10,6 +10,7 @@
  * to be called directly from C code */
 extern void dynabi_exception(void);
 extern void dynabi_device_sw(void);
+extern void dynabi_device_sh(void);
 extern void dynabi_device_lw(void);
 extern void dynabi_set_cop0_sr(void);
 extern void dynabi_set_cop0_cause(void);

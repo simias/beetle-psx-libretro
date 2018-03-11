@@ -472,6 +472,7 @@ static enum delay_slot dynarec_instruction_registers(uint32_t instruction,
       *reg_op0 = reg_s;
       ds = LOAD_DELAY_SLOT;
       break;
+   case 0x29: /* SH */
    case 0x2b: /* SW */
       *reg_op0 = reg_s;
       *reg_op1 = reg_t;
@@ -614,6 +615,9 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
       break;
    case 0x23: /* LW */
       dynasm_emit_lw(compiler, reg_target, imm, reg_op0);
+      break;
+   case 0x29: /* SH */
+      dynasm_emit_sh(compiler, reg_op0, imm, reg_op1);
       break;
    case 0x2b: /* SW */
       dynasm_emit_sw(compiler, reg_op0, imm, reg_op1);
