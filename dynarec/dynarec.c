@@ -175,8 +175,8 @@ static void emit_jump(struct dynarec_compiler *compiler,
          add_local_patch(compiler, patch_pos, target);
       }
    } else {
-      printf("Encountered unimplemented non-local jump\n");
-      abort();
+      /* Non-local jump */
+      dynasm_emit_exception(compiler, PSX_DYNAREC_UNIMPLEMENTED);
    }
 }
 
@@ -407,6 +407,10 @@ static enum delay_slot dynarec_instruction_registers(uint32_t instruction,
          *reg_target = reg_d;
          *reg_op0    = reg_t;
          break;
+      case 0x08: /* JR */
+         *reg_op0 = reg_s;
+         ds = BRANCH_DELAY_SLOT;
+         break;
       case 0x10: /* MFHI */
          *reg_target = reg_d;
          break;
@@ -431,6 +435,12 @@ static enum delay_slot dynarec_instruction_registers(uint32_t instruction,
       }
       break;
    case 0x02: /* J */
+      ds = BRANCH_DELAY_SLOT;
+      break;
+   case 0x03: /* JAL */
+      ds = BRANCH_DELAY_SLOT;
+      *reg_target = PSX_REG_RA;
+      break;
    case 0x05: /* BNE */
       *reg_op0 = reg_s;
       *reg_op1 = reg_t;
@@ -519,6 +529,9 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
                         shift,
                         dynasm_emit_sra);
          break;
+      case 0x08: /* J */
+         dynasm_emit_exception(compiler, PSX_DYNAREC_UNIMPLEMENTED);
+         break;
       case 0x10: /* MFHI */
          dynasm_emit_mfhi(compiler, reg_target);
          break;
@@ -559,6 +572,9 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
       break;
    case 0x02: /* J */
       emit_jump(compiler, instruction);
+      break;
+   case 0x03: /* JAL */
+      dynasm_emit_exception(compiler, PSX_DYNAREC_UNIMPLEMENTED);
       break;
    case 0x05: /* BNE */
       emit_bne(compiler, instruction);
@@ -831,10 +847,6 @@ static int dynarec_recompile(struct dynarec_state *state,
                behaviour across a jump sounds nasty, but who
                knows). Remove after running more tests. */
             dynasm_emit_exception(&compiler, PSX_DYNAREC_UNIMPLEMENTED);
-         }
-
-         if (reg_target) {
-            DYNAREC_FATAL("Add check for branch target hazard\n");
          }
 
          if (ds_target != 0) {

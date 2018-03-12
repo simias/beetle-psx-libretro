@@ -4,7 +4,7 @@
 #define __DYNAREC_AMD64_H__
 
 /* Maximum length of a recompiled instruction in bytes. */
-#define DYNAREC_INSTRUCTION_MAX_LEN  121U
+#define DYNAREC_INSTRUCTION_MAX_LEN  (121U * 2)
 
 /* Helper assembly functions. They use a custom ABI and are not meant
  * to be called directly from C code */
