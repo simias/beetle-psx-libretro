@@ -75,14 +75,14 @@ dynasm_execute:
 /* Called by the dynarec code when a SW instruction targets device
  * memory */
 dynabi_device_sw:
-        /* Preserve dynarec_state pointer */
-        push    %rdi
-
         /* Bank the registers not preserved by function calls */
         mov     %r8d,  AT_REG_OFFSET(%rdi)
         mov     %r9d,  V0_REG_OFFSET(%rdi)
         mov     %r10d, V1_REG_OFFSET(%rdi)
         mov     %r11d, A0_REG_OFFSET(%rdi)
+
+	/* Preserve dynarec_state pointer */
+        push    %rdi
 
         /* Call emulator code */
         call    dynarec_callback_sw
@@ -90,14 +90,14 @@ dynabi_device_sw:
         /* Move return value to the counter */
         mov     %eax, %ecx
 
+        /* Restore dynarec_state pointer */
+        pop     %rdi
+
         /* Reload registers */
         mov     AT_REG_OFFSET(%rdi), %r8d
         mov     V0_REG_OFFSET(%rdi), %r9d
         mov     V1_REG_OFFSET(%rdi), %r10d
         mov     A0_REG_OFFSET(%rdi), %r11d
-
-        /* Restore dynarec_state pointer */
-        pop     %rdi
 
         ret
 

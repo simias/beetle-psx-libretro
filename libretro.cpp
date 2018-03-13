@@ -942,7 +942,7 @@ extern "C" int32_t dynarec_callback_sw(struct dynarec_state *s,
 
    PSX_MemWrite32(timestamp, addr, val);
 
-   /* recompute the timestap, it's possible that the "next event"
+   /* recompute the timestamp, it's possible that the "next event"
       timestamp has been modified */
    return CPU->GetEventNT() - timestamp;
 }
