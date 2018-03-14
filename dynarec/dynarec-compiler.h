@@ -119,6 +119,10 @@ struct dynarec_compiler {
 
 typedef void (*dynarec_fn_t)(void);
 
+
+extern int dynarec_recompile(struct dynarec_state *state,
+                             uint32_t page_index);
+
 /* These methods are provided by the various architecture-dependent
    backends */
 extern void dynasm_counter_maintenance(struct dynarec_compiler *compiler,

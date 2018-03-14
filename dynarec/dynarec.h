@@ -89,6 +89,10 @@ extern struct dynarec_state *dynarec_init(uint32_t *ram,
                                           uint32_t *scratchpad,
                                           const uint32_t *bios);
 
+extern int32_t dynarec_find_page_index(struct dynarec_state *state,
+                                       uint32_t addr);
+extern uint8_t *dynarec_page_start(struct dynarec_state *state,
+                                   uint32_t page_index);
 extern void dynarec_delete(struct dynarec_state *state);
 extern void dynarec_set_next_event(struct dynarec_state *state,
                                    int32_t cycles);

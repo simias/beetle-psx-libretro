@@ -260,7 +260,7 @@ ifneq ($(HAVE_GRIFFIN), 1)
 
       EXTRA_INCLUDES += -I$(CORE_DIR)/dynarec
 
-      SOURCES_C += $(DYNAREC_DIR)/dynarec.c
+      SOURCES_C += $(DYNAREC_DIR)/dynarec.c $(DYNAREC_DIR)/dynarec-compiler.c
       ifeq ($(DYNAREC_ARCH), AMD64)
          SOURCES_C   += $(DYNAREC_DIR)/dynarec-amd64.c
          SOURCES_ASM += $(DYNAREC_DIR)/dynarec-amd64-helpers.s
