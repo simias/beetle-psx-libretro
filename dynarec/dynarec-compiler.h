@@ -113,6 +113,9 @@ struct dynarec_compiler {
    uint32_t page_index;
    /* Number of entries in local_patch */
    uint32_t local_patch_len;
+   /* Pointer towards the dynarec's `dynarec_instruction` array for
+      the current page */
+   void   **dynarec_instructions;
    /* Contains offset of instructions that need patching */
    struct dynarec_page_local_patch local_patch[DYNAREC_PAGE_INSTRUCTIONS];
 };

@@ -624,7 +624,7 @@ static void emit_jmp_off(struct dynarec_compiler *compiler,
       emit_imms8(compiler, off - 2);
    } else {
       *(compiler->map++) = 0xe9;
-      emit_imms8(compiler, off - 5);
+      emit_imm32(compiler, off - 5);
    }
 }
 #define EMIT_JMP(_o) emit_jmp_off(compiler, (_o))

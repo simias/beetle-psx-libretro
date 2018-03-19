@@ -26,7 +26,7 @@ extern "C" {
 /* Base address for the scratchpad */
 #define PSX_SCRATCHPAD_BASE        0x1F800000U
 
-/* Log in base 2 of the page size*/
+/* Log in base 2 of the page size in bytes */
 #define DYNAREC_PAGE_SIZE_SHIFT    11U
 /* Length of a recompilation page in bytes */
 #define DYNAREC_PAGE_SIZE          (1U << DYNAREC_PAGE_SIZE_SHIFT)
@@ -40,6 +40,10 @@ extern "C" {
 
 /* Total number of dynarec pages for the system */
 #define DYNAREC_TOTAL_PAGES        (DYNAREC_RAM_PAGES + DYNAREC_BIOS_PAGES)
+
+/* Total number of potential instructions in the system */
+#define DYNAREC_TOTAL_INSTRUCTIONS (DYNAREC_TOTAL_PAGES *       \
+                                    DYNAREC_PAGE_INSTRUCTIONS)
 
 #ifndef ARRAY_SIZE
 # define ARRAY_SIZE(_a) (sizeof(_a) / sizeof((_a)[0]))
@@ -83,6 +87,8 @@ struct dynarec_state {
    /* Keeps track of whether each page is valid or needs to be
       recompiled */
    uint8_t             page_valid[DYNAREC_TOTAL_PAGES];
+   /* Look up table for any (valid) recompiled instruction */
+   void               *dynarec_instructions[DYNAREC_TOTAL_INSTRUCTIONS];
 };
 
 extern struct dynarec_state *dynarec_init(uint32_t *ram,
@@ -93,6 +99,8 @@ extern int32_t dynarec_find_page_index(struct dynarec_state *state,
                                        uint32_t addr);
 extern uint8_t *dynarec_page_start(struct dynarec_state *state,
                                    uint32_t page_index);
+extern uint8_t *dynarec_instruction_address(struct dynarec_state *state,
+                                            uint32_t addr);
 extern void dynarec_delete(struct dynarec_state *state);
 extern void dynarec_set_next_event(struct dynarec_state *state,
                                    int32_t cycles);

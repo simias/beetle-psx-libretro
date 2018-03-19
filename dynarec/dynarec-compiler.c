@@ -5,16 +5,51 @@
 
 #include "dynarec-compiler.h"
 
+/* Keep track of an unresolved local jump (i.e. within the same page)
+   that will have to be patched once we're done recompiling the
+   page. `patch_loc` is the location of the jump to be patched in the
+   dynarec'd code, `target` is the address (in PSX memory) of the
+   target instruction that *must* be within the same page. */
 static void add_local_patch(struct dynarec_compiler *compiler,
                             uint8_t *patch_loc,
                             uint32_t target) {
 
    uint32_t pos = compiler->local_patch_len;
 
+   /* Jumps should always be 32bit-aligned*/
+   assert((target & 3) == 0);
+
    assert(pos < DYNAREC_PAGE_INSTRUCTIONS);
    compiler->local_patch[pos].patch_loc = patch_loc;
    compiler->local_patch[pos].target = target;
    compiler->local_patch_len++;
+}
+
+/* Called when we're done recompiling a page to "patch" the correct
+   target addresses */
+static void resolve_local_patches(struct dynarec_compiler *compiler) {
+   uint32_t i;
+
+   for (i = 0; i < compiler->local_patch_len; i++) {
+      uint8_t *patch_loc = compiler->local_patch[i].patch_loc;
+      uint32_t target    = compiler->local_patch[i].target;
+      uint8_t *target_loc;
+      int32_t offset;
+
+      /* We know for sure that the target is within the same page,
+         compute the relative offset */
+      target = target & (DYNAREC_PAGE_SIZE - 1);
+
+      target_loc = compiler->dynarec_instructions[target >> 2];
+
+      offset = target_loc - patch_loc;
+
+      compiler->map = patch_loc;
+
+      dynasm_emit_page_local_jump(compiler,
+                                  offset,
+                                  false);
+   }
 }
 
 static void emit_jump(struct dynarec_compiler *compiler,
@@ -548,7 +583,7 @@ int dynarec_recompile(struct dynarec_state *state,
    const uint32_t          *emulated_page;
    const uint32_t          *next_page;
    uint8_t                 *page_start;
-   struct dynarec_compiler  compiler;
+   struct dynarec_compiler  compiler = { 0 };
    unsigned                 i;
 
    DYNAREC_LOG("Recompiling page %u\n", page_index);
@@ -561,6 +596,11 @@ int dynarec_recompile(struct dynarec_state *state,
    compiler.page_index = page_index;
    compiler.local_patch_len = 0;
    compiler.map = page_start;
+
+   /* We'll fill up each individual's instruction address as we
+      recompile them */
+   compiler.dynarec_instructions =
+      &state->dynarec_instructions[page_index * DYNAREC_PAGE_INSTRUCTIONS];
 
    if (page_index < DYNAREC_RAM_PAGES) {
       uint32_t ram_index = page_index;
@@ -610,6 +650,7 @@ int dynarec_recompile(struct dynarec_state *state,
                                        &reg_op1);
 
       instruction_start = compiler.map;
+      compiler.dynarec_instructions[i] = instruction_start;
 
       /* For now I assume every instruction takes exactly 5 cycles to
          execute. It's a pretty decent average but obviously in practice
@@ -803,6 +844,7 @@ int dynarec_recompile(struct dynarec_state *state,
 #endif
    }
 
+   resolve_local_patches(&compiler);
    state->page_valid[page_index] = 1;
    return 0;
 }
