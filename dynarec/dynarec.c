@@ -145,7 +145,7 @@ int32_t dynarec_run(struct dynarec_state *state, int32_t cycles_to_run) {
 
 /* Helper functions called by the recompiled code */
 void dynarec_set_cache_isolation(struct dynarec_state *state, int enabled) {
-   printf("set cache isolation %08x, %d\n", state->sr, enabled);
+   DYNAREC_LOG("set cache isolation %d\n", enabled);
 
    /* This is not completely accurate, I think when the cache is
       isolated you can't access *anything* (RAM, scratchpad, device

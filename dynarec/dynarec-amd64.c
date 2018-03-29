@@ -130,6 +130,21 @@ static void emit_rex_prefix(struct dynarec_compiler *compiler,
    }
 }
 
+/* Same thing as emit_rex_prefix but set the "W" bit to set 64bit
+   operand size */
+static void emit_rex_prefix_64(struct dynarec_compiler *compiler,
+                               enum X86_REG base,
+                               enum X86_REG modr_m,
+                               enum X86_REG index) {
+   uint8_t rex = 0x8; /* W */
+
+   rex |= (modr_m >= 8) << 2; /* R */
+   rex |= (index >= 8)  << 1; /* X */
+   rex |= (base >= 8)   << 0; /* B */
+
+   *(compiler->map++) = rex | 0x40;
+}
+
 /* Scale Index Base addressing mode encoding */
 static void emit_sib(struct dynarec_compiler *compiler,
                      enum X86_REG base,
@@ -491,13 +506,11 @@ static void emit_alu_r32_r32(struct dynarec_compiler *compiler,
 #define XOR_R32_R32(_op0, _op1) emit_alu_r32_r32(compiler, 0x31, (_op0), (_op1))
 #define CMP_R32_R32(_op0, _op1) emit_alu_r32_r32(compiler, 0x39, (_op0), (_op1))
 
-/* ALU off(%base64), %target32 */
-static void emit_alu_off_pr64_r32(struct dynarec_compiler *compiler,
-                                  uint8_t op,
-                                  uint32_t off,
-                                  enum X86_REG base,
-                                  enum X86_REG target) {
-   emit_rex_prefix(compiler, base, target, 0);
+static void emit_alu_off_pr64_rx(struct dynarec_compiler *compiler,
+                                 uint8_t op,
+                                 uint32_t off,
+                                 enum X86_REG base,
+                                 enum X86_REG target) {
    *(compiler->map++) = op;
 
    if (is_imms8(off)) {
@@ -508,11 +521,35 @@ static void emit_alu_off_pr64_r32(struct dynarec_compiler *compiler,
       emit_imm32(compiler, off);
    }
 }
+
+
+/* ALU off(%base64), %target32 */
+static void emit_alu_off_pr64_r32(struct dynarec_compiler *compiler,
+                                  uint8_t op,
+                                  uint32_t off,
+                                  enum X86_REG base,
+                                  enum X86_REG target) {
+   emit_rex_prefix(compiler, base, target, 0);
+   emit_alu_off_pr64_rx(compiler, op, off, base, target);
+}
 #define ADD_OFF_PR64_R32(_o, _b, _t)                            \
    emit_alu_off_pr64_r32(compiler, 0x03, (_o), (_b), (_t))
 #define AND_OFF_PR64_R32(_o, _b, _t)                            \
    emit_alu_off_pr64_r32(compiler, 0x23, (_o), (_b), (_t))
 
+/* ALU off(%base64), %target64 */
+static void emit_alu_off_pr64_r64(struct dynarec_compiler *compiler,
+                                  uint8_t op,
+                                  uint32_t off,
+                                  enum X86_REG base,
+                                  enum X86_REG target) {
+   emit_rex_prefix_64(compiler, base, target, 0);
+   emit_alu_off_pr64_rx(compiler, op, off, base, target);
+}
+#define ADD_OFF_PR64_R64(_o, _b, _t)                            \
+   emit_alu_off_pr64_r64(compiler, 0x03, (_o), (_b), (_t))
+#define AND_OFF_PR64_R64(_o, _b, _t)                            \
+   emit_alu_off_pr64_r64(compiler, 0x23, (_o), (_b), (_t))
 
 /* ALU $u32, off(%base64) */
 static void emit_alu_u32_off_pr64(struct dynarec_compiler *compiler,
@@ -1101,7 +1138,7 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
       }
 
       /* Add the address of the RAM buffer in host memory */
-      ADD_OFF_PR64_R32(offsetof(struct dynarec_state, ram),
+      ADD_OFF_PR64_R64(offsetof(struct dynarec_state, ram),
                        STATE_REG,
                        REG_DX);
 
@@ -1148,8 +1185,8 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
             case, no invalidation needed, we can store it directly in
             the scratchpad buffer */
 
-         /* Add the address of the RAM buffer in host memory */
-         ADD_OFF_PR64_R32(offsetof(struct dynarec_state, scratchpad),
+         /* Add the address of the scratchpad buffer in host memory */
+         ADD_OFF_PR64_R64(offsetof(struct dynarec_state, scratchpad),
                           STATE_REG,
                           REG_AX);
 
