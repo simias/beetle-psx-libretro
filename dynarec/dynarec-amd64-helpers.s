@@ -1,5 +1,5 @@
 /* offsetof(struct dynarec_state, regs) */
-.EQU STATE_REG_OFFSET, 64
+.EQU STATE_REG_OFFSET, 0x40
 
 .EQU AT_REG_OFFSET,    (STATE_REG_OFFSET + 4 * 0)
 .EQU V0_REG_OFFSET,    (STATE_REG_OFFSET + 4 * 1)
@@ -10,6 +10,9 @@
 .EQU SP_REG_OFFSET,    (STATE_REG_OFFSET + 4 * 28)
 .EQU RA_REG_OFFSET,    (STATE_REG_OFFSET + 4 * 30)
 .EQU DT_REG_OFFSET,    (STATE_REG_OFFSET + 4 * 31)
+
+/* offsetof(struct dynarec_state, sr) */
+.EQU STATE_SR_OFFSET, 0xc0
 
 .text
 
@@ -70,11 +73,13 @@ dynasm_execute:
         pop     %rbp
         ret
 
-.global dynabi_device_sw
-.type   dynabi_device_sw, function
-/* Called by the dynarec code when a SW instruction targets device
- * memory */
-dynabi_device_sw:
+/* Macro to call a C function from recompiler context. Banks all
+ * registers that are not preserved by the calling convention, calls
+ * the function and restores them.
+ *
+ * /!\ Don't forget to spill the counter in %rcx if you need to preserve it
+ */
+.macro c_call _func
         /* Bank the registers not preserved by function calls */
         mov     %r8d,  AT_REG_OFFSET(%rdi)
         mov     %r9d,  V0_REG_OFFSET(%rdi)
@@ -84,11 +89,8 @@ dynabi_device_sw:
 	/* Preserve dynarec_state pointer */
         push    %rdi
 
-        /* Call emulator code */
-        call    dynarec_callback_sw
-
-        /* Move return value to the counter */
-        mov     %eax, %ecx
+        /* Call C function */
+        call    \_func
 
         /* Restore dynarec_state pointer */
         pop     %rdi
@@ -98,6 +100,18 @@ dynabi_device_sw:
         mov     V0_REG_OFFSET(%rdi), %r9d
         mov     V1_REG_OFFSET(%rdi), %r10d
         mov     A0_REG_OFFSET(%rdi), %r11d
+.endm
+
+.global dynabi_device_sw
+.type   dynabi_device_sw, function
+/* Called by the dynarec code when a SW instruction targets device
+ * memory */
+dynabi_device_sw:
+
+        c_call dynarec_callback_sw
+
+        /* Move return value to the counter */
+	mov     %eax, %ecx
 
         ret
 
@@ -128,15 +142,38 @@ dynabi_exception:
 /* Called by the dynarec code when storing the value of the SR
  * register. The value is in %esi.*/
 dynabi_set_cop0_sr:
-        /* TODO: check for interrupt, check for cache isolation. */
-        int $3
+        /* Load current value of the SR into %eax */
+        mov STATE_SR_OFFSET(%rdi), %eax
+
+        /* Check if the value of the cache isolation bit changed */
+        xor %esi, %eax
+        and $0x10000, %eax
+        jz  1f /* Jump if no change */
+
+        /* The cache isolation bit changed, call the emulator code to
+	 * take care of it. We pass the cache isolation bit as 2nd
+	 * argument. */
+	push %rsi
+        and $0x10000, %esi
+	shr $16, %esi
+
+        /* Push counter */
+        push %rcx
+
+        c_call dynarec_set_cache_isolation
+
+        pop %rcx
+        pop %rsi
+1:
+        /* XXX check for interrupts */
+        ret
 
 .global dynabi_set_cop0_cause
 .type   dynabi_set_cop0_cause, function
 /* Called by the dynarec code when storing the value of the CAUSE
  * register. The value is in %esi.*/
 dynabi_set_cop0_cause:
-        /* TODO: check for interrupt, check for cache isolation. */
+        /* TODO: check for interrupt */
         int $3
 
 .global dynabi_set_cop0_misc
@@ -145,5 +182,4 @@ dynabi_set_cop0_cause:
  * register that's neither SR or CAUSE. The value is in %esi, the
  * register index in %edx */
 dynabi_set_cop0_misc:
-        /* TODO: check for interrupt, check for cache isolation. */
         int $3

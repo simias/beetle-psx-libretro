@@ -84,6 +84,11 @@ struct dynarec_state {
    uint8_t            *map;
    /* Length of the map */
    uint32_t            map_len;
+   /* Pointer to the real RAM buffer */
+   uint32_t           *true_ram;
+   /* Pointer to the dummy RAM buffer used when cache isolation is
+      active */
+   uint32_t           *dummy_ram;
    /* Keeps track of whether each page is valid or needs to be
       recompiled */
    uint8_t             page_valid[DYNAREC_TOTAL_PAGES];

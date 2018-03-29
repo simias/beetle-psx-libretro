@@ -48,6 +48,14 @@ struct dynarec_state *dynarec_init(uint32_t *ram,
       return NULL;
    }
 
+   /* Allocate dummy RAM buffer used when cache isolation is active */
+   state->dummy_ram = calloc(1, PSX_RAM_SIZE);
+   if (state->dummy_ram == NULL) {
+      free(state);
+      return NULL;
+   }
+
+   state->true_ram = ram;
    state->ram = ram;
    state->scratchpad = scratchpad;
    state->bios = bios;
@@ -64,6 +72,7 @@ struct dynarec_state *dynarec_init(uint32_t *ram,
                      0);
 
    if (state->map == MAP_FAILED) {
+      free(state->dummy_ram);
       free(state);
       return NULL;
    }
@@ -78,6 +87,7 @@ void dynarec_delete(struct dynarec_state *state) {
    unsigned i;
 
    munmap(state->map, state->map_len);
+   free(state->dummy_ram);
    free(state);
 }
 
@@ -131,4 +141,22 @@ int32_t dynarec_run(struct dynarec_state *state, int32_t cycles_to_run) {
    dynarec_fn_t f = (dynarec_fn_t)dynarec_page_start(state, page_index);
 
    return dynasm_execute(state, f, cycles_to_run);
+}
+
+/* Helper functions called by the recompiled code */
+void dynarec_set_cache_isolation(struct dynarec_state *state, int enabled) {
+   printf("set cache isolation %08x, %d\n", state->sr, enabled);
+
+   /* This is not completely accurate, I think when the cache is
+      isolated you can't access *anything* (RAM, scratchpad, device
+      memory...). That being said as far as I know the only thing this
+      is used for is for flushing the cache in which case the code
+      will write to very low addresses that would normally end up in
+      RAM. For this reason swapping the RAM buffer away might be
+      sufficient in the vast majority of the cases. */
+   if (enabled) {
+      state->ram = state->dummy_ram;
+   } else {
+      state->ram = state->true_ram;
+   }
 }
