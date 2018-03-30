@@ -12,7 +12,7 @@
  */
 enum X86_REG {
    REG_AX  = 0,  /* Temporary variable, return value 0 */
-   REG_BX  = 3,  /* Dynarec temporary register [PAFC] */
+   REG_BX  = 3,  /* Dynarec temporary register (DT) [PAFC] */
    REG_CX  = 1,  /* Cycle counter, func arg 3 */
    REG_DX  = 2,  /* Temporary variable, func arg 2, return value 1 */
    REG_BP  = 5,  /* Host BP [PAFC] */
@@ -108,9 +108,13 @@ static int register_location(enum PSX_REG reg) {
       *_jump_patch = _jump_off;                                 \
    }} while (0)
 
-#define IF_OVERFLOW      IF(0x71)
-#define IF_NOT_EQUAL     IF(0x74)
-#define IF_LESS_THAN     IF(0x73)
+#define OP_IF_OVERFLOW     0x71
+#define OP_IF_LESS_EQUAL   0x73
+#define OP_IF_NOT_EQUAL    0x74
+
+#define IF_OVERFLOW      IF(OP_IF_OVERFLOW)
+#define IF_LESS_THAN     IF(OP_IF_LESS_EQUAL)
+#define IF_NOT_EQUAL     IF(OP_IF_NOT_EQUAL)
 
 /* 64bit "REX" prefix used to specify extended registers among other
    things. See the "Intel 64 and IA-32 Architecture Software
@@ -522,7 +526,6 @@ static void emit_alu_off_pr64_rx(struct dynarec_compiler *compiler,
    }
 }
 
-
 /* ALU off(%base64), %target32 */
 static void emit_alu_off_pr64_r32(struct dynarec_compiler *compiler,
                                   uint8_t op,
@@ -536,6 +539,8 @@ static void emit_alu_off_pr64_r32(struct dynarec_compiler *compiler,
    emit_alu_off_pr64_r32(compiler, 0x03, (_o), (_b), (_t))
 #define AND_OFF_PR64_R32(_o, _b, _t)                            \
    emit_alu_off_pr64_r32(compiler, 0x23, (_o), (_b), (_t))
+#define CMP_OFF_PR64_R32(_o, _b, _t)                            \
+   emit_alu_off_pr64_r32(compiler, 0x3b, (_o), (_b), (_t))
 
 /* ALU off(%base64), %target64 */
 static void emit_alu_off_pr64_r64(struct dynarec_compiler *compiler,
@@ -550,6 +555,21 @@ static void emit_alu_off_pr64_r64(struct dynarec_compiler *compiler,
    emit_alu_off_pr64_r64(compiler, 0x03, (_o), (_b), (_t))
 #define AND_OFF_PR64_R64(_o, _b, _t)                            \
    emit_alu_off_pr64_r64(compiler, 0x23, (_o), (_b), (_t))
+
+/* The encoding of the reciprocal is identical with only a bit flip in
+   the opcode. */
+
+/* ALU %reg32, off(%base64) */
+#define ADD_R32_OFF_PR64(_r, _o, _b)                            \
+   emit_alu_off_pr64_r32(compiler, 0x01, (_o), (_b), (_r))
+#define CMP_R32_OFF_PR64(_r, _o, _b)                            \
+   emit_alu_off_pr64_r32(compiler, 0x39, (_o), (_b), (_r))
+
+/* ALU %reg64, off(%base64) */
+#define ADD_R64_OFF_PR64(_r, _o, _b)                            \
+   emit_alu_off_pr64_r64(compiler, 0x01, (_o), (_b), (_r))
+#define CMP_R64_OFF_PR64(_r, _o, _b)                            \
+   emit_alu_off_pr64_r64(compiler, 0x39, (_o), (_b), (_r))
 
 /* ALU $u32, off(%base64) */
 static void emit_alu_u32_off_pr64(struct dynarec_compiler *compiler,
@@ -581,12 +601,14 @@ static void emit_alu_u32_off_pr64(struct dynarec_compiler *compiler,
       emit_imm32(compiler, v);
    }
 }
-#define ADD_U32_OFF_PR64(_v, _o, _b)                             \
+#define ADD_U32_OFF_PR64(_v, _o, _b)                            \
    emit_alu_u32_off_pr64(compiler, 0x00, (_v), (_o), (_b))
 #define OR_U32_OFF_PR64(_v, _o, _b)                             \
    emit_alu_u32_off_pr64(compiler, 0x08, (_v), (_o), (_b))
 #define AND_U32_OFF_PR64(_v, _o, _b)                            \
    emit_alu_u32_off_pr64(compiler, 0x20, (_v), (_o), (_b))
+#define CMP_U32_OFF_PR64(_v, _o, _b)                            \
+   emit_alu_u32_off_pr64(compiler, 0x38, (_v), (_o), (_b))
 
 /* ALU off(%b64, %i64, $s), %target32 */
 static void emit_alu_off_sib_r32(struct dynarec_compiler *compiler,
@@ -687,8 +709,6 @@ static void emit_call(struct dynarec_compiler *compiler,
                       dynarec_fn_t fn) {
    uint8_t *target = (void*)fn;
    intptr_t offset = target - compiler->map;
-
-   printf("%p %p offset: %ld\n", target, compiler->map, offset);
 
    assert(is_imms32(offset));
 
@@ -845,6 +865,7 @@ void dynasm_emit_addi(struct dynarec_compiler *compiler,
    }
 
    ADD_U32_R32(val, REG_AX);
+
    IF_OVERFLOW {
       dynasm_emit_exception(compiler, PSX_OVERFLOW);
    } ENDIF;
@@ -1292,28 +1313,116 @@ void dynasm_emit_lw(struct dynarec_compiler *compiler,
                       WIDTH_WORD);
 }
 
+void dynasm_patch(struct dynarec_compiler *compiler, int32_t offset) {
+   /* `offset` is relative to the beginning of the address while the
+      instruction parameter is relative to the *end* of the
+      instruction so we must offset. */
+   emit_imm32(compiler, ((uint32_t)offset) - 4);
+}
+
 void dynasm_emit_page_local_jump(struct dynarec_compiler *compiler,
-                                 int32_t offset,
+                                 uint8_t *dynarec_target,
                                  bool placeholder) {
+   int32_t offset = dynarec_target - compiler->map;
+
    if (placeholder == false) {
       EMIT_JMP(offset);
    } else {
       /* We're adding placeholder code we'll patch later. */
       /* XXX for not I assume the worst case scenario and make room
-         for a 32bit relative jump. Since "offset" contains the worst
-         case scenario we could use it to see if we could use a near
-         jump instead. */
+         for a 32bit relative jump. Since `dynarec_target` contains
+         the worst case scenario we could use it to see if we could
+         use a near jump instead. */
       /* JMP off32 */
       *(compiler->map++) = 0xe9;
       /* I'm supposed to put the offset here, but I don't know what it
          is yet. I use 0x90 because it's a NOP, this way we'll be able
          to patch a shorter instruction if we want later and not run
          into any issues. */
+      dynarec_prepare_patch(compiler);
+
       *(compiler->map++) = 0x90;
       *(compiler->map++) = 0x90;
       *(compiler->map++) = 0x90;
       *(compiler->map++) = 0x90;
    }
+}
+
+void dynasm_emit_page_local_jump_cond(struct dynarec_compiler *compiler,
+                                      uint8_t *dynarec_target,
+                                      bool placeholder,
+                                      enum PSX_REG reg_a,
+                                      enum PSX_REG reg_b,
+                                      enum DYNAREC_JUMP_COND cond) {
+   int a = register_location(reg_a);
+   int b = register_location(reg_b);
+   uint8_t op;
+
+   switch (cond) {
+   case DYNAREC_JUMP_NE:
+      op = OP_IF_NOT_EQUAL;
+      break;
+   default:
+      UNIMPLEMENTED;
+   }
+
+   if (reg_a == PSX_REG_R0 || reg_b == PSX_REG_R0) {
+      if (reg_b == PSX_REG_R0) {
+         /* The CMP opcode doesn't allow to put an immediate as 2nd
+            operand, swap them around and reverse the operation if
+            necessary */
+         reg_b = reg_a;
+         b = a;
+
+         /* Invert op */
+         switch (cond) {
+         case DYNAREC_JUMP_ALWAYS:
+         case DYNAREC_JUMP_NE:
+            /* Nothing to do */
+            break;
+         default:
+            UNIMPLEMENTED;
+         }
+      }
+
+      if (b > 0) {
+         CMP_U32_R32(0, b);
+      } else {
+         CMP_U32_OFF_PR64(0,
+                          DYNAREC_STATE_REG_OFFSET(reg_b),
+                          STATE_REG);
+      }
+   } else {
+      /* We're comparing two "real" registers */
+
+      if (a > 0) {
+         if (b > 0) {
+            CMP_R32_R32(a, b);
+         } else {
+            uint8_t *pre = compiler->map;
+            CMP_R32_OFF_PR64(a,
+                             DYNAREC_STATE_REG_OFFSET(reg_b),
+                             STATE_REG);
+         }
+      } else {
+         if (b > 0) {
+            CMP_OFF_PR64_R32(DYNAREC_STATE_REG_OFFSET(reg_a),
+                             STATE_REG,
+                             b);
+         } else {
+            /* Use AX as temporary */
+            MOVE_FROM_BANKED(reg_b, REG_AX);
+
+            CMP_OFF_PR64_R32(DYNAREC_STATE_REG_OFFSET(reg_a),
+                             STATE_REG,
+                             REG_AX);
+         }
+      }
+   }
+
+   IF(op) {
+      dynasm_emit_page_local_jump(compiler, dynarec_target, placeholder);
+   } ENDIF;
 }
 
 void dynasm_emit_mfhi(struct dynarec_compiler *compiler,

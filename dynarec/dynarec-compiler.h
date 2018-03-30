@@ -66,26 +66,32 @@ enum PSX_COP0_REG {
 };
 
 enum PSX_CPU_EXCEPTION {
-    /// Interrupt Request
-    PSX_EXCEPTION_INTERRUPT = 0x0,
-    /// Alignment error on load
-    PSX_EXCEPTION_LOAD_ALIGN = 0x4,
-    /// Alignment error on store
-    PSX_EXCEPTION_STORE_ALIGN = 0x5,
-    /// System call (caused by the SYSCALL opcode)
-    PSX_EXCEPTION_SYSCALL = 0x8,
-    /// Breakpoint (caused by the BREAK opcode)
-    PSX_EXCEPTION_BREAK = 0x9,
-    /// CPU encountered an unknown instruction
-    PSX_EXCEPTION_ILLEGAL_INSTRUCTION = 0xa,
-    /// Unsupported coprocessor operation
-    PSX_COPROCESSOR_ERROR = 0xb,
-    /// Arithmetic overflow
-    PSX_OVERFLOW = 0xc,
-    /// Fake exception for dynarec use
-    PSX_DYNAREC_UNIMPLEMENTED = 0xdead,
+   /* Interrupt Request */
+   PSX_EXCEPTION_INTERRUPT = 0x0,
+   /* Alignment error on load */
+   PSX_EXCEPTION_LOAD_ALIGN = 0x4,
+   /* Alignment error on store */
+   PSX_EXCEPTION_STORE_ALIGN = 0x5,
+   /* System call (caused by the SYSCALL opcode) */
+   PSX_EXCEPTION_SYSCALL = 0x8,
+   /* Breakpoint (caused by the BREAK opcode) */
+   PSX_EXCEPTION_BREAK = 0x9,
+   /* CPU encountered an unknown instruction */
+   PSX_EXCEPTION_ILLEGAL_INSTRUCTION = 0xa,
+   /* Unsupported coprocessor operation */
+   PSX_COPROCESSOR_ERROR = 0xb,
+   /* Arithmetic overflow */
+   PSX_OVERFLOW = 0xc,
+   /* Fake exception for dynarec use */
+   PSX_DYNAREC_UNIMPLEMENTED = 0xdead,
 };
 
+enum DYNAREC_JUMP_COND {
+   /* Unconditional jump */
+   DYNAREC_JUMP_ALWAYS = 0,
+   /* Jump if registers aren't equal */
+   DYNAREC_JUMP_NE,
+};
 
 /* Get the offset of the location of a register within a struct
    dynarec_state. */
@@ -111,11 +117,14 @@ struct dynarec_compiler {
    uint32_t pc;
    /* Index of the page currently being recompiled */
    uint32_t page_index;
-   /* Number of entries in local_patch */
-   uint32_t local_patch_len;
    /* Pointer towards the dynarec's `dynarec_instruction` array for
       the current page */
    void   **dynarec_instructions;
+   /* When recompiling a jump this contains the target address in PSX
+      memory. */
+   uint32_t jump_target;
+   /* Number of entries in local_patch */
+   uint32_t local_patch_len;
    /* Contains offset of instructions that need patching */
    struct dynarec_page_local_patch local_patch[DYNAREC_PAGE_INSTRUCTIONS];
 };
@@ -126,10 +135,13 @@ typedef void (*dynarec_fn_t)(void);
 extern int dynarec_recompile(struct dynarec_state *state,
                              uint32_t page_index);
 
+extern void dynarec_prepare_patch(struct dynarec_compiler *compiler);
+
 /* These methods are provided by the various architecture-dependent
    backends */
 extern void dynasm_counter_maintenance(struct dynarec_compiler *compiler,
                                        unsigned cycles);
+extern void dynasm_patch(struct dynarec_compiler *compiler, int32_t offset);
 extern int32_t dynasm_execute(struct dynarec_state *state,
                               dynarec_fn_t target,
                               int32_t counter);
@@ -194,8 +206,14 @@ extern void dynasm_emit_lw(struct dynarec_compiler *compiler,
                            int16_t offset,
                            enum PSX_REG reg_addr);
 extern void dynasm_emit_page_local_jump(struct dynarec_compiler *compiler,
-                                        int32_t offset,
+                                        uint8_t *dynarec_target,
                                         bool placeholder);
+extern void dynasm_emit_page_local_jump_cond(struct dynarec_compiler *compiler,
+                                             uint8_t *dynarec_target,
+                                             bool placeholder,
+                                             enum PSX_REG reg_a,
+                                             enum PSX_REG reg_b,
+                                             enum DYNAREC_JUMP_COND cond);
 extern void dynasm_emit_mfhi(struct dynarec_compiler *compiler,
                              enum PSX_REG ret_target);
 extern void dynasm_emit_mtlo(struct dynarec_compiler *compiler,

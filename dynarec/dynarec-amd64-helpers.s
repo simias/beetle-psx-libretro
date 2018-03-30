@@ -166,6 +166,8 @@ dynabi_set_cop0_sr:
         pop %rsi
 1:
         /* XXX check for interrupts */
+        mov %esi, STATE_SR_OFFSET(%rdi)
+
         ret
 
 .global dynabi_set_cop0_cause
