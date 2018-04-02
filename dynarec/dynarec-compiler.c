@@ -731,6 +731,11 @@ int dynarec_recompile(struct dynarec_state *state,
                we can just pretend that this load just targets R0
                since it's functionally equivalent. */
             reg_target = PSX_REG_R0;
+
+            dynasm_counter_maintenance(&compiler, cycles);
+            dynarec_emit_instruction(&compiler, instruction,
+                                     reg_target, reg_op0, reg_op1);
+
          } else if (reg_target == ds_op0 || reg_target == ds_op1) {
             /* That's a bit trickier, we need to make sure that the
                previous value of `reg_target` is used in the load

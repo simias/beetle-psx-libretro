@@ -394,7 +394,7 @@ static void emit_mov_pr64_r32(struct dynarec_compiler *compiler,
    *(compiler->map++) = 0x8b;
    *(compiler->map++) = (addr & 7) | ((target & 7) << 3);
 }
-#define MOV_PR64_R32(_a, _t) emit_mov_r32_pr64(compiler, (_a), (_t))
+#define MOV_PR64_R32(_a, _t) emit_mov_pr64_r32(compiler, (_a), (_t))
 
 /* MOV $imm8, off(%base64, %index64, $scale) */
 static void emit_mov_u8_off_sib(struct dynarec_compiler *compiler,
@@ -1145,11 +1145,11 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
       /* Mask the address in case it was in one of the mirrors */
       AND_U32_R32(PSX_RAM_SIZE - 1, REG_DX);
 
-      /* Compute page index in %eax */
-      MOV_R32_R32(REG_DX, REG_AX);
-      SHR_U32_R32(DYNAREC_PAGE_SIZE_SHIFT, REG_AX);
-
       if (dir == DIR_STORE) {
+         /* Compute page index in %eax */
+         MOV_R32_R32(REG_DX, REG_AX);
+         SHR_U32_R32(DYNAREC_PAGE_SIZE_SHIFT, REG_AX);
+
          /* Clear valid flag */
          MOV_U8_OFF_SIB(0,
                         offsetof(struct dynarec_state, page_valid),
