@@ -1309,8 +1309,7 @@ void dynasm_emit_lw(struct dynarec_compiler *compiler,
                       reg_addr,
                       offset,
                       reg_target,
-                      DIR_LOAD,
-                      WIDTH_WORD);
+                      DIR_LOAD, WIDTH_WORD);
 }
 
 void dynasm_patch(struct dynarec_compiler *compiler, int32_t offset) {

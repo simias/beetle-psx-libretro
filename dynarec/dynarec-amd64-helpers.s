@@ -114,7 +114,7 @@ dynabi_device_sw:
         c_call dynarec_callback_sw
 
         /* Move return value to the counter */
-	mov     %eax, %ecx
+        mov     %eax, %ecx
 
         ret
 
@@ -123,7 +123,12 @@ dynabi_device_sw:
 /* Called by the dynarec code when a Sh instruction targets device
  * memory */
 dynabi_device_sh:
-        int $3
+        c_call dynarec_callback_sh
+
+        /* Move return value to the counter */
+        mov     %eax, %ecx
+
+        ret
 
 .global dynabi_device_lw
 .type   dynabi_device_lw, function
