@@ -280,6 +280,8 @@ class PS_CPU
  void PokeMem16(uint32 A, uint16 V);
  void PokeMem32(uint32 A, uint32 V);
 
+ void SetCop0Register(uint32 R, uint32 V);
+
  private:
  void (*CPUHook)(const pscpu_timestamp_t timestamp, uint32 pc);
  void (*ADDBT)(uint32 from, uint32 to, bool exception);

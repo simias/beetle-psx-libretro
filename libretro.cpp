@@ -24,6 +24,10 @@
 
 #include "../pgxp/pgxp_main.h"
 
+#ifdef HAVE_DYNAREC
+# include "dynarec.h"
+#endif // HAVE_DYNAREC
+
 #include <vector>
 #define ISHEXDEC ((codeLine[cursor]>='0') && (codeLine[cursor]<='9')) || ((codeLine[cursor]>='a') && (codeLine[cursor]<='f')) || ((codeLine[cursor]>='A') && (codeLine[cursor]<='F'))
 
@@ -931,6 +935,16 @@ uint32_t MDFN_FASTCALL PSX_MemRead32(int32_t &timestamp, uint32_t A)
 }
 
 #ifdef HAVE_DYNAREC
+/* Callback used by the dynarec to handle writes to "miscelanous" COP0
+   registers (i.e. not SR nor CAUSE) */
+extern "C" void dynarec_set_cop0_misc(struct dynarec_state *s,
+                                      uint32_t val,
+                                      uint32_t cop0_reg) {
+   DYNAREC_LOG("dynarec cop0 %08x @ %d\n", val, cop0_reg);
+
+   CPU->SetCop0Register(cop0_reg, val);
+}
+
 /* Callbacks used by the dynarec to handle device memory access */
 extern "C" int32_t dynarec_callback_sw(struct dynarec_state *s,
                                        uint32_t val,
@@ -938,7 +952,7 @@ extern "C" int32_t dynarec_callback_sw(struct dynarec_state *s,
                                        int32_t counter) {
    int32_t timestamp = CPU->GetEventNT() - counter;
 
-   printf("dynarec sw %08x @ %08x (%d)\n", val, addr, counter);
+   DYNAREC_LOG("dynarec sw %08x @ %08x (%d)\n", val, addr, counter);
 
    PSX_MemWrite32(timestamp, addr, val);
 

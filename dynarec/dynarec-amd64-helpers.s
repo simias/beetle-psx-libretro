@@ -184,4 +184,11 @@ dynabi_set_cop0_cause:
  * register that's neither SR or CAUSE. The value is in %esi, the
  * register index in %edx */
 dynabi_set_cop0_misc:
-        int $3
+        /* Push counter */
+        push %rcx
+
+        c_call dynarec_set_cop0_misc
+
+        pop %rcx
+
+        ret

@@ -38,7 +38,7 @@
 
 struct dynarec_state *dynarec_state = NULL;
 
-#endif
+#endif // HAVE_DYNAREC
 
 extern bool psx_gte_overclock;
 
@@ -2693,6 +2693,8 @@ pscpu_timestamp_t PS_CPU::Run(pscpu_timestamp_t timestamp_in, bool BIOSPrintMode
  if(BIOSPrintMode)
   return(RunReal<false, true, false>(timestamp_in));
 #endif
+
+ return(RunReal<false, false, false>(timestamp_in));
 }
 
 void PS_CPU::SetCPUHook(void (*cpuh)(const pscpu_timestamp_t timestamp, uint32 pc), void (*addbt)(uint32 from, uint32 to, bool exception))
@@ -2866,6 +2868,14 @@ void PS_CPU::PokeMem16(uint32 A, uint16 V)
 void PS_CPU::PokeMem32(uint32 A, uint32 V)
 {
  PokeMemory<uint32>(A, V);
+}
+
+void PS_CPU::SetCop0Register(uint32 R, uint32 V)
+{
+   // SR and CAUSE need special handling
+   assert(R != CP0REG_SR && R != CP0REG_CAUSE);
+
+   CP0.Regs[R] = V;
 }
 
 #undef BEGIN_OPF
