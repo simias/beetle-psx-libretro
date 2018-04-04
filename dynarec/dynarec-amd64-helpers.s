@@ -11,8 +11,11 @@
 .EQU RA_REG_OFFSET,    (STATE_REG_OFFSET + 4 * 30)
 .EQU DT_REG_OFFSET,    (STATE_REG_OFFSET + 4 * 31)
 
+/* offsetof(struct dynarec_state, cause) */
+.EQU STATE_CAUSE_OFFSET, 0xc0
+
 /* offsetof(struct dynarec_state, sr) */
-.EQU STATE_SR_OFFSET, 0xc0
+.EQU STATE_SR_OFFSET, 0xc4
 
 .text
 
@@ -176,7 +179,8 @@ dynabi_set_cop0_sr:
  * register. The value is in %esi.*/
 dynabi_set_cop0_cause:
         /* TODO: check for interrupt */
-        int $3
+        mov %esi, STATE_CAUSE_OFFSET(%rdi)
+        ret
 
 .global dynabi_set_cop0_misc
 .type   dynabi_set_cop0_misc, function

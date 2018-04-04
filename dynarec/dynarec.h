@@ -78,6 +78,8 @@ struct dynarec_state {
    /* All general purpose CPU registers except R0 plus the "dynarec
       temporary" register. */
    uint32_t            regs[32];
+   /* Cop0r11: cause register */
+   uint32_t            cause;
    /* Cop0r12: status register */
    uint32_t            sr;
    /* Executable region of memory containing the dynarec'd code */
