@@ -308,17 +308,42 @@ static void emit_addu(struct dynarec_compiler *compiler,
    }
 }
 
-static void emit_or(struct dynarec_compiler *compiler,
-                    enum PSX_REG reg_target,
-                    enum PSX_REG reg_op0,
-                    enum PSX_REG reg_op1) {
-   if (reg_target == 0) {
+static void emit_and(struct dynarec_compiler *compiler,
+                     enum PSX_REG reg_target,
+                     enum PSX_REG reg_op0,
+                     enum PSX_REG reg_op1) {
+   if (reg_target == PSX_REG_R0) {
       /* NOP */
       return;
    }
 
-   if (reg_op0 == 0) {
-      if (reg_op1 == 0) {
+   if (reg_op0 == PSX_REG_R0 || reg_op1 == PSX_REG_R0) {
+      dynasm_emit_li(compiler, reg_target, 0);
+   } else {
+      if (reg_op0 == reg_op1) {
+         if (reg_op0 == reg_target) {
+            /* NOP */
+            return;
+         } else {
+            dynasm_emit_mov(compiler, reg_target, reg_op0);
+         }
+      } else {
+         dynasm_emit_and(compiler, reg_target, reg_op0, reg_op1);
+      }
+   }
+}
+
+static void emit_or(struct dynarec_compiler *compiler,
+                    enum PSX_REG reg_target,
+                    enum PSX_REG reg_op0,
+                    enum PSX_REG reg_op1) {
+   if (reg_target == PSX_REG_R0) {
+      /* NOP */
+      return;
+   }
+
+   if (reg_op0 == PSX_REG_R0) {
+      if (reg_op1 == PSX_REG_R0) {
          dynasm_emit_li(compiler, reg_target, 0);
       } else {
          if (reg_target != reg_op1) {
@@ -326,7 +351,7 @@ static void emit_or(struct dynarec_compiler *compiler,
          }
       }
    } else {
-      if (reg_op1 == 0) {
+      if (reg_op1 == PSX_REG_R0) {
          if (reg_target != reg_op0) {
             dynasm_emit_mov(compiler, reg_target, reg_op0);
          }
@@ -393,6 +418,7 @@ static enum delay_slot dynarec_instruction_registers(uint32_t instruction,
          *reg_op0 = reg_s;
          break;
       case 0x21: /* ADDU */
+      case 0x24: /* AND */
       case 0x25: /* OR */
       case 0x2b: /* SLTU */
          *reg_target = reg_d;
@@ -519,6 +545,12 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
                    reg_target,
                    reg_op0,
                    reg_op1);
+         break;
+      case 0x24: /* AND */
+         emit_and(compiler,
+                  reg_target,
+                  reg_op0,
+                  reg_op1);
          break;
       case 0x25: /* OR */
          emit_or(compiler,

@@ -181,6 +181,10 @@ extern void dynasm_emit_ori(struct dynarec_compiler *compiler,
                             enum PSX_REG reg_t,
                             enum PSX_REG reg_s,
                             uint32_t val);
+extern void dynasm_emit_and(struct dynarec_compiler *compiler,
+                            enum PSX_REG reg_target,
+                            enum PSX_REG reg_op0,
+                            enum PSX_REG reg_op1);
 extern void dynasm_emit_andi(struct dynarec_compiler *compiler,
                              enum PSX_REG reg_t,
                              enum PSX_REG reg_s,

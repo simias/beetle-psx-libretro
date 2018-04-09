@@ -969,6 +969,52 @@ void dynasm_emit_ori(struct dynarec_compiler *compiler,
    }
 }
 
+void dynasm_emit_and(struct dynarec_compiler *compiler,
+                     enum PSX_REG reg_target,
+                     enum PSX_REG reg_a,
+                     enum PSX_REG reg_b) {
+   const int a = register_location(reg_a);
+   const int b = register_location(reg_b);
+   const int target = register_location(reg_target);
+   int t;
+
+   assert(reg_target != reg_a || reg_target != reg_b);
+
+   if (reg_target == reg_b) {
+      // If we're and'ing with ourselves put the other register in
+      // `reg_b`.
+      reg_b = reg_a;
+      reg_a = reg_target;
+   }
+
+   if (target > 0) {
+      t = target;
+   } else {
+      // Use AX as temporary
+      t = REG_AX;
+   }
+
+   if (reg_target != reg_a) {
+      if (a > 0) {
+         MOV_R32_R32(a, t);
+      } else {
+         MOVE_FROM_BANKED(reg_a, t);
+      }
+   }
+
+   if (b > 0) {
+      AND_R32_R32(reg_b, reg_target);
+   } else {
+      AND_OFF_PR64_R32(DYNAREC_STATE_REG_OFFSET(reg_b),
+                       STATE_REG,
+                       t);
+   }
+
+   if (t != target) {
+      MOVE_TO_BANKED(t, reg_target);
+   }
+}
+
 void dynasm_emit_andi(struct dynarec_compiler *compiler,
                      enum PSX_REG reg_t,
                      enum PSX_REG reg_s,
