@@ -214,6 +214,13 @@ extern void dynasm_emit_page_local_jump_cond(struct dynarec_compiler *compiler,
                                              enum PSX_REG reg_a,
                                              enum PSX_REG reg_b,
                                              enum DYNAREC_JUMP_COND cond);
+extern void dynasm_emit_long_jump_imm(struct dynarec_compiler *compiler,
+                                      uint32_t target);
+extern void dynasm_emit_long_jump_imm_cond(struct dynarec_compiler *compiler,
+                                           uint32_t target,
+                                           enum PSX_REG reg_a,
+                                           enum PSX_REG reg_b,
+                                           enum DYNAREC_JUMP_COND cond);
 extern void dynasm_emit_mfhi(struct dynarec_compiler *compiler,
                              enum PSX_REG ret_target);
 extern void dynasm_emit_mtlo(struct dynarec_compiler *compiler,

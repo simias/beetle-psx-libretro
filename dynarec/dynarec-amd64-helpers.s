@@ -105,6 +105,20 @@ dynasm_execute:
         mov     A0_REG_OFFSET(%rdi), %r11d
 .endm
 
+.global dynabi_recompile
+.type   dynabi_recompile, function
+/* Called when a page needs to be recompiled. The target page index is
+   in %esi. */
+dynabi_recompile:
+	/* Push counter */
+        push %rcx
+
+        c_call dynarec_recompile
+
+        pop %rcx
+
+        ret
+
 .global dynabi_device_sw
 .type   dynabi_device_sw, function
 /* Called by the dynarec code when a SW instruction targets device

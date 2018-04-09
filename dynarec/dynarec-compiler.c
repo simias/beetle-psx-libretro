@@ -107,7 +107,16 @@ static void emit_branch_or_jump(struct dynarec_compiler *compiler,
       }
    } else {
       /* Non-local jump */
-      dynasm_emit_exception(compiler, PSX_DYNAREC_UNIMPLEMENTED);
+      if (cond == DYNAREC_JUMP_ALWAYS) {
+         dynasm_emit_long_jump_imm(compiler,
+                                   target);
+      } else {
+         dynasm_emit_long_jump_imm_cond(compiler,
+                                        target,
+                                        reg_a,
+                                        reg_b,
+                                        cond);
+      }
    }
 }
 
@@ -621,7 +630,7 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
 }
 
 int dynarec_recompile(struct dynarec_state *state,
-                             uint32_t page_index) {
+                      uint32_t page_index) {
    struct dynarec_page     *page;
    const uint32_t          *emulated_page;
    const uint32_t          *next_page;

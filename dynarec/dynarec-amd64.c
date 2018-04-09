@@ -111,10 +111,12 @@ static int register_location(enum PSX_REG reg) {
 #define OP_IF_OVERFLOW     0x71
 #define OP_IF_LESS_EQUAL   0x73
 #define OP_IF_NOT_EQUAL    0x74
+#define OP_IF_EQUAL        0x75
 
 #define IF_OVERFLOW      IF(OP_IF_OVERFLOW)
 #define IF_LESS_THAN     IF(OP_IF_LESS_EQUAL)
 #define IF_NOT_EQUAL     IF(OP_IF_NOT_EQUAL)
+#define IF_EQUAL         IF(OP_IF_EQUAL)
 
 /* 64bit "REX" prefix used to specify extended registers among other
    things. See the "Intel 64 and IA-32 Architecture Software
@@ -609,6 +611,37 @@ static void emit_alu_u32_off_pr64(struct dynarec_compiler *compiler,
    emit_alu_u32_off_pr64(compiler, 0x20, (_v), (_o), (_b))
 #define CMP_U32_OFF_PR64(_v, _o, _b)                            \
    emit_alu_u32_off_pr64(compiler, 0x38, (_v), (_o), (_b))
+
+/* ALU $u8, off(%base64) */
+static void emit_alu_u8_off_pr64(struct dynarec_compiler *compiler,
+                                 uint8_t op,
+                                 uint8_t v,
+                                 uint32_t off,
+                                 enum X86_REG base) {
+   emit_rex_prefix(compiler, base, 0, 0);
+
+   base &= 7;
+
+   *(compiler->map++) = 0x80;
+
+   if (is_imms8(off)) {
+      *(compiler->map++) = 0x40 | op | base;
+      emit_imms8(compiler, off);
+   } else {
+      *(compiler->map++) = 0x80 | op | base;
+      emit_imm32(compiler, off);
+   }
+
+   emit_imm8(compiler, v);
+}
+#define ADD_U8_OFF_PR64(_v, _o, _b)                            \
+   emit_alu_u8_off_pr64(compiler, 0x00, (_v), (_o), (_b))
+#define OR_U8_OFF_PR64(_v, _o, _b)                             \
+   emit_alu_u8_off_pr64(compiler, 0x08, (_v), (_o), (_b))
+#define AND_U8_OFF_PR64(_v, _o, _b)                            \
+   emit_alu_u8_off_pr64(compiler, 0x20, (_v), (_o), (_b))
+#define CMP_U8_OFF_PR64(_v, _o, _b)                            \
+   emit_alu_u8_off_pr64(compiler, 0x38, (_v), (_o), (_b))
 
 /* ALU off(%b64, %i64, $s), %target32 */
 static void emit_alu_off_sib_r32(struct dynarec_compiler *compiler,
@@ -1347,12 +1380,10 @@ void dynasm_emit_page_local_jump(struct dynarec_compiler *compiler,
    }
 }
 
-void dynasm_emit_page_local_jump_cond(struct dynarec_compiler *compiler,
-                                      uint8_t *dynarec_target,
-                                      bool placeholder,
-                                      enum PSX_REG reg_a,
-                                      enum PSX_REG reg_b,
-                                      enum DYNAREC_JUMP_COND cond) {
+static uint8_t emit_branch_cond(struct dynarec_compiler *compiler,
+                                enum PSX_REG reg_a,
+                                enum PSX_REG reg_b,
+                                enum DYNAREC_JUMP_COND cond) {
    int a = register_location(reg_a);
    int b = register_location(reg_b);
    uint8_t op;
@@ -1419,8 +1450,55 @@ void dynasm_emit_page_local_jump_cond(struct dynarec_compiler *compiler,
       }
    }
 
+   return op;
+}
+
+void dynasm_emit_page_local_jump_cond(struct dynarec_compiler *compiler,
+                                      uint8_t *dynarec_target,
+                                      bool placeholder,
+                                      enum PSX_REG reg_a,
+                                      enum PSX_REG reg_b,
+                                      enum DYNAREC_JUMP_COND cond) {
+   uint8_t op = emit_branch_cond(compiler, reg_a, reg_b, cond);
+
    IF(op) {
       dynasm_emit_page_local_jump(compiler, dynarec_target, placeholder);
+   } ENDIF;
+}
+
+void dynasm_emit_long_jump_imm(struct dynarec_compiler *compiler,
+                               uint32_t target) {
+   int32_t target_page_index = dynarec_find_page_index(compiler->state, target);
+   size_t  page_valid_off = offsetof(struct dynarec_state, page_valid);
+
+   assert(target_page_index >= 0);
+
+   page_valid_off += target_page_index * sizeof(uint8_t);
+
+   CMP_U8_OFF_PR64(0, page_valid_off, STATE_REG);
+
+   IF_EQUAL {
+      // The target page is invalid, we need to recompile it.
+
+      // Load the target page index in SI
+      MOV_U32_R32(target_page_index, REG_SI);
+      CALL(dynabi_recompile);
+   } ENDIF;
+
+   // If we reach this point we know that the target is valid
+   // TODO
+   dynasm_emit_exception(compiler, PSX_DYNAREC_UNIMPLEMENTED);
+}
+
+extern void dynasm_emit_long_jump_imm_cond(struct dynarec_compiler *compiler,
+                                           uint32_t target,
+                                           enum PSX_REG reg_a,
+                                           enum PSX_REG reg_b,
+                                           enum DYNAREC_JUMP_COND cond) {
+   uint8_t op = emit_branch_cond(compiler, reg_a, reg_b, cond);
+
+   IF(op) {
+      dynasm_emit_long_jump_imm(compiler, target);
    } ENDIF;
 }
 
