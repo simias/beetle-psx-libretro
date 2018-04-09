@@ -266,6 +266,7 @@ static void emit_mov_u32_off_pr64(struct dynarec_compiler *compiler,
 static void emit_mov_r32_r32(struct dynarec_compiler *compiler,
                              enum X86_REG source,
                              enum X86_REG target) {
+   assert(source != target);
 
    emit_rex_prefix(compiler, target, source, 0);
 
@@ -1326,7 +1327,7 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
             code */
 
          /* Make sure the value is in %rsi (arg1) */
-         if (value_r >= 0) {
+         if (value_r != REG_SI) {
             MOV_R32_R32(value_r, REG_SI);
          }
 
