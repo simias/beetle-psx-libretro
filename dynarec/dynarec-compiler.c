@@ -147,6 +147,19 @@ static void emit_branch(struct dynarec_compiler *compiler,
    emit_branch_or_jump(compiler, target, reg_a, reg_b, cond);
 }
 
+static void emit_beq(struct dynarec_compiler *compiler,
+                     uint32_t instruction,
+                     enum PSX_REG reg_a,
+                     enum PSX_REG reg_b) {
+   enum DYNAREC_JUMP_COND cond = DYNAREC_JUMP_EQ;
+
+   if (reg_a == reg_b) {
+      cond = DYNAREC_JUMP_ALWAYS;
+   }
+
+   emit_branch(compiler, instruction, reg_a, reg_b, cond);
+}
+
 static void emit_bne(struct dynarec_compiler *compiler,
                      uint32_t instruction,
                      enum PSX_REG reg_a,
@@ -442,6 +455,7 @@ static enum delay_slot dynarec_instruction_registers(uint32_t instruction,
       ds = BRANCH_DELAY_SLOT;
       *reg_target = PSX_REG_RA;
       break;
+   case 0x04: /* BEQ */
    case 0x05: /* BNE */
       *reg_op0 = reg_s;
       *reg_op1 = reg_t;
@@ -583,6 +597,9 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
       break;
    case 0x03: /* JAL */
       dynasm_emit_exception(compiler, PSX_DYNAREC_UNIMPLEMENTED);
+      break;
+   case 0x04: /* BEQ */
+      emit_bne(compiler, simm_se, reg_op0, reg_op1);
       break;
    case 0x05: /* BNE */
       emit_bne(compiler, simm_se, reg_op0, reg_op1);

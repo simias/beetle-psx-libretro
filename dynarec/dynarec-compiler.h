@@ -91,6 +91,8 @@ enum DYNAREC_JUMP_COND {
    DYNAREC_JUMP_ALWAYS = 0,
    /* Jump if registers aren't equal */
    DYNAREC_JUMP_NE,
+   /* Jump if registers are equal */
+   DYNAREC_JUMP_EQ,
 };
 
 /* Get the offset of the location of a register within a struct
