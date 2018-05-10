@@ -108,15 +108,36 @@ static int register_location(enum PSX_REG reg) {
       *_jump_patch = _jump_off;                                 \
    }} while (0)
 
-#define OP_IF_OVERFLOW     0x71
-#define OP_IF_LESS_EQUAL   0x73
-#define OP_IF_NOT_EQUAL    0x74
-#define OP_IF_EQUAL        0x75
+/* The meaning of the code is actually the opposite of the IF macro
+ * (e.g. opcode 0x75 is "jump short if not equal") because the IF is
+ * implemented as a jump over the body when the condition is *not*
+ * fulfilled. So for instance if you have code like:
+ *
+ *   IF_EQUAL {
+ *       do_conditional_stuff();
+ *   }
+ *   do_more_stuff();
+ *
+ * It gets recompiled like:
+ *
+ *     jne   skip
+ *     call  do_conditional_stuff
+ *   skip:
+ *     call  do_more_stuff
+ */
+#define OP_IF_OVERFLOW      0x71
+#define OP_IF_LESS_THAN     0x73
+#define OP_IF_NOT_EQUAL     0x74
+#define OP_IF_EQUAL         0x75
+#define OP_IF_LESS_EQUAL    0x77
+#define OP_IF_GREATER_EQUAL 0x7c
 
 #define IF_OVERFLOW      IF(OP_IF_OVERFLOW)
-#define IF_LESS_THAN     IF(OP_IF_LESS_EQUAL)
+#define IF_LESS_THAN     IF(OP_IF_LESS_THAN)
 #define IF_NOT_EQUAL     IF(OP_IF_NOT_EQUAL)
 #define IF_EQUAL         IF(OP_IF_EQUAL)
+#define IF_LESS_EQUAL    IF(OP_IF_LESS_EQUAL)
+#define IF_GREATER_EQUAL IF(OP_IF_GREATER_EQUAL)
 
 /* 64bit "REX" prefix used to specify extended registers among other
    things. See the "Intel 64 and IA-32 Architecture Software
@@ -1436,8 +1457,17 @@ static uint8_t emit_branch_cond(struct dynarec_compiler *compiler,
    uint8_t op;
 
    switch (cond) {
+   case DYNAREC_JUMP_EQ:
+      op = OP_IF_EQUAL;
+      break;
    case DYNAREC_JUMP_NE:
       op = OP_IF_NOT_EQUAL;
+      break;
+   case DYNAREC_JUMP_GE:
+      op = OP_IF_GREATER_EQUAL;
+      break;
+   case DYNAREC_JUMP_LT:
+      op = OP_IF_LESS_THAN;
       break;
    default:
       UNIMPLEMENTED;
@@ -1454,10 +1484,18 @@ static uint8_t emit_branch_cond(struct dynarec_compiler *compiler,
          /* Invert op */
          switch (cond) {
          case DYNAREC_JUMP_ALWAYS:
+         case DYNAREC_JUMP_EQ:
          case DYNAREC_JUMP_NE:
             /* Nothing to do */
             break;
+         case DYNAREC_JUMP_GE:
+            op = OP_IF_LESS_THAN;
+            break;
+         case DYNAREC_JUMP_LT:
+            op = OP_IF_GREATER_EQUAL;
+            break;
          default:
+            printf("%d\n", cond);
             UNIMPLEMENTED;
          }
       }

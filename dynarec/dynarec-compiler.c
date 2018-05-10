@@ -147,6 +147,28 @@ static void emit_branch(struct dynarec_compiler *compiler,
    emit_branch_or_jump(compiler, target, reg_a, reg_b, cond);
 }
 
+static void emit_bxx(struct dynarec_compiler *compiler,
+                     int16_t offset,
+                     enum PSX_REG reg_link,
+                     enum PSX_REG reg_op,
+                     bool is_bgez) {
+   enum DYNAREC_JUMP_COND cond;
+
+   if (reg_link != PSX_REG_R0) {
+      /* Store return address. This is done unconditionally even if
+         the branch is not taken. */
+      dynasm_emit_li(compiler, reg_link, compiler->pc + 8);
+   }
+
+   if (is_bgez) {
+      cond = DYNAREC_JUMP_GE;
+   } else {
+      cond = DYNAREC_JUMP_LT;
+   }
+
+   emit_branch(compiler, offset, reg_op, PSX_REG_R0, cond);
+}
+
 static void emit_beq(struct dynarec_compiler *compiler,
                      int16_t offset,
                      enum PSX_REG reg_a,
@@ -448,6 +470,13 @@ static enum delay_slot dynarec_instruction_registers(uint32_t instruction,
          abort();
       }
       break;
+   case 0x01: /* BXX */
+      if (((instruction >> 17) & 0xf) == 8) {
+         /* Link */
+         *reg_target = PSX_REG_RA;
+      }
+      *reg_op0 = reg_s;
+      break;
    case 0x02: /* J */
       ds = BRANCH_DELAY_SLOT;
       break;
@@ -591,6 +620,9 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
                 instruction);
          abort();
       }
+      break;
+   case 0x01: /* BXX */
+      emit_bxx(compiler, simm_se, reg_target, reg_op0, (instruction >> 16) & 1);
       break;
    case 0x02: /* J */
       emit_jump(compiler, instruction);
