@@ -148,7 +148,7 @@ static void emit_branch(struct dynarec_compiler *compiler,
 }
 
 static void emit_beq(struct dynarec_compiler *compiler,
-                     uint32_t instruction,
+                     int16_t offset,
                      enum PSX_REG reg_a,
                      enum PSX_REG reg_b) {
    enum DYNAREC_JUMP_COND cond = DYNAREC_JUMP_EQ;
@@ -157,11 +157,11 @@ static void emit_beq(struct dynarec_compiler *compiler,
       cond = DYNAREC_JUMP_ALWAYS;
    }
 
-   emit_branch(compiler, instruction, reg_a, reg_b, cond);
+   emit_branch(compiler, offset, reg_a, reg_b, cond);
 }
 
 static void emit_bne(struct dynarec_compiler *compiler,
-                     uint32_t instruction,
+                     int16_t offset,
                      enum PSX_REG reg_a,
                      enum PSX_REG reg_b) {
    if (reg_a == reg_b) {
@@ -169,7 +169,7 @@ static void emit_bne(struct dynarec_compiler *compiler,
       return;
    }
 
-   emit_branch(compiler, instruction, reg_a, reg_b, DYNAREC_JUMP_NE);
+   emit_branch(compiler, offset, reg_a, reg_b, DYNAREC_JUMP_NE);
 }
 
 static void emit_blez(struct dynarec_compiler *compiler,
@@ -599,7 +599,7 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
       dynasm_emit_exception(compiler, PSX_DYNAREC_UNIMPLEMENTED);
       break;
    case 0x04: /* BEQ */
-      emit_bne(compiler, simm_se, reg_op0, reg_op1);
+      emit_beq(compiler, simm_se, reg_op0, reg_op1);
       break;
    case 0x05: /* BNE */
       emit_bne(compiler, simm_se, reg_op0, reg_op1);
