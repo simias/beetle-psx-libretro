@@ -172,34 +172,6 @@ static void emit_rex_prefix_64(struct dynarec_compiler *compiler,
    *(compiler->map++) = rex | 0x40;
 }
 
-/* Scale Index Base addressing mode encoding */
-static void emit_sib(struct dynarec_compiler *compiler,
-                     enum X86_REG base,
-                     enum X86_REG index,
-                     uint32_t scale) {
-   uint8_t s;
-
-   switch (scale) {
-   case 1:
-      s = 0x00;
-      break;
-   case 2:
-      s = 0x40;
-      break;
-   case 4:
-      s = 0x80;
-      break;
-   case 8:
-      s = 0xc0;
-      break;
-   default:
-      assert("Invalid multiplier" == NULL);
-   }
-
-   *(compiler->map++) = s | (base & 7) | ((index & 7) << 3);
-
-}
-
 static void emit_imm32(struct dynarec_compiler *compiler,
                         int32_t val) {
    int i;
@@ -233,6 +205,59 @@ static void emit_imms8(struct dynarec_compiler *compiler,
    assert(is_imms8(val));
 
    *(compiler->map++) = val & 0xff;
+}
+
+/* Offset Scale Index Base Target addressing mode encoding */
+static void emit_op_osibt(struct dynarec_compiler *compiler,
+                          uint8_t op,
+                          uint32_t off,
+                          enum X86_REG base,
+                          enum X86_REG index,
+                          uint32_t scale,
+                          enum X86_REG target) {
+   uint8_t s;
+
+   emit_rex_prefix(compiler, base, target, index);
+
+   *(compiler->map++) = op;
+
+   if (off == 0) {
+      s = 0x04;
+   }if (is_imms8(off)) {
+      s = 0x44;
+   } else {
+      s = 0x84;
+   }
+
+   s |= (target & 7) << 3;
+   *(compiler->map++) = s;
+
+   switch (scale) {
+   case 1:
+      s = 0x00;
+      break;
+   case 2:
+      s = 0x40;
+      break;
+   case 4:
+      s = 0x80;
+      break;
+   case 8:
+      s = 0xc0;
+      break;
+   default:
+      assert("Invalid multiplier" == NULL);
+   }
+
+   *(compiler->map++) = s | (base & 7) | ((index & 7) << 3);
+
+   if (off == 0) {
+      /* Nothing to do */
+   } if (is_imms8(off)) {
+      emit_imms8(compiler, off);
+   } else {
+      emit_imm32(compiler, off);
+   }
 }
 
 /* XOR %reg32, %reg32 */
@@ -355,6 +380,21 @@ static void emit_mop_off_pr32_r32(struct dynarec_compiler *compiler,
 #define LEA_OFF_PR32_R32(_off, _r1, _r2)                        \
    emit_mop_off_pr32_r32(compiler, 0x8d, (_off), (_r1), (_r2))
 
+/* MOP off(%base64, %index64, $scale), %target */
+static void emit_mop_off_sib_r32(struct dynarec_compiler *compiler,
+                                 uint8_t op,
+                                 uint32_t off,
+                                 enum X86_REG base,
+                                 enum X86_REG index,
+                                 uint32_t scale,
+                                 enum X86_REG target) {
+   emit_op_osibt(compiler, op, off, base, index, scale, target);
+}
+#define LEA_OFF_SIB_R32(_o, _b, _i, _s, _t)   \
+   emit_mop_off_sib_r32(compiler, 0x8d, (_o), (_b), (_i), (_s), (_t))
+#define MOV_OFF_SIB_R32(_o, _b, _i, _s, _t)   \
+   emit_mop_off_sib_r32(compiler, 0x8b, (_o), (_b), (_i), (_s), (_t))
+
 /* MOV $imm32, off(%base64, %index64, $scale) */
 static void emit_mov_u32_off_sib(struct dynarec_compiler *compiler,
                                  uint32_t val,
@@ -362,22 +402,7 @@ static void emit_mov_u32_off_sib(struct dynarec_compiler *compiler,
                                  enum X86_REG base,
                                  enum X86_REG index,
                                  uint32_t scale) {
-   emit_rex_prefix(compiler, base, 0, index);
-
-   *(compiler->map++) = 0xc7;
-   if (is_imms8(off)) {
-      *(compiler->map++) = 0x44;
-   } else {
-      *(compiler->map++) = 0x84;
-   }
-
-   emit_sib(compiler, base, index, scale);
-
-   if (is_imms8(off)) {
-      emit_imms8(compiler, off);
-   } else {
-      emit_imm32(compiler, off);
-   }
+   emit_op_osibt(compiler, 0xc7, off, base, index, scale, 0);
 
    emit_imm32(compiler, val);
 }
@@ -427,23 +452,7 @@ static void emit_mov_u8_off_sib(struct dynarec_compiler *compiler,
                                 enum X86_REG base,
                                 enum X86_REG index,
                                 uint32_t scale) {
-   emit_rex_prefix(compiler, base, 0, index);
-
-   *(compiler->map++) = 0xc6;
-
-   if (is_imms8(off)) {
-      *(compiler->map++) = 0x44;
-   } else {
-      *(compiler->map++) = 0x84;
-   }
-
-   emit_sib(compiler, base, index, scale);
-
-   if (is_imms8(off)) {
-      emit_imms8(compiler, off);
-   } else {
-      emit_imm32(compiler, off);
-   }
+   emit_op_osibt(compiler, 0xc6, off, base, index, scale, 0);
 
    emit_imm8(compiler, val);
 }
@@ -673,19 +682,7 @@ static void emit_alu_off_sib_r32(struct dynarec_compiler *compiler,
                                  enum X86_REG index,
                                  uint32_t scale,
                                  enum X86_REG target) {
-
-   emit_rex_prefix(compiler, base, target, index);
-   *(compiler->map++) = op;
-
-   if (is_imms8(off)) {
-      *(compiler->map++) = 0x44 | ((target & 7) << 3);
-      emit_sib(compiler, base, index, scale);
-      emit_imms8(compiler, off);
-   } else {
-      *(compiler->map++) = 0x84 | ((target & 7) << 3);
-      emit_sib(compiler, base, index, scale);
-      emit_imm32(compiler, off);
-   }
+   emit_op_osibt(compiler, op, off, base, index, scale, target);
 }
 #define ADD_OFF_SIB_R32(_o, _b, _i, _s, _t)                             \
    emit_alu_off_sib_r32(compiler, 0x03, (_o), (_b), (_i), (_s), (_t))
@@ -938,7 +935,29 @@ void dynasm_emit_addu(struct dynarec_compiler *compiler,
                       enum PSX_REG reg_target,
                       enum PSX_REG reg_op0,
                       enum PSX_REG reg_op1) {
-   UNIMPLEMENTED;
+   const int target = register_location(reg_target);
+   int r0 = register_location(reg_op0);
+   int r1 = register_location(reg_op1);
+
+   if (r0 < 0) {
+      MOVE_FROM_BANKED(reg_op0, REG_AX);
+      r0 = REG_AX;
+
+      if (reg_op1 == reg_op0) {
+         r1 = REG_AX;
+      } else if (r1 < 0) {
+         MOVE_FROM_BANKED(reg_op1, REG_SI);
+         r1 = REG_SI;
+      }
+   }
+
+   // Add using LEA
+   if (target >= 0) {
+      LEA_OFF_SIB_R32(0, r0, r1, 1, target);
+   } else {
+      LEA_OFF_SIB_R32(0, r0, r0, 1, REG_AX);
+      MOVE_TO_BANKED(REG_AX, target);
+   }
 }
 
 void dynasm_emit_or(struct dynarec_compiler *compiler,
