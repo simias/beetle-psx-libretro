@@ -976,6 +976,21 @@ extern "C" int32_t dynarec_callback_sh(struct dynarec_state *s,
    return CPU->GetEventNT() - timestamp;
 }
 
+extern "C" int32_t dynarec_callback_sb(struct dynarec_state *s,
+                                       uint32_t val,
+                                       uint32_t addr,
+                                       int32_t counter) {
+   int32_t timestamp = CPU->GetEventNT() - counter;
+
+   DYNAREC_LOG("dynarec sb %08x @ %08x (%d)\n", val, addr, counter);
+
+   PSX_MemWrite8(timestamp, addr, val);
+
+   /* recompute the timestamp, it's possible that the "next event"
+      timestamp has been modified */
+   return CPU->GetEventNT() - timestamp;
+}
+
 #endif /* HAVE_DYNAREC */
 
 template<typename T, bool Access24> static INLINE uint32_t MemPeek(int32_t timestamp, uint32_t A)

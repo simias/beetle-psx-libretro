@@ -409,7 +409,7 @@ static void emit_mov_u32_off_sib(struct dynarec_compiler *compiler,
 #define MOV_U32_OFF_SIB(_v, _o, _b, _i, _s)                     \
    emit_mov_u32_off_sib(compiler, (_v), (_o), (_b), (_i), (_s))
 
-/* MOV %val32, (%target64) */
+/* MOV %r32, (%target64) */
 static void emit_mov_r32_pr64(struct dynarec_compiler *compiler,
                               enum X86_REG val,
                               enum X86_REG target) {
@@ -420,7 +420,7 @@ static void emit_mov_r32_pr64(struct dynarec_compiler *compiler,
 }
 #define MOV_R32_PR64(_v, _t) emit_mov_r32_pr64(compiler, (_v), (_t))
 
-/* MOV %val16, (%target64) */
+/* MOV %r16, (%target64) */
 static void emit_mov_r16_pr64(struct dynarec_compiler *compiler,
                               enum X86_REG val,
                               enum X86_REG target) {
@@ -433,6 +433,17 @@ static void emit_mov_r16_pr64(struct dynarec_compiler *compiler,
    emit_mov_r32_pr64(compiler, val, target);
 }
 #define MOV_R16_PR64(_v, _t) emit_mov_r16_pr64(compiler, (_v), (_t))
+
+/* MOV %r8, (%target64) */
+static void emit_mov_r8_pr64(struct dynarec_compiler *compiler,
+                              enum X86_REG val,
+                              enum X86_REG target) {
+
+   emit_rex_prefix(compiler, target, val, 0);
+   *(compiler->map++) = 0x88;
+   *(compiler->map++) = (target & 7) | ((val & 7) << 3);
+}
+#define MOV_R8_PR64(_v, _t) emit_mov_r8_pr64(compiler, (_v), (_t))
 
 /* MOV (%target64), %r32 */
 static void emit_mov_pr64_r32(struct dynarec_compiler *compiler,
@@ -1292,8 +1303,9 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
          case WIDTH_HALFWORD:
             MOV_R16_PR64(value_r, REG_DX);
             break;
-         default:
-            UNIMPLEMENTED;
+         case WIDTH_BYTE:
+            MOV_R8_PR64(value_r, REG_DX);
+            break;
          }
          break;
       case DIR_LOAD:
@@ -1340,8 +1352,9 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
             case WIDTH_HALFWORD:
                MOV_R16_PR64(value_r, REG_DX);
                break;
-            default:
-               UNIMPLEMENTED;
+            case WIDTH_BYTE:
+               MOV_R8_PR64(value_r, REG_DX);
+               break;
             }
             break;
          case DIR_LOAD:
@@ -1380,8 +1393,9 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
             case WIDTH_HALFWORD:
                CALL(dynabi_device_sh);
                break;
-            default:
-               UNIMPLEMENTED;
+            case WIDTH_BYTE:
+               CALL(dynabi_device_sb);
+               break;
             }
             break;
          case DIR_LOAD:
@@ -1397,6 +1411,17 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
 
       } ENDIF;
    } ENDIF;
+}
+
+void dynasm_emit_sb(struct dynarec_compiler *compiler,
+                    enum PSX_REG reg_addr,
+                    int16_t offset,
+                    enum PSX_REG reg_val) {
+   dynasm_emit_mem_rw(compiler,
+                      reg_addr,
+                      offset,
+                      reg_val,
+                      DIR_STORE, WIDTH_BYTE);
 }
 
 void dynasm_emit_sh(struct dynarec_compiler *compiler,

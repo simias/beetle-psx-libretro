@@ -134,10 +134,22 @@ dynabi_device_sw:
 
 .global dynabi_device_sh
 .type   dynabi_device_sh, function
-/* Called by the dynarec code when a Sh instruction targets device
+/* Called by the dynarec code when a SH instruction targets device
  * memory */
 dynabi_device_sh:
         c_call dynarec_callback_sh
+
+        /* Move return value to the counter */
+        mov     %eax, %ecx
+
+        ret
+
+.global dynabi_device_sb
+.type   dynabi_device_sb, function
+/* Called by the dynarec code when a SB instruction targets device
+ * memory */
+dynabi_device_sb:
+        c_call dynarec_callback_sb
 
         /* Move return value to the counter */
         mov     %eax, %ecx
