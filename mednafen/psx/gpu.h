@@ -220,7 +220,14 @@ struct PS_GPU
    uint16 *vram;
 };
 
+/* Return a pixel from VRAM */
+#define vram_fetch(gpu, x, y)  ((gpu)->vram[((y) << (10 + (gpu)->upscale_shift)) | (x)])
 
+/* Return a pixel from VRAM, ignoring the internal upscaling */
+#define texel_fetch(gpu, x, y) vram_fetch((gpu), (x) << (gpu)->upscale_shift, (y) << (gpu)->upscale_shift)
+
+/* Set a pixel in VRAM */
+#define vram_put(gpu, x, y, v) (gpu)->vram[((y) << (10 + (gpu)->upscale_shift)) | (x)] = (v)
 
 uint16 *GPU_get_vram(void);
 

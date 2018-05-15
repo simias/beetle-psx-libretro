@@ -138,10 +138,10 @@ template<int numvertices, bool shaded, bool textured,
     int BlendMode, bool TexMult, uint32 TexMode_TA, bool MaskEval_TA>
 static void G_Command_DrawPolygon(PS_GPU* g, const uint32 *cb)
 {
-  if (PGXP_enabled())
-    Command_DrawPolygon<numvertices, shaded, textured,
-            BlendMode, TexMult, TexMode_TA, MaskEval_TA, true>(g, cb);
-  else
+   //if (PGXP_enabled())
+   // Command_DrawPolygon<numvertices, shaded, textured,
+   //          BlendMode, TexMult, TexMode_TA, MaskEval_TA, true>(g, cb);
+    //  else
     Command_DrawPolygon<numvertices, shaded, textured,
             BlendMode, TexMult, TexMode_TA, MaskEval_TA, false>(g, cb);
 }
