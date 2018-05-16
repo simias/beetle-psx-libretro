@@ -9,6 +9,7 @@
 #include <cmath>
 #include <math.h>
 #include "FastFIFO.h"
+#include "texture_dumper.h"
 
 #if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
 #include <glsm/glsmsym.h>
@@ -212,6 +213,8 @@ struct PS_GPU
    int LineVisFirst, LineVisLast;
 
    uint8_t DitherLUT[4][4][512]; // Y, X, 8-bit source value(256 extra for saturation)
+
+   TextureDumper texture_dumper;
 
    /*
    VRAM has to be a ptr type or else we have to rely on smartcode void* shenanigans to

@@ -1,5 +1,4 @@
 #include <math.h>
-#include "texture_dumper.h"
 
 #define COORD_FBS 12
 #define COORD_MF_INT(n) ((n) << COORD_FBS)
@@ -666,7 +665,7 @@ static void Command_DrawPolygon(PS_GPU *gpu, const uint32_t *cb)
    uint16_t clut_x = (clut & (0x3f << 4));
    uint16_t clut_y = (clut >> 10) & 0x1ff;
 
-   if (textured && texture_dump_enabled) {
+   if (textured && gpu->texture_dumper.is_enabled()) {
       int min_u = vertices[0].u;
       int max_u = vertices[0].u;
       int min_v = vertices[0].v;
@@ -705,7 +704,7 @@ static void Command_DrawPolygon(PS_GPU *gpu, const uint32_t *cb)
          max_v = 511;
       }
 
-      dump_textures(gpu, min_u, max_u, min_v, max_v, clut_x, clut_y, 2 - TexMode_TA);
+      gpu->texture_dumper.dump(gpu, min_u, max_u, min_v, max_v, clut_x, clut_y, 2 - TexMode_TA);
    }
 
 #if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES) || defined(HAVE_VULKAN)
