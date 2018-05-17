@@ -3,13 +3,12 @@
 
 #include <cstdint>
 
-#define HASH_TABLE_SIZE 0x10000UL
-
 class PS_GPU;
 
 class TextureDumper {
 private:
    bool enabled;
+   bool dump_texture_16bpp;
    bool dump_texture_page;
    bool dump_texture_poly;
 
@@ -19,7 +18,7 @@ private:
       uint32_t hashes[];
    };
 
-   table_entry_t *tex_hash_table[HASH_TABLE_SIZE];
+   table_entry_t **tex_hash_table;
 
    bool hash_table_insert(uint32_t hash);
 
