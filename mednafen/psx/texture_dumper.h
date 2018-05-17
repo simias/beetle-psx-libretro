@@ -23,6 +23,8 @@ private:
    bool hash_table_insert(uint32_t hash);
 
    void dump_area(PS_GPU *gpu,
+                  unsigned u_cs_start, unsigned u_cs_end,
+                  unsigned v_cs_start, unsigned v_cs_end,
                   unsigned u_start, unsigned u_end,
                   unsigned v_start, unsigned v_end,
                   uint16_t clut_x, uint16_t clut_y,

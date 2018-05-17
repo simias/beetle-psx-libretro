@@ -117,6 +117,8 @@ void TextureDumper::dump(PS_GPU *gpu,
 
    if (dump_texture_page) {
       dump_area(gpu,
+                page_x + u_start, page_x + u_end,
+                page_y + v_start, page_y + v_end,
                 page_x, page_x + 0xff,
                 page_y, page_y + 0xff,
                 clut_x, clut_y,
@@ -127,9 +129,12 @@ void TextureDumper::dump(PS_GPU *gpu,
       dump_area(gpu,
                 page_x + u_start, page_x + u_end,
                 page_y + v_start, page_y + v_end,
+                page_x + u_start, page_x + u_end,
+                page_y + v_start, page_y + v_end,
                 clut_x, clut_y,
                 depth_shift);
    }
+
 }
 
 static inline uint8_t bpp_5to8(uint8_t v) {
@@ -137,18 +142,21 @@ static inline uint8_t bpp_5to8(uint8_t v) {
 }
 
 void TextureDumper::dump_area(PS_GPU *gpu,
+                              unsigned u_cs_start, unsigned u_cs_end,
+                              unsigned v_cs_start, unsigned v_cs_end,
                               unsigned u_start, unsigned u_end,
                               unsigned v_start, unsigned v_end,
                               uint16_t clut_x, uint16_t clut_y,
                               unsigned depth_shift)
 {
    uint32_t hash = djb2_init();
+   uint32_t clut_hash;
    unsigned clut_width;
    unsigned val_width;
    bool paletted = true;
 
-   unsigned width = u_end - u_start + 1;
-   unsigned height = v_end - v_start + 1;
+   unsigned width = u_cs_end - u_cs_start + 1;
+   unsigned height = v_cs_end - v_cs_start + 1;
    unsigned width_vram = width >> depth_shift;
 
    switch (depth_shift) {
@@ -176,13 +184,34 @@ void TextureDumper::dump_area(PS_GPU *gpu,
       djb2_update(&hash, t);
    }
 
-   // Checksum pixel data. In order to find a decent compromise
-   // between speed and correctness we checksum one in every 4 VRAM
-   // "pixels" horizontally and vertically, therefore speeding up the
-   // process by a factor of about 16 while still being relatively
-   // unlikely of missing a texture change.
-   for (unsigned y = 0; y < height ; y += 4) {
-      for (unsigned x = 0; x < width_vram; x += 4) {
+   clut_hash = hash;
+
+   // Checksum currently mapped polygon
+   for (unsigned y = 0; y < height ; y ++) {
+      for (unsigned x = 0; x < width_vram; x ++) {
+         uint16_t t = texel_fetch(gpu, u_cs_start + x, v_cs_start + y);
+
+         djb2_update(&hash, t);
+      }
+   }
+
+   if (!hash_table_insert(hash)) {
+      // We already dumped this polygon
+      return;
+   }
+
+   /* If we reach this point it means that it's the first time we map
+      this particular texture. Before we dump the entire page we see
+      if we haven't dumped it yet */
+   width = u_end - u_start + 1;
+   height = v_end - v_start + 1;
+   width_vram = width >> depth_shift;
+
+   hash = clut_hash;
+
+   // Checksum page
+   for (unsigned y = 0; y < height ; y ++) {
+      for (unsigned x = 0; x < width_vram; x ++) {
          uint16_t t = texel_fetch(gpu, u_start + x, v_start + y);
 
          djb2_update(&hash, t);
@@ -190,11 +219,11 @@ void TextureDumper::dump_area(PS_GPU *gpu,
    }
 
    if (!hash_table_insert(hash)) {
-      // We already dumped this texture
+      // We already dumped this page
       return;
    }
 
-   printf("Checksummed new page: %08x\n", hash);
+   /* Dump the full page */
 
    char filename[128];
 
