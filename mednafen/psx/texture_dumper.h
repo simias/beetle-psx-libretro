@@ -13,6 +13,8 @@ private:
    bool dump_texture_page;
    bool dump_texture_poly;
    bool blend;
+   char *dump_dir;
+   unsigned count;
 
    struct table_entry_t {
       uint32_t capacity;
@@ -48,6 +50,11 @@ public:
    }
 
    void enable(bool en);
+
+   void set_dump_dir(const char *dir);
+
+   void set_dump_config(bool dump_16bpp, bool dump_page,
+                        bool dump_poly, bool preserve_blend);
 
    void dump(PS_GPU *gpu,
              unsigned u_start, unsigned u_end,

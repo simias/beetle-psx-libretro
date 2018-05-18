@@ -29,6 +29,7 @@
 
 //Fast Save States exclude string labels from variables in the savestate, and are at least 20% faster.
 extern bool FastSaveStates;
+extern PS_GPU GPU;
 const int DEFAULT_STATE_SIZE = 16 * 1024 * 1024;
 
 struct retro_perf_callback perf_cb;
@@ -3117,6 +3118,67 @@ static void check_variables(bool startup)
       }
    else
       cd_2x_speedup = 1;
+
+   bool texture_dump_en = false;
+
+   var.key = BEETLE_OPT(texture_dump);
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+     {
+       if (strcmp(var.value, "enabled") == 0)
+         texture_dump_en = true;
+       else if (strcmp(var.value, "disabled") == 0)
+         texture_dump_en = false;
+     }
+
+   GPU.texture_dumper.enable(texture_dump_en);
+
+   if (texture_dump_en) {
+      bool texture_dump_16bpp_en = false;
+      bool texture_dump_page = false;
+      bool texture_dump_poly = false;
+      bool texture_dump_blend_en = false;
+
+      var.key = BEETLE_OPT(texture_dump_strat);
+
+      if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+         {
+            if (strcmp(var.value, "per-page") == 0)
+               texture_dump_page = true;
+            else if (strcmp(var.value, "per-polygon") == 0)
+               texture_dump_poly = true;
+            else if (strcmp(var.value, "both") == 0) {
+               texture_dump_page = true;
+               texture_dump_poly = true;
+            }
+         }
+
+      var.key = BEETLE_OPT(texture_dump_16bpp);
+
+      if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+         {
+            if (strcmp(var.value, "enabled") == 0)
+               texture_dump_16bpp_en = true;
+            else if (strcmp(var.value, "disabled") == 0)
+               texture_dump_16bpp_en = false;
+         }
+
+      var.key = BEETLE_OPT(texture_dump_blend);
+
+      if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+         {
+            if (strcmp(var.value, "enabled") == 0)
+               texture_dump_blend_en = true;
+            else if (strcmp(var.value, "disabled") == 0)
+               texture_dump_blend_en = false;
+         }
+
+      GPU.texture_dumper.set_dump_config(texture_dump_16bpp_en,
+                                         texture_dump_page,
+                                         texture_dump_poly,
+                                         texture_dump_blend_en);
+   }
+
 }
 
 #ifdef NEED_CD
@@ -3402,6 +3464,10 @@ bool retro_load_game(const struct retro_game_info *info)
    internal_frame_count = 0;
 
    ret = rsx_intf_open(is_pal);
+
+   if (ret == true) {
+      GPU.texture_dumper.set_dump_dir(retro_cd_path);
+   }
 
    return ret;
 }
@@ -3859,6 +3925,10 @@ void retro_set_environment(retro_environment_t cb)
       { BEETLE_OPT(enable_memcard1), "Enable memory card 1; enabled|disabled" },
       { BEETLE_OPT(shared_memory_cards), "Shared memcards (restart); disabled|enabled" },
       { BEETLE_OPT(cd_fastload), "Increase CD loading speed; 2x (native)|4x|6x|8x|10x|12x|14x" },
+      { BEETLE_OPT(texture_dump), "Dump textures; disabled|enabled" },
+      { BEETLE_OPT(texture_dump_strat), "Dump texture strategy; per-page|per-polygon|both" },
+      { BEETLE_OPT(texture_dump_16bpp), "Dump 16bpp textures; disabled|enabled" },
+      { BEETLE_OPT(texture_dump_blend), "Dump with blend mode; enabled|disabled" },
       { NULL, NULL },
    };
    cb(RETRO_ENVIRONMENT_SET_VARIABLES, (void*)vars);

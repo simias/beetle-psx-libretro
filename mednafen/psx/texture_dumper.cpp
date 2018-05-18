@@ -1,5 +1,6 @@
 #include <unistd.h>
 #include <fcntl.h>
+#include <sys/stat.h>
 
 #include "texture_dumper.h"
 #include "psx.h"
@@ -27,11 +28,13 @@ static inline void djb2_update(uint32_t *h, uint32_t v)
 }
 
 TextureDumper::TextureDumper()
-   :enabled(true),
-    dump_texture_16bpp(true),
-    dump_texture_page(true),
-    dump_texture_poly(true),
-    blend(true)
+   :enabled(false),
+    dump_texture_16bpp(false),
+    dump_texture_page(false),
+    dump_texture_poly(false),
+    blend(false),
+    dump_dir(NULL),
+    count(0)
 {
    this->tex_hash_table = new table_entry_t *[HASH_TABLE_SIZE];
 
@@ -42,15 +45,59 @@ TextureDumper::TextureDumper()
 
 TextureDumper::~TextureDumper()
 {
-   for (unsigned i = 0; i < HASH_TABLE_SIZE; i++) {
-      table_entry_t *e = this->tex_hash_table[i];
-
-      if (e != NULL) {
-         free(e);
-      }
-   }
+   this->enable(false);
+   this->set_dump_dir(NULL);
 
    delete [] this->tex_hash_table;
+}
+
+void TextureDumper::set_dump_dir(const char *dir)
+{
+   unsigned max_len = 100;
+
+   if (dump_dir != NULL) {
+      delete [] dump_dir;
+      dump_dir = NULL;
+   }
+
+   dump_dir = new char[max_len];
+   snprintf(dump_dir, max_len, "%.50s_textures", dir);
+
+   // Create the directory if we're enabled
+   this->enable(this->enabled);
+}
+
+void TextureDumper::enable(bool en)
+{
+   this->enabled = en;
+
+   if (en) {
+      if (dump_dir != NULL) {
+         /* Make sure that the directory exists */
+         printf("Dumping textures to %s\n", dump_dir);
+         mkdir(dump_dir, 0755);
+      }
+   } else {
+      /* Clear the hash table */
+      for (unsigned i = 0; i < HASH_TABLE_SIZE; i++) {
+         table_entry_t *e = this->tex_hash_table[i];
+
+         if (e != NULL) {
+            free(e);
+         }
+
+         this->tex_hash_table[i] = NULL;
+      }
+   }
+}
+
+void TextureDumper::set_dump_config(bool dump_16bpp, bool dump_page,
+                                    bool dump_poly, bool preserve_blend)
+{
+   this->dump_texture_16bpp = dump_16bpp;
+   this->dump_texture_page = dump_page;
+   this->dump_texture_poly = dump_poly;
+   this->blend = preserve_blend;
 }
 
 bool TextureDumper::hash_table_insert(uint32_t hash)
@@ -118,10 +165,6 @@ void TextureDumper::dump(PS_GPU *gpu,
 
    if (!this->blend) {
       blend_mode = BLEND_MODE_OPAQUE;
-   }
-
-   if (blend_mode != BLEND_MODE_AVERAGE) {
-      return;
    }
 
    if (!dump_texture_16bpp && depth_shift == DEPTH_SHIFT_16BPP) {
@@ -336,7 +379,14 @@ void TextureDumper::dump_area(PS_GPU *gpu,
    /* Dump the full page */
    char filename[128];
 
-   snprintf(filename, sizeof (filename), "%s/dump-%dbpp-%08X.tga", "/tmp", val_width, hash);
+   const char *dir = this->dump_dir;
+   if (dir == NULL) {
+      dir = ".";
+   }
+
+   snprintf(filename, sizeof (filename), "%s/dump-%09d-%dbpp-%08X.tga", dir, count++, val_width, hash);
+
+   printf("Dumping %s\n", filename);
 
    int fd = open (filename, O_WRONLY | O_CREAT, 0644);
 
