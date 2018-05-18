@@ -666,14 +666,14 @@ static void Command_DrawPolygon(PS_GPU *gpu, const uint32_t *cb)
    uint16_t clut_y = (clut >> 10) & 0x1ff;
 
    if (textured && gpu->texture_dumper.is_enabled()) {
-      int min_u = vertices[0].u;
-      int max_u = vertices[0].u;
-      int min_v = vertices[0].v;
-      int max_v = vertices[0].v;
+      unsigned min_u = vertices[0].u & 0xff;
+      unsigned max_u = min_u;
+      unsigned min_v = vertices[0].v & 0xff;
+      unsigned max_v = min_v;
 
-      for (int i = 1; i <= 2; i++) {
-         int u = vertices[i].u;
-         int v = vertices[i].v;
+      for (unsigned i = 1; i <= 2; i++) {
+         unsigned u = vertices[i].u & 0xff;
+         unsigned v = vertices[i].v & 0xff;
 
          if (u < min_u) {
             min_u = u;
@@ -688,23 +688,9 @@ static void Command_DrawPolygon(PS_GPU *gpu, const uint32_t *cb)
          }
       }
 
-      if (min_u < 0) {
-         min_u = 0;
-      }
+      enum blending_modes blend_mode = (enum blending_modes)BlendMode;
 
-      if (max_u > 1023) {
-         max_u = 1023;
-      }
-
-      if (min_v < 0) {
-         min_v = 0;
-      }
-
-      if (max_v > 511) {
-         max_v = 511;
-      }
-
-      gpu->texture_dumper.dump(gpu, min_u, max_u, min_v, max_v, clut_x, clut_y, 2 - TexMode_TA);
+      gpu->texture_dumper.dump(gpu, min_u, max_u, min_v, max_v, clut_x, clut_y, 2 - TexMode_TA, blend_mode);
    }
 
 #if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES) || defined(HAVE_VULKAN)

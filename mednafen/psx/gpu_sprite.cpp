@@ -176,40 +176,31 @@ static void Command_DrawSprite(PS_GPU *gpu, const uint32_t *cb)
    uint16_t clut_y = (clut >> 10) & 0x1ff;
 
    if (textured && gpu->texture_dumper.is_enabled()) {
-      int min_u = u;
-      int max_u = u + w;
-      int min_v = v;
-      int max_v = v + h;
+      unsigned min_u = u;
+      unsigned max_u = u + w;
+      unsigned min_v = v;
+      unsigned max_v = v + h;
 
-      if (w < 0) {
-         min_u = u + w;
-         max_u = u;
-      } else {
-         min_u = u;
-         max_u = u + w;
+      min_u &= 0xff;
+      max_u &= 0xff;
+      min_v &= 0xff;
+      max_v &= 0xff;
+
+      if (min_u > max_u) {
+         unsigned tmp = min_u;
+         min_u = max_u;
+         max_u = tmp;
       }
 
-      if (h < 0) {
-         min_v = v + h;
-         max_v = v;
-      } else {
-         min_v = v;
-         max_v = v + h;
+      if (min_v > max_v) {
+         unsigned tmp = min_v;
+         min_v = max_v;
+         max_v = tmp;
       }
 
-      if (max_u > 1023) {
-         max_u = 1023;
-      }
+      enum blending_modes blend_mode = (enum blending_modes)BlendMode;
 
-      if (min_v < 0) {
-         min_v = 0;
-      }
-
-      if (max_v > 511) {
-         max_v = 511;
-      }
-
-      gpu->texture_dumper.dump(gpu, min_u, max_u, min_v, max_v, clut_x, clut_y, 2 - TexMode_TA);
+      gpu->texture_dumper.dump(gpu, min_u, max_u, min_v, max_v, clut_x, clut_y, 2 - TexMode_TA, blend_mode);
    }
 
 #if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES) || defined(HAVE_VULKAN)

@@ -28,9 +28,10 @@ static inline void djb2_update(uint32_t *h, uint32_t v)
 
 TextureDumper::TextureDumper()
    :enabled(true),
-    dump_texture_16bpp(false),
+    dump_texture_16bpp(true),
     dump_texture_page(true),
-    dump_texture_poly(true)
+    dump_texture_poly(true),
+    blend(true)
 {
    this->tex_hash_table = new table_entry_t *[HASH_TABLE_SIZE];
 
@@ -105,36 +106,150 @@ void TextureDumper::dump(PS_GPU *gpu,
                          unsigned u_start, unsigned u_end,
                          unsigned v_start, unsigned v_end,
                          uint16_t clut_x, uint16_t clut_y,
-                         unsigned depth_shift)
+                         unsigned depth_shift,
+                         enum blending_modes blend_mode)
 {
    uint32_t page_x = gpu->TexPageX;
    uint32_t page_y = gpu->TexPageY;
+   bool poly_unique = false;
+   uint32_t poly_hash = 0;
+   bool page_unique = false;
+   uint32_t page_hash = 0;
+
+
+   if (!this->blend) {
+      blend_mode = BLEND_MODE_OPAQUE;
+   }
 
    if (!dump_texture_16bpp && depth_shift == DEPTH_SHIFT_16BPP) {
       /* Ignore */
       return;
    }
 
-   if (dump_texture_page) {
+   u_start += page_x;
+   u_end   += page_x;
+   v_start += page_y;
+   v_end   += page_y;
+
+   /* Here's the logic for the checksumming:
+    *
+    * - Polygon dumps:
+    *
+    * That's simple: we dump the polygon if the checksum of the
+    * bounding rectangle of the texture is unique.
+    *
+    * - Page dumps:
+    *
+    * That's a little more complicated.
+    *
+    * At first I tried dumping the page if the checksum of the entire
+    * page was new. Unfortunately that doesn't work well when the
+    * texture page overlaps a framebuffer or other fast-changing zone
+    * of VRAM which happens to be pretty common. In this situation the
+    * page gets dumped repeatedly even though the portion that
+    * actually contains texture dosn't change.
+    *
+    * My 2nd attempt was to only checksum the polygon (like for the
+    * polygon dump above). If the polygon texture's checksum is new
+    * we dump the whole page. This solves the issue of texture pages
+    * overlapping the framebuffer but it can still result in a bunch
+    * of unnecessary duplicate dumps because if different polygons
+    * sample different textures from the *same* page (with the same
+    * CLUT etc...) the polygon checksum will be different even though
+    * the page is exactly the same.
+    *
+    * Therefore final solution is to do both checks: we checksum the
+    * polygon texture and if it's new we checksum the whole page to
+    * figure out if we haven't yet dumped it before.
+    */
+   if (dump_texture_page || dump_texture_poly) {
+      poly_hash = checksum_area(gpu,
+                                u_start, u_end,
+                                v_start, v_end,
+                                clut_x, clut_y,
+                                depth_shift, blend_mode);
+
+      poly_unique = hash_table_insert(poly_hash);
+
+      if (dump_texture_page && poly_unique) {
+         page_hash = checksum_area(gpu,
+                                   page_x, page_x + 0xff,
+                                   page_y, page_y + 0xff,
+                                   clut_x, clut_y,
+                                   depth_shift, blend_mode);
+         page_unique = hash_table_insert(page_hash);
+      }
+   }
+
+   if (dump_texture_page && page_unique) {
       dump_area(gpu,
-                page_x + u_start, page_x + u_end,
-                page_y + v_start, page_y + v_end,
                 page_x, page_x + 0xff,
                 page_y, page_y + 0xff,
                 clut_x, clut_y,
-                depth_shift);
+                depth_shift, blend_mode,
+                page_hash);
    }
 
-   if (dump_texture_poly) {
-      dump_area(gpu,
-                page_x + u_start, page_x + u_end,
-                page_y + v_start, page_y + v_end,
-                page_x + u_start, page_x + u_end,
-                page_y + v_start, page_y + v_end,
-                clut_x, clut_y,
-                depth_shift);
+   if (dump_texture_poly && poly_unique) {
+      /* Ignore textures if they're too small */
+      if (u_end - u_start > 4 || v_end - v_start > 4) {
+         dump_area(gpu,
+                   u_start, u_end,
+                   v_start, v_end,
+                   clut_x, clut_y,
+                   depth_shift, blend_mode,
+                   poly_hash);
+      }
    }
 
+}
+
+uint32_t TextureDumper::checksum_area(PS_GPU *gpu,
+                                      unsigned u_start, unsigned u_end,
+                                      unsigned v_start, unsigned v_end,
+                                      uint16_t clut_x, uint16_t clut_y,
+                                      unsigned depth_shift,
+                                      enum blending_modes blend_mode)
+{
+   uint32_t hash = djb2_init();
+   unsigned clut_width;
+
+   switch (depth_shift) {
+   case DEPTH_SHIFT_4BPP:
+      clut_width = 16;
+      break;
+   case DEPTH_SHIFT_8BPP:
+      clut_width = 256;
+      break;
+   case DEPTH_SHIFT_16BPP:
+      clut_width = 0;
+      break;
+   }
+
+   // Checksum blend mode
+   djb2_update(&hash, (uint8_t)blend_mode);
+
+   // Checksum CLUT (if any)
+   for (unsigned x = clut_x; x < clut_x + clut_width; x++) {
+      uint16_t t = texel_fetch(gpu, x, clut_y);
+
+      djb2_update(&hash, t);
+   }
+
+   unsigned width = u_end - u_start + 1;
+   unsigned height = v_end - v_start + 1;
+   unsigned width_vram = width >> depth_shift;
+
+   // Checksum texture data
+   for (unsigned y = 0; y < height ; y ++) {
+      for (unsigned x = 0; x < width_vram; x ++) {
+         uint16_t t = texel_fetch(gpu, u_start + x, v_start + y);
+
+         djb2_update(&hash, t);
+      }
+   }
+
+   return hash;
 }
 
 static inline uint8_t bpp_5to8(uint8_t v) {
@@ -142,22 +257,20 @@ static inline uint8_t bpp_5to8(uint8_t v) {
 }
 
 void TextureDumper::dump_area(PS_GPU *gpu,
-                              unsigned u_cs_start, unsigned u_cs_end,
-                              unsigned v_cs_start, unsigned v_cs_end,
                               unsigned u_start, unsigned u_end,
                               unsigned v_start, unsigned v_end,
                               uint16_t clut_x, uint16_t clut_y,
-                              unsigned depth_shift)
+                              unsigned depth_shift,
+                              enum blending_modes blend_mode,
+                              uint32_t hash)
 {
-   uint32_t hash = djb2_init();
-   uint32_t clut_hash;
+   unsigned width = u_end - u_start + 1;
+   unsigned height = v_end - v_start + 1;
+   unsigned width_vram = width >> depth_shift;
    unsigned clut_width;
    unsigned val_width;
    bool paletted = true;
 
-   unsigned width = u_cs_end - u_cs_start + 1;
-   unsigned height = v_cs_end - v_cs_start + 1;
-   unsigned width_vram = width >> depth_shift;
 
    switch (depth_shift) {
    case DEPTH_SHIFT_4BPP:
@@ -172,59 +285,11 @@ void TextureDumper::dump_area(PS_GPU *gpu,
       clut_width = 0;
       val_width = 16;
       paletted = false;
-      // XXX implement me
       return;
       break;
    }
 
-   // Checksum CLUT (if any)
-   for (unsigned x = clut_x; x < clut_x + clut_width; x++) {
-      uint16_t t = texel_fetch(gpu, x, clut_y);
-
-      djb2_update(&hash, t);
-   }
-
-   clut_hash = hash;
-
-   // Checksum currently mapped polygon
-   for (unsigned y = 0; y < height ; y ++) {
-      for (unsigned x = 0; x < width_vram; x ++) {
-         uint16_t t = texel_fetch(gpu, u_cs_start + x, v_cs_start + y);
-
-         djb2_update(&hash, t);
-      }
-   }
-
-   if (!hash_table_insert(hash)) {
-      // We already dumped this polygon
-      return;
-   }
-
-   /* If we reach this point it means that it's the first time we map
-      this particular texture. Before we dump the entire page we see
-      if we haven't dumped it yet */
-   width = u_end - u_start + 1;
-   height = v_end - v_start + 1;
-   width_vram = width >> depth_shift;
-
-   hash = clut_hash;
-
-   // Checksum page
-   for (unsigned y = 0; y < height ; y ++) {
-      for (unsigned x = 0; x < width_vram; x ++) {
-         uint16_t t = texel_fetch(gpu, u_start + x, v_start + y);
-
-         djb2_update(&hash, t);
-      }
-   }
-
-   if (!hash_table_insert(hash)) {
-      // We already dumped this page
-      return;
-   }
-
    /* Dump the full page */
-
    char filename[128];
 
    snprintf(filename, sizeof (filename), "%s/dump-%dbpp-%08X.tga", "/tmp", val_width, hash);
