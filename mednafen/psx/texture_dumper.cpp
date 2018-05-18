@@ -256,6 +256,28 @@ static inline uint8_t bpp_5to8(uint8_t v) {
    return (v << 3) | (v >> 2);
 }
 
+static inline void write_col_1555_BGRA8888(uint8_t *buf,
+                                           uint16_t col,
+                                           enum blending_modes blend_mode) {
+   if (col != 0) {
+      bool semi_transp = ((col >> 15) != 0);
+      uint8_t b = bpp_5to8((col >> 10) & 0x1f);
+      uint8_t g = bpp_5to8((col >> 5) & 0x1f);
+      uint8_t r = bpp_5to8(col & 0x1f);
+
+      buf[0] = b;
+      buf[1] = g;
+      buf[2] = r;
+      buf[3] = 0xff;
+   } else {
+      /* Transparent pixel */
+      buf[0] = 0;
+      buf[1] = 0;
+      buf[2] = 0;
+      buf[3] = 0;
+   }
+}
+
 void TextureDumper::dump_area(PS_GPU *gpu,
                               unsigned u_start, unsigned u_end,
                               unsigned v_start, unsigned v_end,
@@ -271,7 +293,6 @@ void TextureDumper::dump_area(PS_GPU *gpu,
    unsigned val_width;
    bool paletted = true;
 
-
    switch (depth_shift) {
    case DEPTH_SHIFT_4BPP:
       clut_width = 16;
@@ -285,7 +306,6 @@ void TextureDumper::dump_area(PS_GPU *gpu,
       clut_width = 0;
       val_width = 16;
       paletted = false;
-      return;
       break;
    }
 
@@ -346,22 +366,8 @@ void TextureDumper::dump_area(PS_GPU *gpu,
       for (unsigned x = clut_x; x < clut_x + clut_width; x++) {
          uint16_t t = texel_fetch(gpu, x, clut_y);
 
-         if (t == 0) {
-            /* Transparent pixel */
-            buf[index++] = 0;
-            buf[index++] = 0;
-            buf[index++] = 0;
-            buf[index++] = 0;
-         } else {
-            /* B */
-            buf[index++] = bpp_5to8((t >> 10) & 0x1f);
-            /* G */
-            buf[index++] = bpp_5to8((t >> 5) & 0x1f);
-            /* R */
-            buf[index++] = bpp_5to8(t & 0x1f);
-            /* A */
-            buf[index++] = 0xff;
-         }
+         write_col_1555_BGRA8888(buf + index, t, blend_mode);
+         index += 4;
       }
 
       write(fd, buf, index);
@@ -393,7 +399,29 @@ void TextureDumper::dump_area(PS_GPU *gpu,
       }
       write(fd, buf, index);
    } else {
-      // Implement me
+      // Dump "truecolor" data
+      uint8_t buf[256 * 4];
+      unsigned index = 0;
+
+      for (unsigned dy = 0; dy < height ; dy++) {
+         for (unsigned dx = 0; dx < width; dx++) {
+            unsigned x = dx;
+            unsigned y = height - dy - 1;
+
+            uint16_t t = texel_fetch(gpu,
+                                     u_start + x,
+                                     v_start + y);
+
+            write_col_1555_BGRA8888(buf + index, t, blend_mode);
+            index += 4;
+
+            if (index == sizeof(buf)) {
+               write(fd, buf, index);
+               index = 0;
+            }
+         }
+      }
+      write(fd, buf, index);
    }
 
    close(fd);
