@@ -116,9 +116,12 @@ void TextureDumper::dump(PS_GPU *gpu,
    bool page_unique = false;
    uint32_t page_hash = 0;
 
-
    if (!this->blend) {
       blend_mode = BLEND_MODE_OPAQUE;
+   }
+
+   if (blend_mode != BLEND_MODE_AVERAGE) {
+      return;
    }
 
    if (!dump_texture_16bpp && depth_shift == DEPTH_SHIFT_16BPP) {
@@ -264,11 +267,32 @@ static inline void write_col_1555_BGRA8888(uint8_t *buf,
       uint8_t b = bpp_5to8((col >> 10) & 0x1f);
       uint8_t g = bpp_5to8((col >> 5) & 0x1f);
       uint8_t r = bpp_5to8(col & 0x1f);
+      uint8_t a = 0xff; /* Fully opaque */
+
+      if (semi_transp) {
+         switch (blend_mode) {
+         case BLEND_MODE_AVERAGE:
+            a = 0x7f;
+            break;
+         case BLEND_MODE_SUBTRACT:
+            /* Used for shadows etc, texture is a negative */
+            a = 0x7f;
+            r ^= 0xff;
+            g ^= 0xff;
+            b ^= 0xff;
+            break;
+         case BLEND_MODE_ADD:
+         case BLEND_MODE_ADD_FOURTH:
+         case BLEND_MODE_OPAQUE:
+         default:
+            break;
+         };
+      }
 
       buf[0] = b;
       buf[1] = g;
       buf[2] = r;
-      buf[3] = 0xff;
+      buf[3] = a;
    } else {
       /* Transparent pixel */
       buf[0] = 0;
