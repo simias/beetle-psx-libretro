@@ -751,6 +751,23 @@ static void emit_jmp_off(struct dynarec_compiler *compiler,
 }
 #define EMIT_JMP(_o) emit_jmp_off(compiler, (_o))
 
+/* JMP *off(%reg64) */
+static void emit_jmp_off_pr64(struct dynarec_compiler *compiler,
+                              uint32_t off,
+                              enum X86_REG reg) {
+   emit_rex_prefix(compiler, reg, 0, 0);
+   *(compiler->map++) = 0xff;
+
+   if (is_imms8(off)) {
+      *(compiler->map++) = 0x60 | (reg & 7);
+      emit_imms8(compiler, off);
+   } else {
+      *(compiler->map++) = 0xa0 | (reg & 7);
+      emit_imm32(compiler, off);
+   }
+}
+#define JMP_OFF_PR64(_o, _r) emit_jmp_off_pr64(compiler, (_o), (_r))
+
 /* CALL *off(%reg64) */
 static void emit_call_off_pr64(struct dynarec_compiler *compiler,
                                uint32_t off,
@@ -1599,6 +1616,7 @@ void dynasm_emit_long_jump_imm(struct dynarec_compiler *compiler,
                                uint32_t target) {
    int32_t target_page_index = dynarec_find_page_index(compiler->state, target);
    size_t  page_valid_off = offsetof(struct dynarec_state, page_valid);
+   size_t instruction_pos;
 
    assert(target_page_index >= 0);
 
@@ -1614,9 +1632,14 @@ void dynasm_emit_long_jump_imm(struct dynarec_compiler *compiler,
       CALL(dynabi_recompile);
    } ENDIF;
 
-   // If we reach this point we know that the target is valid
-   // TODO
-   dynasm_emit_exception(compiler, PSX_DYNAREC_UNIMPLEMENTED);
+   // If we reach this point we know that the target is valid. Let's
+   // look it up in `dynarec_instructions`
+   instruction_pos = offsetof(struct dynarec_state, dynarec_instructions);
+   instruction_pos += target_page_index * DYNAREC_PAGE_INSTRUCTIONS;
+   instruction_pos += target & (DYNAREC_PAGE_SIZE - 1);
+
+   // Jump into the new page
+   JMP_OFF_PR64(instruction_pos, STATE_REG);
 }
 
 extern void dynasm_emit_long_jump_imm_cond(struct dynarec_compiler *compiler,
