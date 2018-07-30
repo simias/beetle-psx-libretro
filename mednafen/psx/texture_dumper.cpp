@@ -172,11 +172,6 @@ void TextureDumper::dump(PS_GPU *gpu,
       return;
    }
 
-   u_start += page_x;
-   u_end   += page_x;
-   v_start += page_y;
-   v_end   += page_y;
-
    /* Here's the logic for the checksumming:
     *
     * - Polygon dumps:
@@ -210,7 +205,9 @@ void TextureDumper::dump(PS_GPU *gpu,
     */
    if (dump_texture_page || dump_texture_poly) {
       poly_hash = checksum_area(gpu,
+                                page_x,
                                 u_start, u_end,
+                                page_y,
                                 v_start, v_end,
                                 clut_x, clut_y,
                                 depth_shift, blend_mode);
@@ -219,8 +216,10 @@ void TextureDumper::dump(PS_GPU *gpu,
 
       if (dump_texture_page && poly_unique) {
          page_hash = checksum_area(gpu,
-                                   page_x, page_x + 0xff,
-                                   page_y, page_y + 0xff,
+                                   page_x,
+                                   0, 0xff,
+                                   page_y,
+                                   0, 0xff,
                                    clut_x, clut_y,
                                    depth_shift, blend_mode);
          page_unique = hash_table_insert(page_hash);
@@ -229,8 +228,10 @@ void TextureDumper::dump(PS_GPU *gpu,
 
    if (dump_texture_page && page_unique) {
       dump_area(gpu,
-                page_x, page_x + 0xff,
-                page_y, page_y + 0xff,
+                page_x,
+                0, 0xff,
+                page_y,
+                0, 0xff,
                 clut_x, clut_y,
                 depth_shift, blend_mode,
                 page_hash);
@@ -240,7 +241,9 @@ void TextureDumper::dump(PS_GPU *gpu,
       /* Ignore textures if they're too small */
       if (u_end - u_start > 4 || v_end - v_start > 4) {
          dump_area(gpu,
+                   page_x,
                    u_start, u_end,
+                   page_y,
                    v_start, v_end,
                    clut_x, clut_y,
                    depth_shift, blend_mode,
@@ -251,7 +254,9 @@ void TextureDumper::dump(PS_GPU *gpu,
 }
 
 uint32_t TextureDumper::checksum_area(PS_GPU *gpu,
+                                      unsigned page_x,
                                       unsigned u_start, unsigned u_end,
+                                      unsigned page_y,
                                       unsigned v_start, unsigned v_end,
                                       uint16_t clut_x, uint16_t clut_y,
                                       unsigned depth_shift,
@@ -287,9 +292,12 @@ uint32_t TextureDumper::checksum_area(PS_GPU *gpu,
    unsigned width_vram = width >> depth_shift;
 
    // Checksum texture data
-   for (unsigned y = 0; y < height ; y ++) {
-      for (unsigned x = 0; x < width_vram; x ++) {
-         uint16_t t = texel_fetch(gpu, u_start + x, v_start + y);
+   u_start >>= depth_shift;
+   u_end   >>= depth_shift;
+
+   for (unsigned y = v_start; y <= v_end ; y++) {
+      for (unsigned x = u_start; x <= u_end; x++) {
+         uint16_t t = texel_fetch(gpu, page_x + x, page_y + y);
 
          djb2_update(&hash, t);
       }
@@ -346,7 +354,9 @@ static inline void write_col_1555_BGRA8888(uint8_t *buf,
 }
 
 void TextureDumper::dump_area(PS_GPU *gpu,
+                              unsigned page_x,
                               unsigned u_start, unsigned u_end,
+                              unsigned page_y,
                               unsigned v_start, unsigned v_end,
                               uint16_t clut_x, uint16_t clut_y,
                               unsigned depth_shift,
@@ -355,7 +365,6 @@ void TextureDumper::dump_area(PS_GPU *gpu,
 {
    unsigned width = u_end - u_start + 1;
    unsigned height = v_end - v_start + 1;
-   unsigned width_vram = width >> depth_shift;
    unsigned clut_width;
    unsigned val_width;
    bool paletted = true;
@@ -451,17 +460,15 @@ void TextureDumper::dump_area(PS_GPU *gpu,
       unsigned val_mask = (1 << val_width) - 1;
 
       for (unsigned dy = 0; dy < height ; dy++) {
-         for (unsigned dx = 0; dx < width; dx++) {
-            unsigned x = dx;
+         for (unsigned x = u_start; x <= u_end; x++) {
             unsigned y = height - dy - 1;
 
-            unsigned t_x = x >> depth_shift;
             unsigned align = x & ((1U << depth_shift) - 1);
             align *= val_width;
 
             uint16_t t = texel_fetch(gpu,
-                                     u_start + t_x,
-                                     v_start + y);
+                                     ((x & gpu->SUCV.TWX_AND) + gpu->SUCV.TWX_ADD) >> depth_shift,
+                                     ((y & gpu->SUCV.TWY_AND) + gpu->SUCV.TWY_ADD));
 
             buf[index++] = (t >> align) & val_mask;
 

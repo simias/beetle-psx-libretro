@@ -666,14 +666,14 @@ static void Command_DrawPolygon(PS_GPU *gpu, const uint32_t *cb)
    uint16_t clut_y = (clut >> 10) & 0x1ff;
 
    if (textured && gpu->texture_dumper.is_enabled()) {
-      unsigned min_u = vertices[0].u & 0xff;
+      unsigned min_u = vertices[0].u;
       unsigned max_u = min_u;
-      unsigned min_v = vertices[0].v & 0xff;
+      unsigned min_v = vertices[0].v;
       unsigned max_v = min_v;
 
       for (unsigned i = 1; i <= 2; i++) {
-         unsigned u = vertices[i].u & 0xff;
-         unsigned v = vertices[i].v & 0xff;
+         unsigned u = vertices[i].u;
+         unsigned v = vertices[i].v;
 
          if (u < min_u) {
             min_u = u;

@@ -27,14 +27,18 @@ private:
    bool hash_table_insert(uint32_t hash);
 
    uint32_t checksum_area(PS_GPU *gpu,
+                          unsigned page_x,
                           unsigned u_start, unsigned u_end,
+                          unsigned page_y,
                           unsigned v_start, unsigned v_end,
                           uint16_t clut_x, uint16_t clut_y,
                           unsigned depth_shift,
                           enum blending_modes blend_mode);
 
    void dump_area(PS_GPU *gpu,
+                  unsigned page_x,
                   unsigned u_start, unsigned u_end,
+                  unsigned page_y,
                   unsigned v_start, unsigned v_end,
                   uint16_t clut_x, uint16_t clut_y,
                   unsigned depth_shift,
