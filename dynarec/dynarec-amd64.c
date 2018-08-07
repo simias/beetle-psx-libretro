@@ -1634,9 +1634,15 @@ void dynasm_emit_long_jump_imm(struct dynarec_compiler *compiler,
 
    // If we reach this point we know that the target is valid. Let's
    // look it up in `dynarec_instructions`
-   instruction_pos = offsetof(struct dynarec_state, dynarec_instructions);
-   instruction_pos += target_page_index * DYNAREC_PAGE_INSTRUCTIONS;
-   instruction_pos += target & (DYNAREC_PAGE_SIZE - 1);
+
+   // Page address
+   instruction_pos = target_page_index * DYNAREC_PAGE_INSTRUCTIONS;
+   // Instruction offset
+   instruction_pos += (target & (DYNAREC_PAGE_SIZE - 1)) / 4;
+   // Array of void *
+   instruction_pos *= sizeof(void *);
+   // Add offset in struct dynarec_state1
+   instruction_pos += offsetof(struct dynarec_state, dynarec_instructions);
 
    // Jump into the new page
    JMP_OFF_PR64(instruction_pos, STATE_REG);
