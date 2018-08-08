@@ -132,6 +132,13 @@ static void emit_jump(struct dynarec_compiler *compiler,
    emit_branch_or_jump(compiler, target, 0, 0, DYNAREC_JUMP_ALWAYS);
 }
 
+static void emit_jal(struct dynarec_compiler *compiler,
+                     uint32_t instruction) {
+   /* Store return address in RA */
+   dynasm_emit_li(compiler, PSX_REG_RA, compiler->pc + 8);
+   emit_jump(compiler, instruction);
+}
+
 static void emit_branch(struct dynarec_compiler *compiler,
                         int16_t offset,
                         enum PSX_REG reg_a,
@@ -629,7 +636,7 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
       emit_jump(compiler, instruction);
       break;
    case 0x03: /* JAL */
-      dynasm_emit_exception(compiler, PSX_DYNAREC_UNIMPLEMENTED);
+      emit_jal(compiler, instruction);
       break;
    case 0x04: /* BEQ */
       emit_beq(compiler, simm_se, reg_op0, reg_op1);
