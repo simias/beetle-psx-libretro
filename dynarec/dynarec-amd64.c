@@ -701,10 +701,10 @@ static void emit_alu_off_sib_r32(struct dynarec_compiler *compiler,
    emit_alu_off_sib_r32(compiler, 0x23, (_o), (_b), (_i), (_s), (_t))
 
 /* SHIFT $shift, %reg32 */
-static void emit_shift_u32_r32(struct dynarec_compiler *compiler,
-                               uint8_t op,
-                               uint32_t shift,
-                               enum X86_REG reg) {
+static void emit_shift_u8_r32(struct dynarec_compiler *compiler,
+                              uint8_t op,
+                              uint8_t shift,
+                              enum X86_REG reg) {
    assert(shift < 32);
 
    emit_rex_prefix(compiler, reg, 0, 0);
@@ -713,9 +713,35 @@ static void emit_shift_u32_r32(struct dynarec_compiler *compiler,
    *(compiler->map++) = op | (reg & 7);
    *(compiler->map++) = shift & 0x1f;
 }
-#define SHL_U32_R32(_u, _v) emit_shift_u32_r32(compiler, 0xe0, (_u), (_v))
-#define SHR_U32_R32(_u, _v) emit_shift_u32_r32(compiler, 0xe8, (_u), (_v))
-#define SAR_U32_R32(_u, _v) emit_shift_u32_r32(compiler, 0xf8, (_u), (_v))
+#define SHL_U8_R32(_u, _v) emit_shift_u8_r32(compiler, 0xe0, (_u), (_v))
+#define SHR_U8_R32(_u, _v) emit_shift_u8_r32(compiler, 0xe8, (_u), (_v))
+#define SAR_U8_R32(_u, _v) emit_shift_u8_r32(compiler, 0xf8, (_u), (_v))
+
+/* SHIFT $shift, off(%reg64) */
+static void emit_shift_u8_off_pr64(struct dynarec_compiler *compiler,
+                                   uint8_t op,
+                                   uint8_t shift,
+                                   uint32_t off,
+                                   enum X86_REG base) {
+   assert(shift < 32);
+
+   emit_rex_prefix(compiler, base, 0, 0);
+   *(compiler->map++) = 0xc1;
+
+   if (is_imms8(off)) {
+      *(compiler->map++) = 0x60 | op | (base & 7);
+      emit_imms8(compiler, off);
+   } else {
+      *(compiler->map++) = 0xa0 | op | (base & 7);
+      emit_imm32(compiler, off);
+   }
+}
+#define SHL_U8_OFF_PR64(_u, _o, _r) \
+   emit_shift_u8_off_pr64(compiler, 0x00, (_u), (_o), (_r))
+#define SHR_U8_OFF_PR64(_u, _o, _r) \
+   emit_shift_u8_off_pr64(compiler, 0x08, (_u), (_o), (_r))
+#define SAR_U8_OFF_PR64(_u, _o, _r) \
+   emit_shift_u8_off_pr64(compiler, 0x18, (_u), (_o), (_r))
 
 /* IMUL $a, %b32, %target32 */
 static void emit_imul_u32_r32_r32(struct dynarec_compiler *compiler,
@@ -832,7 +858,9 @@ void dynasm_emit_mov(struct dynarec_compiler *compiler,
    const int target = register_location(reg_target);
    const int source = register_location(reg_source);
 
+   /* Moving to R0 is a NOP */
    assert(reg_target != 0);
+   /* Moving from R0 is better optimized as an LI with 0 */
    assert(reg_source != 0);
 
    if (target >= 0) {
@@ -861,9 +889,41 @@ void dynasm_emit_mov(struct dynarec_compiler *compiler,
 
 extern void dynasm_emit_sll(struct dynarec_compiler *compiler,
                             enum PSX_REG reg_target,
-                            enum PSX_REG reg_op0,
+                            enum PSX_REG reg_source,
                             uint8_t shift) {
-   UNIMPLEMENTED;
+   const int target = register_location(reg_target);
+   const int source = register_location(reg_source);
+
+   if (reg_target == reg_source) {
+      if (target >= 0) {
+         SHL_U8_R32(shift, target);
+      } else {
+         SHL_U8_OFF_PR64(shift,
+                         DYNAREC_STATE_REG_OFFSET(reg_target),
+                         STATE_REG);
+      }
+   } else {
+      int target_tmp;
+
+      if (target >= 0) {
+         target_tmp = target;
+      } else {
+         /* use EAX as intermediary */
+         target_tmp = REG_AX;
+      }
+
+      if (source >= 0) {
+         MOV_R32_R32(source, target_tmp);
+      } else {
+         MOVE_FROM_BANKED(reg_source, target_tmp);
+      }
+
+      SHL_U8_R32(shift, target_tmp);
+
+      if (target_tmp != target) {
+         MOVE_TO_BANKED(target_tmp, reg_target);
+      }
+   }
 }
 
 extern void dynasm_emit_sra(struct dynarec_compiler *compiler,
@@ -1275,7 +1335,7 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
    MOV_R32_R32(REG_DX, REG_AX);
 
    /* Compute offset into region_mask, i.e. addr >> 29 */
-   SHR_U32_R32(29, REG_AX);
+   SHR_U8_R32(29, REG_AX);
 
    /* Mask the address. region_mask is pointed */
    AND_OFF_SIB_R32(offsetof(struct dynarec_state, region_mask),
@@ -1296,7 +1356,7 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
       if (dir == DIR_STORE) {
          /* Compute page index in %eax */
          MOV_R32_R32(REG_DX, REG_AX);
-         SHR_U32_R32(DYNAREC_PAGE_SIZE_SHIFT, REG_AX);
+         SHR_U8_R32(DYNAREC_PAGE_SIZE_SHIFT, REG_AX);
 
          /* Clear valid flag */
          MOV_U8_OFF_SIB(0,
