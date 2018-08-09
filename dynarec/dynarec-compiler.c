@@ -683,10 +683,12 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
       break;
    case 0x10: /* COP0 */
       switch ((instruction >> 21) & 0x1f) {
+      case 0x00: /* MFC0 */
+         dynasm_emit_mfc0(compiler, reg_target, (instruction >> 11) & 0x1f);
+         break;
       case 0x04: /* MTC0 */
          dynasm_emit_mtc0(compiler, reg_op0, (instruction >> 11) & 0x1f);
          break;
-      case 0x00: /* MFC0 */
       case 0x10: /* RFE */
       default:
          printf("Dynarec encountered unsupported COP0 instruction %08x\n",

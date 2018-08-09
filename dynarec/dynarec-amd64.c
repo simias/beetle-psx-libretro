@@ -1747,6 +1747,41 @@ void dynasm_emit_mtlo(struct dynarec_compiler *compiler,
    dynasm_emit_exception(compiler, PSX_DYNAREC_UNIMPLEMENTED);
 }
 
+void dynasm_emit_mfc0(struct dynarec_compiler *compiler,
+                      enum PSX_REG reg_target,
+                      enum PSX_COP0_REG reg_cop0) {
+   const int target = register_location(reg_target);
+   int target_tmp;
+   size_t load_off;
+
+   switch (reg_cop0) {
+   case PSX_COP0_SR:
+      load_off = offsetof(struct dynarec_state, sr);
+      break;
+   case PSX_COP0_CAUSE:
+      load_off = offsetof(struct dynarec_state, cause);
+      break;
+   default:
+      /* Other registers not handled for now, just return zeroes */
+      dynasm_emit_li(compiler, reg_target, 0);
+      return;
+   }
+
+   if (target >= 0) {
+      target_tmp = target;
+   } else {
+      target_tmp = REG_AX;
+   }
+
+   MOV_OFF_PR64_R32(load_off,
+                    STATE_REG,
+                    target_tmp);
+
+   if (target_tmp != target) {
+      MOVE_TO_BANKED(target, reg_target);
+   }
+}
+
 void dynasm_emit_mtc0(struct dynarec_compiler *compiler,
                       enum PSX_REG reg_source,
                       enum PSX_COP0_REG reg_cop0) {

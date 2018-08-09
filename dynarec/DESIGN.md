@@ -190,3 +190,5 @@ The current code treats KUSEG, KSEG0 and KSEG1 identically, however
 the scratchpad is not supposed to be accessible through KSEG1. I doubt
 this matters for most games but accuracy's sake we might add a test
 for it.
+
+## Reload SR and CAUSE from CP0.Regs[rd] when necessary
