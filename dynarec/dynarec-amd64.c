@@ -700,6 +700,10 @@ static void emit_alu_off_sib_r32(struct dynarec_compiler *compiler,
 #define AND_OFF_SIB_R32(_o, _b, _i, _s, _t)                             \
    emit_alu_off_sib_r32(compiler, 0x23, (_o), (_b), (_i), (_s), (_t))
 
+#define SHL_OP      0x00U
+#define SHR_OP      0x08U
+#define SAR_OP      0x18U
+
 /* SHIFT $shift, %reg32 */
 static void emit_shift_u8_r32(struct dynarec_compiler *compiler,
                               uint8_t op,
@@ -710,12 +714,14 @@ static void emit_shift_u8_r32(struct dynarec_compiler *compiler,
    emit_rex_prefix(compiler, reg, 0, 0);
 
    *(compiler->map++) = 0xc1;
-   *(compiler->map++) = op | (reg & 7);
+   *(compiler->map++) = 0xe0 | op | (reg & 7);
    *(compiler->map++) = shift & 0x1f;
 }
-#define SHL_U8_R32(_u, _v) emit_shift_u8_r32(compiler, 0xe0, (_u), (_v))
-#define SHR_U8_R32(_u, _v) emit_shift_u8_r32(compiler, 0xe8, (_u), (_v))
-#define SAR_U8_R32(_u, _v) emit_shift_u8_r32(compiler, 0xf8, (_u), (_v))
+#define SHIFT_U8_R32(_op, _u, _v) \
+   emit_shift_u8_r32(compiler, (_op), (_u), (_v))
+#define SHL_U8_R32(_u, _v) emit_shift_u8_r32(compiler, SHL_OP, (_u), (_v))
+#define SHR_U8_R32(_u, _v) emit_shift_u8_r32(compiler, SHR_OP, (_u), (_v))
+#define SAR_U8_R32(_u, _v) emit_shift_u8_r32(compiler, SAR_OP, (_u), (_v))
 
 /* SHIFT $shift, off(%reg64) */
 static void emit_shift_u8_off_pr64(struct dynarec_compiler *compiler,
@@ -736,12 +742,14 @@ static void emit_shift_u8_off_pr64(struct dynarec_compiler *compiler,
       emit_imm32(compiler, off);
    }
 }
+#define SHIFT_U8_OFF_PR64(_op, _u, _o, _r) \
+   emit_shift_u8_off_pr64(compiler, (_op), (_u), (_o), (_r))
 #define SHL_U8_OFF_PR64(_u, _o, _r) \
-   emit_shift_u8_off_pr64(compiler, 0x00, (_u), (_o), (_r))
+   emit_shift_u8_off_pr64(compiler, SHL_OP, (_u), (_o), (_r))
 #define SHR_U8_OFF_PR64(_u, _o, _r) \
-   emit_shift_u8_off_pr64(compiler, 0x08, (_u), (_o), (_r))
+   emit_shift_u8_off_pr64(compiler, SHR_OP, (_u), (_o), (_r))
 #define SAR_U8_OFF_PR64(_u, _o, _r) \
-   emit_shift_u8_off_pr64(compiler, 0x18, (_u), (_o), (_r))
+   emit_shift_u8_off_pr64(compiler, SAR_OP, (_u), (_o), (_r))
 
 /* IMUL $a, %b32, %target32 */
 static void emit_imul_u32_r32_r32(struct dynarec_compiler *compiler,
@@ -887,20 +895,22 @@ void dynasm_emit_mov(struct dynarec_compiler *compiler,
    }
 }
 
-extern void dynasm_emit_sll(struct dynarec_compiler *compiler,
-                            enum PSX_REG reg_target,
-                            enum PSX_REG reg_source,
-                            uint8_t shift) {
+static void dynasm_emit_shift(struct dynarec_compiler *compiler,
+                              enum PSX_REG reg_target,
+                              enum PSX_REG reg_source,
+                              uint8_t shift,
+                              uint8_t opcode) {
    const int target = register_location(reg_target);
    const int source = register_location(reg_source);
 
    if (reg_target == reg_source) {
       if (target >= 0) {
-         SHL_U8_R32(shift, target);
+         SHIFT_U8_R32(opcode, shift, target);
       } else {
-         SHL_U8_OFF_PR64(shift,
-                         DYNAREC_STATE_REG_OFFSET(reg_target),
-                         STATE_REG);
+         SHIFT_U8_OFF_PR64(opcode,
+                           shift,
+                           DYNAREC_STATE_REG_OFFSET(reg_target),
+                           STATE_REG);
       }
    } else {
       int target_tmp;
@@ -918,7 +928,7 @@ extern void dynasm_emit_sll(struct dynarec_compiler *compiler,
          MOVE_FROM_BANKED(reg_source, target_tmp);
       }
 
-      SHL_U8_R32(shift, target_tmp);
+      SHIFT_U8_R32(opcode, shift, target_tmp);
 
       if (target_tmp != target) {
          MOVE_TO_BANKED(target_tmp, reg_target);
@@ -926,11 +936,18 @@ extern void dynasm_emit_sll(struct dynarec_compiler *compiler,
    }
 }
 
+extern void dynasm_emit_sll(struct dynarec_compiler *compiler,
+                            enum PSX_REG reg_target,
+                            enum PSX_REG reg_source,
+                            uint8_t shift) {
+   dynasm_emit_shift(compiler, reg_target, reg_source, shift, SHL_OP);
+}
+
 extern void dynasm_emit_sra(struct dynarec_compiler *compiler,
                             enum PSX_REG reg_target,
-                            enum PSX_REG reg_op0,
+                            enum PSX_REG reg_source,
                             uint8_t shift) {
-   UNIMPLEMENTED;
+   dynasm_emit_shift(compiler, reg_target, reg_source, shift, SAR_OP);
 }
 
 void dynasm_emit_li(struct dynarec_compiler *compiler,
