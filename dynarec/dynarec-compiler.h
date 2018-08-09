@@ -239,7 +239,9 @@ extern void dynasm_emit_mfhi(struct dynarec_compiler *compiler,
                              enum PSX_REG ret_target);
 extern void dynasm_emit_mtlo(struct dynarec_compiler *compiler,
                              enum PSX_REG ret_source);
-
+extern void dynasm_emit_mfc0(struct dynarec_compiler *compiler,
+                             enum PSX_REG reg_target,
+                             enum PSX_COP0_REG reg_cop0);
 extern void dynasm_emit_mtc0(struct dynarec_compiler *compiler,
                              enum PSX_REG reg_source,
                              enum PSX_COP0_REG reg_cop0);
