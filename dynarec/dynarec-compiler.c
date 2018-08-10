@@ -387,19 +387,23 @@ static void emit_or(struct dynarec_compiler *compiler,
    if (reg_op0 == PSX_REG_R0) {
       if (reg_op1 == PSX_REG_R0) {
          dynasm_emit_li(compiler, reg_target, 0);
+      } else if (reg_target != reg_op1) {
+         dynasm_emit_mov(compiler, reg_target, reg_op1);
       } else {
-         if (reg_target != reg_op1) {
-            dynasm_emit_mov(compiler, reg_target, reg_op1);
-         }
+         /* OR a, 0, a -> NOP */
+         return;
       }
+   } else if (reg_op1 == PSX_REG_R0) {
+      if (reg_target != reg_op0) {
+         dynasm_emit_mov(compiler, reg_target, reg_op0);
+      } else {
+         /* OR a, a, 0 -> NOP */
+         return;
+      }
+   } else if (reg_op0 == reg_op1) {
+      dynasm_emit_mov(compiler, reg_target, reg_op0);
    } else {
-      if (reg_op1 == PSX_REG_R0) {
-         if (reg_target != reg_op0) {
-            dynasm_emit_mov(compiler, reg_target, reg_op0);
-         }
-      } else {
-         dynasm_emit_or(compiler, reg_target, reg_op0, reg_op1);
-      }
+      dynasm_emit_or(compiler, reg_target, reg_op0, reg_op1);
    }
 }
 

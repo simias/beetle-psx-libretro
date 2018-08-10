@@ -505,6 +505,13 @@ static void emit_setb(struct dynarec_compiler *compiler,
  * ALU operations *
  ******************/
 
+#define ADD_OP     0x00
+#define OR_OP      0x08
+#define AND_OP     0x20
+#define SUB_OP     0x28
+#define XOR_OP     0x30
+#define CMP_OP     0x38
+
 /* ALU $val, %reg32 */
 static void emit_alu_u32_r32(struct dynarec_compiler *compiler,
                              uint8_t op,
@@ -514,25 +521,25 @@ static void emit_alu_u32_r32(struct dynarec_compiler *compiler,
 
    if (is_imms8(val)) {
       *(compiler->map++) = 0x83;
-      *(compiler->map++) = op | (reg & 7);
+      *(compiler->map++) = 0xc0 | op | (reg & 7);
       emit_imms8(compiler, val);
    } else {
       if (reg == REG_AX) {
          /* Operations targetting %eax have a shorter encoding */
-         *(compiler->map++) = op - 0xbb;
+         *(compiler->map++) = op | 0x5;
       } else {
          *(compiler->map++) = 0x81;
-         *(compiler->map++) = op | (reg & 7);
+         *(compiler->map++) = 0xc0 | op | (reg & 7);
       }
       emit_imm32(compiler, val);
    }
 }
-#define ADD_U32_R32(_v, _r) emit_alu_u32_r32(compiler, 0xc0, (_v), (_r))
-#define OR_U32_R32(_v, _r)  emit_alu_u32_r32(compiler, 0xc8, (_v), (_r))
-#define AND_U32_R32(_v, _r) emit_alu_u32_r32(compiler, 0xe0, (_v), (_r))
-#define SUB_U32_R32(_v, _r) emit_alu_u32_r32(compiler, 0xe8, (_v), (_r))
-#define XOR_U32_R32(_v, _r) emit_alu_u32_r32(compiler, 0xf0, (_v), (_r))
-#define CMP_U32_R32(_v, _r) emit_alu_u32_r32(compiler, 0xf8, (_v), (_r))
+#define ADD_U32_R32(_v, _r) emit_alu_u32_r32(compiler, ADD_OP, (_v), (_r))
+#define OR_U32_R32(_v, _r)  emit_alu_u32_r32(compiler, OR_OP,  (_v), (_r))
+#define AND_U32_R32(_v, _r) emit_alu_u32_r32(compiler, AND_OP, (_v), (_r))
+#define SUB_U32_R32(_v, _r) emit_alu_u32_r32(compiler, SUB_OP, (_v), (_r))
+#define XOR_U32_R32(_v, _r) emit_alu_u32_r32(compiler, XOR_OP, (_v), (_r))
+#define CMP_U32_R32(_v, _r) emit_alu_u32_r32(compiler, CMP_OP, (_v), (_r))
 
 /* ALU %reg32, %reg32 */
 static void emit_alu_r32_r32(struct dynarec_compiler *compiler,
@@ -544,15 +551,17 @@ static void emit_alu_r32_r32(struct dynarec_compiler *compiler,
    op0 &= 7;
    op1 &= 7;
 
-   *(compiler->map++) = op;
+   *(compiler->map++) = op | 1;
    *(compiler->map++) = 0xc0 | (op0 << 3) | op1;
 }
-#define ADD_R32_R32(_op0, _op1) emit_alu_r32_r32(compiler, 0x01, (_op0), (_op1))
-#define OR_R32_R32(_op0, _op1)  emit_alu_r32_r32(compiler, 0x09, (_op0), (_op1))
-#define AND_R32_R32(_op0, _op1) emit_alu_r32_r32(compiler, 0x21, (_op0), (_op1))
-#define SUB_R32_R32(_op0, _op1) emit_alu_r32_r32(compiler, 0x29, (_op0), (_op1))
-#define XOR_R32_R32(_op0, _op1) emit_alu_r32_r32(compiler, 0x31, (_op0), (_op1))
-#define CMP_R32_R32(_op0, _op1) emit_alu_r32_r32(compiler, 0x39, (_op0), (_op1))
+#define ALU_R32_R32(_alu, _op0, _op1) \
+   emit_alu_r32_r32(compiler, (_alu), (_op0), (_op1))
+#define ADD_R32_R32(_op0, _op1) emit_alu_r32_r32(compiler, ADD_OP, (_op0), (_op1))
+#define OR_R32_R32(_op0, _op1)  emit_alu_r32_r32(compiler, OR_OP,  (_op0), (_op1))
+#define AND_R32_R32(_op0, _op1) emit_alu_r32_r32(compiler, AND_OP, (_op0), (_op1))
+#define SUB_R32_R32(_op0, _op1) emit_alu_r32_r32(compiler, SUB_OP, (_op0), (_op1))
+#define XOR_R32_R32(_op0, _op1) emit_alu_r32_r32(compiler, XOR_OP, (_op0), (_op1))
+#define CMP_R32_R32(_op0, _op1) emit_alu_r32_r32(compiler, CMP_OP, (_op0), (_op1))
 
 static void emit_alu_off_pr64_rx(struct dynarec_compiler *compiler,
                                  uint8_t op,
@@ -579,12 +588,14 @@ static void emit_alu_off_pr64_r32(struct dynarec_compiler *compiler,
    emit_rex_prefix(compiler, base, target, 0);
    emit_alu_off_pr64_rx(compiler, op, off, base, target);
 }
+#define ALU_OFF_PR64_R32(_alu, _o, _b, _t) \
+   emit_alu_off_pr64_r32(compiler, (_alu) | 3, (_o), (_b), (_t))
 #define ADD_OFF_PR64_R32(_o, _b, _t)                            \
-   emit_alu_off_pr64_r32(compiler, 0x03, (_o), (_b), (_t))
+   emit_alu_off_pr64_r32(compiler, ADD_OP | 3, (_o), (_b), (_t))
 #define AND_OFF_PR64_R32(_o, _b, _t)                            \
-   emit_alu_off_pr64_r32(compiler, 0x23, (_o), (_b), (_t))
+   emit_alu_off_pr64_r32(compiler, AND_OP | 3, (_o), (_b), (_t))
 #define CMP_OFF_PR64_R32(_o, _b, _t)                            \
-   emit_alu_off_pr64_r32(compiler, 0x3b, (_o), (_b), (_t))
+   emit_alu_off_pr64_r32(compiler, CMP_OP | 3, (_o), (_b), (_t))
 
 /* ALU off(%base64), %target64 */
 static void emit_alu_off_pr64_r64(struct dynarec_compiler *compiler,
@@ -595,25 +606,31 @@ static void emit_alu_off_pr64_r64(struct dynarec_compiler *compiler,
    emit_rex_prefix_64(compiler, base, target, 0);
    emit_alu_off_pr64_rx(compiler, op, off, base, target);
 }
+#define ALU_OFF_PR64_R64(_alu, _o, _b, _t)                      \
+   emit_alu_off_pr64_r64(compiler, (_alu) | 3, (_o), (_b), (_t))
 #define ADD_OFF_PR64_R64(_o, _b, _t)                            \
-   emit_alu_off_pr64_r64(compiler, 0x03, (_o), (_b), (_t))
+   emit_alu_off_pr64_r64(compiler, ADD_OP | 3, (_o), (_b), (_t))
 #define AND_OFF_PR64_R64(_o, _b, _t)                            \
-   emit_alu_off_pr64_r64(compiler, 0x23, (_o), (_b), (_t))
+   emit_alu_off_pr64_r64(compiler, AND_OP | 3, (_o), (_b), (_t))
 
 /* The encoding of the reciprocal is identical with only a bit flip in
    the opcode. */
 
 /* ALU %reg32, off(%base64) */
+#define ALU_R32_OFF_PR64(_alu, _r, _o, _b)                      \
+   emit_alu_off_pr64_r32(compiler, (_alu) | 1, (_o), (_b), (_r))
 #define ADD_R32_OFF_PR64(_r, _o, _b)                            \
-   emit_alu_off_pr64_r32(compiler, 0x01, (_o), (_b), (_r))
+   emit_alu_off_pr64_r32(compiler, ADD_OP | 1, (_o), (_b), (_r))
 #define CMP_R32_OFF_PR64(_r, _o, _b)                            \
-   emit_alu_off_pr64_r32(compiler, 0x39, (_o), (_b), (_r))
+   emit_alu_off_pr64_r32(compiler, CMP_OP | 1, (_o), (_b), (_r))
 
 /* ALU %reg64, off(%base64) */
+#define ALU_R64_OFF_PR64(_alu, _r, _o, _b)                      \
+   emit_alu_off_pr64_r64(compiler, (_alu) | 1, (_o), (_b), (_r))
 #define ADD_R64_OFF_PR64(_r, _o, _b)                            \
-   emit_alu_off_pr64_r64(compiler, 0x01, (_o), (_b), (_r))
+   emit_alu_off_pr64_r64(compiler, ADD_OP | 1, (_o), (_b), (_r))
 #define CMP_R64_OFF_PR64(_r, _o, _b)                            \
-   emit_alu_off_pr64_r64(compiler, 0x39, (_o), (_b), (_r))
+   emit_alu_off_pr64_r64(compiler, ADD_OP | 1, (_o), (_b), (_r))
 
 /* ALU $u32, off(%base64) */
 static void emit_alu_u32_off_pr64(struct dynarec_compiler *compiler,
@@ -1065,12 +1082,63 @@ void dynasm_emit_addu(struct dynarec_compiler *compiler,
    }
 }
 
+static void dynasm_emit_alu(struct dynarec_compiler *compiler,
+                     uint8_t alu_op,
+                     enum PSX_REG reg_target,
+                     enum PSX_REG reg_op0,
+                     enum PSX_REG reg_op1) {
+   const int target = register_location(reg_target);
+   enum PSX_REG reg_op;
+   int op;
+
+   /* Move one or the other operands into `target`. Try to be
+      clever about it: if one of the operand is already the target
+      then we have nothing to do. */
+   if (reg_op0 == reg_target) {
+      reg_op = reg_op1;
+   } else  if (reg_op1 == reg_target) {
+      reg_op = reg_op0;
+   } else {
+      dynasm_emit_mov(compiler, reg_target, reg_op1);
+      reg_op = reg_op0;
+   }
+
+   op = register_location(reg_op);
+
+   /* At this point all that's left to compute is `reg_target |= reg_op` */
+   if (target >= 0) {
+      if (op >= 0) {
+         ALU_R32_R32(alu_op, op, target);
+      } else {
+         ALU_OFF_PR64_R32(alu_op,
+                          DYNAREC_STATE_REG_OFFSET(reg_op),
+                          STATE_REG,
+                          target);
+      }
+   } else {
+      if (op >= 0) {
+         ALU_R32_OFF_PR64(alu_op,
+                          op,
+                          DYNAREC_STATE_REG_OFFSET(reg_target),
+                          STATE_REG);
+      } else {
+         /* Need to use an intermediate register */
+         MOVE_FROM_BANKED(reg_op, REG_AX);
+         ALU_R32_OFF_PR64(alu_op,
+                          REG_AX,
+                          DYNAREC_STATE_REG_OFFSET(reg_target),
+                          STATE_REG);
+      }
+   }
+}
+
 void dynasm_emit_or(struct dynarec_compiler *compiler,
                     enum PSX_REG reg_target,
                     enum PSX_REG reg_op0,
                     enum PSX_REG reg_op1) {
-   UNIMPLEMENTED;
+   dynasm_emit_alu(compiler, OR_OP, reg_target, reg_op0, reg_op1);
 }
+
 
 void dynasm_emit_ori(struct dynarec_compiler *compiler,
                      enum PSX_REG reg_t,
