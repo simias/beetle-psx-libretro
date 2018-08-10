@@ -163,6 +163,21 @@ dynabi_device_sb:
 dynabi_device_lw:
         int $3
 
+
+.global dynabi_device_lb
+.type   dynabi_device_lb, function
+/* Called by the dynarec code when a LB instruction targets device
+ * memory */
+dynabi_device_lb:
+        int $3
+
+.global dynabi_device_lbu
+.type   dynabi_device_lbu, function
+/* Called by the dynarec code when a LBU instruction targets device
+ * memory */
+dynabi_device_lbu:
+        int $3
+
 .global dynabi_exception
 .type   dynabi_exception, function
 /* Called by the dynarec code when an exception must be

@@ -13,6 +13,8 @@ extern void dynabi_device_sw(void);
 extern void dynabi_device_sh(void);
 extern void dynabi_device_sb(void);
 extern void dynabi_device_lw(void);
+extern void dynabi_device_lb(void);
+extern void dynabi_device_lbu(void);
 extern void dynabi_set_cop0_sr(void);
 extern void dynabi_set_cop0_cause(void);
 extern void dynabi_set_cop0_misc(void);
