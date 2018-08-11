@@ -557,6 +557,33 @@ static void emit_setb(struct dynarec_compiler *compiler,
 #define XOR_OP     0x30
 #define CMP_OP     0x38
 
+/* NEG %reg32 */
+static void emit_neg_r32(struct dynarec_compiler *compiler,
+                         enum X86_REG reg) {
+   emit_rex_prefix(compiler, reg, 0, 0);
+
+   *(compiler->map++) = 0xf7;
+   *(compiler->map++) = 0xd8 | (reg & 7);
+}
+#define NEG_R32(_r) emit_neg_r32(compiler, (_r))
+
+/* NEG off(%base64) */
+static void emit_negl_off_pr64(struct dynarec_compiler *compiler,
+                               uint32_t off,
+                               enum X86_REG base) {
+   emit_rex_prefix(compiler, base, 0, 0);
+
+   *(compiler->map++) = 0xf7;
+   if (is_imms8(off)) {
+      *(compiler->map++) = 0x58 | (base & 7);
+      emit_imms8(compiler, off);
+   } else {
+      *(compiler->map++) = 0x98 | (base & 7);
+      emit_imm32(compiler, off);
+   }
+}
+#define NEGL_OFF_PR64(_o, _r) emit_negl_off_pr64(compiler, (_o), (_r))
+
 /* ALU $val, %reg32 */
 static void emit_alu_u32_r32(struct dynarec_compiler *compiler,
                              uint8_t op,
@@ -1096,6 +1123,51 @@ void dynasm_emit_addi(struct dynarec_compiler *compiler,
                        DYNAREC_STATE_REG_OFFSET(reg_t),
                        STATE_REG);
    }
+}
+
+void dynasm_emit_neg(struct dynarec_compiler *compiler,
+                     enum PSX_REG reg_target,
+                     enum PSX_REG reg_source) {
+   const int target = register_location(reg_target);
+   const int source = register_location(reg_source);
+
+   if (reg_target == reg_source) {
+      if (target >= 0) {
+         NEG_R32(target);
+      } else {
+         NEGL_OFF_PR64(DYNAREC_STATE_REG_OFFSET(reg_target),
+                       STATE_REG);
+      }
+   } else {
+      /* Move source to target register */
+      if (target >= 0) {
+         if (source >= 0) {
+            MOV_R32_R32(source, target);
+         } else {
+            MOVE_FROM_BANKED(reg_source, target);
+         }
+
+         NEG_R32(target);
+      } else {
+         if (source >= 0) {
+            MOVE_TO_BANKED(source, reg_target);
+            NEGL_OFF_PR64(DYNAREC_STATE_REG_OFFSET(reg_target),
+                          STATE_REG);
+         } else {
+            /* Use EAX as intermediary */
+            MOVE_FROM_BANKED(reg_source, REG_AX);
+            NEG_R32(REG_AX);
+            MOVE_TO_BANKED(REG_AX, reg_target);
+         }
+      }
+   }
+}
+
+void dynasm_emit_subu(struct dynarec_compiler *compiler,
+                      enum PSX_REG reg_target,
+                      enum PSX_REG reg_op0,
+                      enum PSX_REG reg_op1) {
+   UNIMPLEMENTED;
 }
 
 void dynasm_emit_addu(struct dynarec_compiler *compiler,

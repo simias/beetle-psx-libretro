@@ -175,6 +175,13 @@ extern void dynasm_emit_addiu(struct dynarec_compiler *compiler,
                               enum PSX_REG reg_t,
                               enum PSX_REG reg_s,
                               uint32_t val);
+extern void dynasm_emit_neg(struct dynarec_compiler *compiler,
+                             enum PSX_REG reg_target,
+                             enum PSX_REG reg_src);
+extern void dynasm_emit_subu(struct dynarec_compiler *compiler,
+                             enum PSX_REG reg_target,
+                             enum PSX_REG reg_op0,
+                             enum PSX_REG reg_op1);
 extern void dynasm_emit_addu(struct dynarec_compiler *compiler,
                              enum PSX_REG reg_target,
                              enum PSX_REG reg_op0,

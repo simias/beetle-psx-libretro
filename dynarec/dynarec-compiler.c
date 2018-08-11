@@ -356,6 +356,36 @@ static void emit_addu(struct dynarec_compiler *compiler,
    }
 }
 
+static void emit_subu(struct dynarec_compiler *compiler,
+                      enum PSX_REG reg_target,
+                      enum PSX_REG reg_op0,
+                      enum PSX_REG reg_op1) {
+   if (reg_target == PSX_REG_R0) {
+      /* NOP */
+      return;
+   }
+
+   if (reg_op0 == PSX_REG_R0) {
+      if (reg_op1 == PSX_REG_R0) {
+         dynasm_emit_li(compiler, reg_target, 0);
+      } else {
+         /* Sub a, 0, b -> a = -b */
+         dynasm_emit_neg(compiler, reg_target, reg_op1);
+      }
+   } else {
+      if (reg_op1 == PSX_REG_R0) {
+         if (reg_target != reg_op0) {
+            dynasm_emit_mov(compiler, reg_target, reg_op0);
+         } else {
+            /* NOP: sub a, a, 0 */
+            return;
+         }
+      } else {
+         dynasm_emit_subu(compiler, reg_target, reg_op0, reg_op1);
+      }
+   }
+}
+
 static void emit_and(struct dynarec_compiler *compiler,
                      enum PSX_REG reg_target,
                      enum PSX_REG reg_op0,
@@ -470,6 +500,7 @@ static enum delay_slot dynarec_instruction_registers(uint32_t instruction,
          *reg_op0 = reg_s;
          break;
       case 0x21: /* ADDU */
+      case 0x23: /* SUBU */
       case 0x24: /* AND */
       case 0x25: /* OR */
       case 0x2b: /* SLTU */
@@ -612,6 +643,12 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
          break;
       case 0x21: /* ADDU */
          emit_addu(compiler,
+                   reg_target,
+                   reg_op0,
+                   reg_op1);
+         break;
+      case 0x23: /* SUBU */
+         emit_subu(compiler,
                    reg_target,
                    reg_op0,
                    reg_op1);
