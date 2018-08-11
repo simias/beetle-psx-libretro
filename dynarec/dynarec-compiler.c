@@ -207,6 +207,12 @@ static void emit_blez(struct dynarec_compiler *compiler,
    dynasm_emit_exception(compiler, PSX_DYNAREC_UNIMPLEMENTED);
 }
 
+static void emit_bgtz(struct dynarec_compiler *compiler,
+                      uint32_t instruction) {
+   (void)instruction;
+   dynasm_emit_exception(compiler, PSX_DYNAREC_UNIMPLEMENTED);
+}
+
 typedef void (*shift_emit_fn_t)(struct dynarec_compiler *compiler,
                                 enum PSX_REG reg_target,
                                 enum PSX_REG reg_source,
@@ -505,6 +511,10 @@ static enum delay_slot dynarec_instruction_registers(uint32_t instruction,
       *reg_op0 = reg_s;
       ds = BRANCH_DELAY_SLOT;
       break;
+   case 0x07: /* BGTZ */
+      *reg_op0 = reg_s;
+      ds = BRANCH_DELAY_SLOT;
+      break;
    case 0x08: /* ADDI */
    case 0x09: /* ADDIU */
    case 0x0b: /* SLTIU */
@@ -655,6 +665,9 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
       break;
    case 0x06: /* BLEZ */
       emit_blez(compiler, instruction);
+      break;
+   case 0x07: /* BGTZ */
+      emit_bgtz(compiler, instruction);
       break;
    case 0x08: /* ADDI */
       emit_addi(compiler, reg_target, reg_op0, imm_se);
