@@ -666,6 +666,8 @@ static void emit_alu_off_pr64_r32(struct dynarec_compiler *compiler,
    emit_alu_off_pr64_r32(compiler, ADD_OP | 3, (_o), (_b), (_t))
 #define AND_OFF_PR64_R32(_o, _b, _t)                            \
    emit_alu_off_pr64_r32(compiler, AND_OP | 3, (_o), (_b), (_t))
+#define SUB_OFF_PR64_R32(_o, _b, _t)                            \
+   emit_alu_off_pr64_r32(compiler, SUB_OP | 3, (_o), (_b), (_t))
 #define CMP_OFF_PR64_R32(_o, _b, _t)                            \
    emit_alu_off_pr64_r32(compiler, CMP_OP | 3, (_o), (_b), (_t))
 
@@ -693,6 +695,8 @@ static void emit_alu_off_pr64_r64(struct dynarec_compiler *compiler,
    emit_alu_off_pr64_r32(compiler, (_alu) | 1, (_o), (_b), (_r))
 #define ADD_R32_OFF_PR64(_r, _o, _b)                            \
    emit_alu_off_pr64_r32(compiler, ADD_OP | 1, (_o), (_b), (_r))
+#define SUB_R32_OFF_PR64(_r, _o, _b)                            \
+   emit_alu_off_pr64_r32(compiler, SUB_OP | 1, (_o), (_b), (_r))
 #define CMP_R32_OFF_PR64(_r, _o, _b)                            \
    emit_alu_off_pr64_r32(compiler, CMP_OP | 1, (_o), (_b), (_r))
 
@@ -1167,7 +1171,33 @@ void dynasm_emit_subu(struct dynarec_compiler *compiler,
                       enum PSX_REG reg_target,
                       enum PSX_REG reg_op0,
                       enum PSX_REG reg_op1) {
-   UNIMPLEMENTED;
+   const int target = register_location(reg_target);
+   const int op0 = register_location(reg_op0);
+   const int op1 = register_location(reg_op1);
+
+   if (reg_target == reg_op0) {
+      if (target >= 0) {
+         if (op1 >= 0) {
+            SUB_R32_R32(op1, target);
+         } else {
+            SUB_OFF_PR64_R32(DYNAREC_STATE_REG_OFFSET(reg_op1),
+                             STATE_REG,
+                             target);
+         }
+      } else {
+         int op;
+
+         if (op1 >= 0) {
+            op = op1;
+         } else {
+            MOVE_FROM_BANKED(reg_op1, REG_AX);
+            op = REG_AX;
+         }
+         SUB_R32_OFF_PR64(op,
+                          DYNAREC_STATE_REG_OFFSET(reg_target),
+                          STATE_REG);
+      }
+   }
 }
 
 void dynasm_emit_addu(struct dynarec_compiler *compiler,
