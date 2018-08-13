@@ -455,6 +455,13 @@ static void emit_skip_next_instruction(struct dynarec_compiler *compiler) {
    compiler->jump_target = cur_target;
 }
 
+
+static void emit_rfe(struct dynarec_compiler *compiler,
+                     uint32_t instruction) {
+   (void)instruction;
+   dynasm_emit_exception(compiler, PSX_DYNAREC_UNIMPLEMENTED);
+}
+
 enum delay_slot {
    NO_DELAY = 0,
    BRANCH_DELAY_SLOT,
@@ -753,6 +760,8 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
          dynasm_emit_mtc0(compiler, reg_op0, (instruction >> 11) & 0x1f);
          break;
       case 0x10: /* RFE */
+         emit_rfe(compiler, instruction);
+         break;
       default:
          printf("Dynarec encountered unsupported COP0 instruction %08x\n",
                 instruction);
