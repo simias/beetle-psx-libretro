@@ -534,17 +534,19 @@ static void emit_pop_r64(struct dynarec_compiler *compiler,
 #define POP_R64(_r) emit_pop_r64(compiler, (_r))
 
 /* SETB %reg8 */
-static void emit_setb(struct dynarec_compiler *compiler,
-                      enum X86_REG reg) {
+static void emit_setcc(struct dynarec_compiler *compiler,
+                       uint8_t cc,
+                       enum X86_REG reg) {
    emit_rex_prefix(compiler, reg, 0, 0);
 
    reg &= 7;
 
    *(compiler->map++) = 0x0f;
-   *(compiler->map++) = 0x92;
+   *(compiler->map++) = 0x90 | cc;
    *(compiler->map++) = 0xc0 + reg;
 }
-#define SETB_R8(_r) emit_setb(compiler, (_r))
+#define SETB_R8(_r) emit_setcc(compiler, 0x2, (_r))
+#define SETL_R8(_r) emit_setcc(compiler, 0xc, (_r))
 
 /******************
  * ALU operations *
@@ -1460,6 +1462,34 @@ extern void dynasm_emit_sltu(struct dynarec_compiler *compiler,
    }
 }
 
+extern void dynasm_emit_slti(struct dynarec_compiler *compiler,
+                              enum PSX_REG reg_target,
+                              enum PSX_REG reg_op,
+                              int32_t val) {
+   int target = register_location(reg_target);
+   int op = register_location(reg_op);
+
+   if (target < 0) {
+      /* Use AX as temporary */
+      target = REG_AX;
+   }
+
+   if (op < 0) {
+      /* Use SI as temporary */
+      op = REG_SI;
+
+      MOVE_FROM_BANKED(reg_op, REG_SI);
+   }
+
+   CLEAR_REG(target);
+   CMP_U32_R32(val, op);
+   SETL_R8(target);
+
+   if (target == REG_AX) {
+      MOVE_TO_BANKED(target, reg_target);
+   }
+}
+
 extern void dynasm_emit_sltiu(struct dynarec_compiler *compiler,
                               enum PSX_REG reg_target,
                               enum PSX_REG reg_op,
@@ -1486,7 +1516,6 @@ extern void dynasm_emit_sltiu(struct dynarec_compiler *compiler,
    if (target == REG_AX) {
       MOVE_TO_BANKED(target, reg_target);
    }
-
 }
 
 enum MEM_DIR {

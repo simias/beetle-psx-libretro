@@ -521,8 +521,9 @@ static enum delay_slot dynarec_instruction_registers(uint32_t instruction,
          /* Illegal */
          break;
       default:
-         printf("Dynarec encountered unsupported instruction %08x\n",
-                instruction);
+         printf("Dynarec encountered unsupported instruction %08x (sub: 0x%x)\n",
+                instruction,
+                instruction & 0x3f);
          abort();
       }
       break;
@@ -556,6 +557,7 @@ static enum delay_slot dynarec_instruction_registers(uint32_t instruction,
       break;
    case 0x08: /* ADDI */
    case 0x09: /* ADDIU */
+   case 0x0a: /* SLTI */
    case 0x0b: /* SLTIU */
    case 0x0c: /* ANDI */
    case 0x0d: /* ORI */
@@ -602,8 +604,9 @@ static enum delay_slot dynarec_instruction_registers(uint32_t instruction,
          /* Illegal */
          break;
    default:
-      printf("Dynarec encountered unsupported instruction %08x\n",
-             instruction);
+      printf("Dynarec encountered unsupported instruction %08x (fn: 0x%x)\n",
+             instruction,
+             instruction >> 26);
       abort();
    }
 
@@ -722,6 +725,14 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
       break;
    case 0x09: /* ADDIU */
       emit_addiu(compiler, reg_target, reg_op0, imm_se);
+      break;
+   case 0x0a: /* SLTI */
+      if (reg_target == PSX_REG_R0) {
+         /* NOP */
+         break;
+      }
+
+      dynasm_emit_slti(compiler, reg_target, reg_op0, imm_se);
       break;
    case 0x0b: /* SLTIU */
       if (reg_target == PSX_REG_R0) {

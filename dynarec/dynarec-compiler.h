@@ -210,6 +210,10 @@ extern void dynasm_emit_sltu(struct dynarec_compiler *compiler,
                              enum PSX_REG reg_target,
                              enum PSX_REG reg_op0,
                              enum PSX_REG reg_op1);
+extern void dynasm_emit_slti(struct dynarec_compiler *compiler,
+                             enum PSX_REG reg_t,
+                             enum PSX_REG reg_s,
+                             int32_t val);
 extern void dynasm_emit_sltiu(struct dynarec_compiler *compiler,
                               enum PSX_REG reg_t,
                               enum PSX_REG reg_s,
