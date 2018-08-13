@@ -1114,7 +1114,7 @@ void dynasm_emit_addi(struct dynarec_compiler *compiler,
    const int source = register_location(reg_s);
 
    /* Add to EAX (the target register shouldn't be modified in case of
-      an overflow) */
+      overflow) */
    if (source >= 0) {
       MOV_R32_R32(source, REG_AX);
    } else {
@@ -1206,6 +1206,43 @@ void dynasm_emit_subu(struct dynarec_compiler *compiler,
                           DYNAREC_STATE_REG_OFFSET(reg_target),
                           STATE_REG);
       }
+   }
+}
+
+void dynasm_emit_add(struct dynarec_compiler *compiler,
+                     enum PSX_REG reg_target,
+                     enum PSX_REG reg_op0,
+                     enum PSX_REG reg_op1) {
+   const int target = register_location(reg_target);
+   int op0 = register_location(reg_op0);
+   int op1 = register_location(reg_op1);
+
+   /* Add to EAX (the target register shouldn't be modified in case of
+      overflow) */
+   if (op0 >= 0) {
+      MOV_R32_R32(op0, REG_AX);
+   } else {
+      MOVE_FROM_BANKED(reg_op0, REG_AX);
+   }
+
+   if (op1 >= 0) {
+      ADD_R32_R32(op1, REG_AX);
+   } else {
+      ADD_OFF_PR64_R32(DYNAREC_STATE_REG_OFFSET(reg_op1),
+                       STATE_REG,
+                       REG_AX);
+   }
+
+   IF_OVERFLOW {
+      dynasm_emit_exception(compiler, PSX_OVERFLOW);
+   } ENDIF;
+
+   if (target >= 0) {
+      MOV_R32_R32(REG_AX, target);
+   } else {
+      MOV_R32_OFF_PR64(REG_AX,
+                       DYNAREC_STATE_REG_OFFSET(reg_target),
+                       STATE_REG);
    }
 }
 

@@ -102,7 +102,7 @@ enum DYNAREC_JUMP_COND {
 /* Get the offset of the location of a register within a struct
    dynarec_state. */
 #define DYNAREC_STATE_REG_OFFSET(_r)                                    \
-   (assert((_r) != 0),                                                  \
+   (assert((_r) != PSX_REG_R0),                                         \
     offsetof(struct dynarec_state, regs) + ((_r) - 1) * sizeof(uint32_t))
 
 struct dynarec_page_local_patch {
@@ -186,6 +186,10 @@ extern void dynasm_emit_subu(struct dynarec_compiler *compiler,
                              enum PSX_REG reg_target,
                              enum PSX_REG reg_op0,
                              enum PSX_REG reg_op1);
+extern void dynasm_emit_add(struct dynarec_compiler *compiler,
+                            enum PSX_REG reg_target,
+                            enum PSX_REG reg_op0,
+                            enum PSX_REG reg_op1);
 extern void dynasm_emit_addu(struct dynarec_compiler *compiler,
                              enum PSX_REG reg_target,
                              enum PSX_REG reg_op0,
