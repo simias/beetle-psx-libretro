@@ -485,6 +485,7 @@ static enum delay_slot dynarec_instruction_registers(uint32_t instruction,
    case 0x00:
       switch (instruction & 0x3f) {
       case 0x00: /* SLL */
+      case 0x02: /* SRL */
       case 0x03: /* SRA */
          *reg_target = reg_d;
          *reg_op0    = reg_t;
@@ -625,6 +626,12 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
                         reg_op0,
                         shift,
                         dynasm_emit_sll);
+      case 0x02: /* SRL */
+         emit_shift_imm(compiler,
+                        reg_target,
+                        reg_op0,
+                        shift,
+                        dynasm_emit_srl);
       case 0x03: /* SRA */
          emit_shift_imm(compiler,
                         reg_target,

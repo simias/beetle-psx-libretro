@@ -163,6 +163,10 @@ extern void dynasm_emit_sll(struct dynarec_compiler *compiler,
                             enum PSX_REG reg_target,
                             enum PSX_REG reg_op,
                             uint8_t shift);
+extern void dynasm_emit_srl(struct dynarec_compiler *compiler,
+                            enum PSX_REG reg_target,
+                            enum PSX_REG reg_op,
+                            uint8_t shift);
 extern void dynasm_emit_sra(struct dynarec_compiler *compiler,
                             enum PSX_REG reg_target,
                             enum PSX_REG reg_op,
