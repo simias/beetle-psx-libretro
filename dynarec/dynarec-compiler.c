@@ -529,6 +529,11 @@ static enum delay_slot dynarec_instruction_registers(uint32_t instruction,
          *reg_op0 = reg_s;
          ds = BRANCH_DELAY_SLOT;
          break;
+      case 0x09: /* JALR */
+         *reg_op0 = reg_s;
+         *reg_target = reg_d;
+         ds = BRANCH_DELAY_SLOT;
+         break;
       case 0x10: /* MFHI */
          *reg_target = reg_d;
          break;
@@ -675,7 +680,10 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
                         shift,
                         dynasm_emit_sra);
          break;
-      case 0x08: /* J */
+      case 0x08: /* JR */
+         dynasm_emit_exception(compiler, PSX_DYNAREC_UNIMPLEMENTED);
+         break;
+      case 0x09: /* JALR */
          dynasm_emit_exception(compiler, PSX_DYNAREC_UNIMPLEMENTED);
          break;
       case 0x10: /* MFHI */
