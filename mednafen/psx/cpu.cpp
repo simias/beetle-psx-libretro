@@ -2655,9 +2655,9 @@ pscpu_timestamp_t PS_CPU::RunDynarec(int32_t timestamp)
    BACKING_TO_ACTIVE;
 
    if (dynarec_state == NULL) {
-      dynarec_state = dynarec_init(MainRAM.data32,
-                                   ScratchRAM.data32,
-                                   BIOSROM->data32);
+      dynarec_state = dynarec_init((uint8_t *)MainRAM.data32,
+                                   (uint8_t *)ScratchRAM.data32,
+                                   (uint8_t *)BIOSROM->data32);
       assert(dynarec_state != NULL);
 
       dynarec_set_pc(dynarec_state, PC);

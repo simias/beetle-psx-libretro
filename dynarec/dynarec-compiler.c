@@ -4,6 +4,7 @@
 #include <fcntl.h>
 
 #include "dynarec-compiler.h"
+#include "psx-instruction.h"
 
 /* Keep track of an unresolved local jump (i.e. within the same page)
    that will have to be patched once we're done recompiling the
@@ -124,7 +125,6 @@ static void emit_jump(struct dynarec_compiler *compiler,
                       uint32_t instruction) {
    uint32_t imm_jump = (instruction & 0x3ffffff) << 2;
    uint32_t target;
-   int32_t target_page;
 
    target = compiler->pc & 0xf0000000;
    target |= imm_jump;
@@ -517,9 +517,9 @@ static enum delay_slot dynarec_instruction_registers(uint32_t instruction,
    *reg_op1    = PSX_REG_R0;
 
    switch (instruction >> 26) {
-   case 0x00:
+   case MIPS_OP_FN:
       switch (instruction & 0x3f) {
-      case 0x00: /* SLL */
+      case MIPS_FN_SLL:
       case 0x02: /* SRL */
       case 0x03: /* SRA */
          *reg_target = reg_d;
@@ -533,6 +533,8 @@ static enum delay_slot dynarec_instruction_registers(uint32_t instruction,
          *reg_op0 = reg_s;
          *reg_target = reg_d;
          ds = BRANCH_DELAY_SLOT;
+         break;
+      case MIPS_FN_BREAK:
          break;
       case 0x10: /* MFHI */
          *reg_target = reg_d;
@@ -598,7 +600,7 @@ static enum delay_slot dynarec_instruction_registers(uint32_t instruction,
       *reg_target = reg_t;
       *reg_op0    = reg_s;
       break;
-   case 0x0f: /* LUI */
+   case MIPS_OP_LUI:
       *reg_target = reg_t;
       break;
    case 0x10: /* COP0 */
@@ -659,7 +661,7 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
    uint8_t  shift = (instruction >> 6) & 0x1f;
 
    switch (instruction >> 26) {
-   case 0x00:
+   case MIPS_OP_FN:
       switch (instruction & 0x3f) {
       case 0x00: /* SLL */
          emit_shift_imm(compiler,
@@ -667,12 +669,14 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
                         reg_op0,
                         shift,
                         dynasm_emit_sll);
+         break;
       case 0x02: /* SRL */
          emit_shift_imm(compiler,
                         reg_target,
                         reg_op0,
                         shift,
                         dynasm_emit_srl);
+         break;
       case 0x03: /* SRA */
          emit_shift_imm(compiler,
                         reg_target,
@@ -685,6 +689,13 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
          break;
       case 0x09: /* JALR */
          dynasm_emit_exception(compiler, PSX_DYNAREC_UNIMPLEMENTED);
+         break;
+      case MIPS_FN_BREAK:
+         if (compiler->state->options & DYNAREC_OPT_EXIT_ON_BREAK) {
+            dynasm_emit_exit(compiler, DYNAREC_EXIT_BREAK, instruction >> 6);
+         } else {
+            dynasm_emit_exception(compiler, PSX_EXCEPTION_BREAK);
+         }
          break;
       case 0x10: /* MFHI */
          dynasm_emit_mfhi(compiler, reg_target);
@@ -797,7 +808,7 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
    case 0x0d: /* ORI */
       emit_ori(compiler, reg_target, reg_op0, imm);
       break;
-   case 0x0f: /* LUI */
+   case MIPS_OP_LUI:
       if (reg_target == PSX_REG_R0) {
          /* NOP */
          break;
@@ -855,11 +866,18 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
    }
 }
 
+static uint32_t load_le(const uint8_t *p) {
+   return
+      ((uint32_t)p[0]) |
+      (((uint32_t)p[1]) << 8) |
+      (((uint32_t)p[2]) << 16) |
+      (((uint32_t)p[3]) << 24);
+}
+
 int dynarec_recompile(struct dynarec_state *state,
                       uint32_t page_index) {
-   struct dynarec_page     *page;
-   const uint32_t          *emulated_page;
-   const uint32_t          *next_page;
+   const uint8_t           *emulated_page;
+   const uint8_t           *next_page;
    uint8_t                 *page_start;
    struct dynarec_compiler  compiler = { 0 };
    unsigned                 i;
@@ -883,28 +901,29 @@ int dynarec_recompile(struct dynarec_state *state,
    if (page_index < DYNAREC_RAM_PAGES) {
       uint32_t ram_index = page_index;
 
-      emulated_page = state->ram + DYNAREC_PAGE_INSTRUCTIONS * ram_index;
+      emulated_page = state->ram + DYNAREC_PAGE_SIZE * ram_index;
       compiler.pc = DYNAREC_PAGE_SIZE * ram_index;
 
       /* XXX This is not accurate if we're at the very end of the last
          mirror of memory. Not that I expect that it matters much. */
       ram_index = (ram_index + 1) % DYNAREC_RAM_PAGES;
-      next_page = state->ram + DYNAREC_PAGE_INSTRUCTIONS * ram_index;
+      next_page = state->ram + DYNAREC_PAGE_SIZE * ram_index;
    } else {
       uint32_t bios_index = page_index - DYNAREC_RAM_PAGES;
 
-      emulated_page = state->bios + DYNAREC_PAGE_INSTRUCTIONS * bios_index;
+      emulated_page = state->bios + DYNAREC_PAGE_SIZE * bios_index;
       compiler.pc = PSX_BIOS_BASE + DYNAREC_PAGE_SIZE * bios_index;
 
       /* XXX This is not accurate if we're at the very end of the
          BIOS. Not that I expect that it matters much. */
       bios_index = (bios_index + 1) % DYNAREC_BIOS_PAGES;
-      next_page = state->bios + DYNAREC_PAGE_INSTRUCTIONS * bios_index;
+      next_page = state->bios + DYNAREC_PAGE_SIZE * bios_index;
    }
 
    /* Helper macros for instruction decoding */
    for (i = 0; i < DYNAREC_PAGE_INSTRUCTIONS; i++, compiler.pc += 4) {
-      uint32_t instruction = emulated_page[i];
+      unsigned pg_byte_off = i * 4;
+      uint32_t instruction = load_le(emulated_page + pg_byte_off);
 
       /* Various decodings of the fields, of course they won't all be
          valid for a given instruction. For now I'll trust the
@@ -938,9 +957,9 @@ int dynarec_recompile(struct dynarec_state *state,
       cycles = 4;
 
       if (i + 1 < DYNAREC_PAGE_INSTRUCTIONS) {
-         ds_instruction = emulated_page[i + 1];
+         ds_instruction = load_le(emulated_page + pg_byte_off + 4);
       } else {
-         ds_instruction = next_page[0];
+         ds_instruction = load_le(next_page);
       }
 
       if (delay_slot == LOAD_DELAY_SLOT &&
@@ -1115,11 +1134,13 @@ int dynarec_recompile(struct dynarec_state *state,
 
       assert(compiler.map - instruction_start <= DYNAREC_INSTRUCTION_MAX_LEN);
 
-      printf("Emited:");
+#ifdef DYNAREC_DEBUG
+      DYNAREC_LOG("Emited:");
       for (; instruction_start != compiler.map; instruction_start++) {
          printf(" %02x", *instruction_start);
       }
       printf("\n");
+#endif
 
 #if 1
       {

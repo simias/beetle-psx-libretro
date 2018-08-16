@@ -38,9 +38,9 @@ static uint32_t dynarec_max_page_size(void) {
    return s;
 }
 
-struct dynarec_state *dynarec_init(uint32_t *ram,
-                                   uint32_t *scratchpad,
-                                   const uint32_t *bios) {
+struct dynarec_state *dynarec_init(uint8_t *ram,
+                                   uint8_t *scratchpad,
+                                   const uint8_t *bios) {
    struct dynarec_state *state;
 
    state = calloc(1, sizeof(*state));
@@ -83,9 +83,6 @@ struct dynarec_state *dynarec_init(uint32_t *ram,
 }
 
 void dynarec_delete(struct dynarec_state *state) {
-   struct dynarec_page *page;
-   unsigned i;
-
    munmap(state->map, state->map_len);
    free(state->dummy_ram);
    free(state);
@@ -124,8 +121,7 @@ uint8_t *dynarec_page_start(struct dynarec_state *state,
    return state->map + (dynarec_max_page_size() * page_index);
 }
 
-int32_t dynarec_run(struct dynarec_state *state, int32_t cycles_to_run) {
-   struct dynarec_page *page;
+uint32_t dynarec_run(struct dynarec_state *state, int32_t cycles_to_run) {
    int32_t page_index = dynarec_find_page_index(state, state->pc);
 
    if (page_index < 0) {

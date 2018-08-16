@@ -836,6 +836,8 @@ static void emit_shift_u8_off_pr64(struct dynarec_compiler *compiler,
       *(compiler->map++) = 0xa0 | op | (base & 7);
       emit_imm32(compiler, off);
    }
+
+   emit_imm8(compiler, shift);
 }
 #define SHIFT_U8_OFF_PR64(_op, _u, _o, _r) \
    emit_shift_u8_off_pr64(compiler, (_op), (_u), (_o), (_r))
@@ -939,11 +941,26 @@ static void emit_call(struct dynarec_compiler *compiler,
                     STATE_REG,                          \
                     _host_reg);                         \
 
+static void emit_ret(struct dynarec_compiler *compiler) {
+   *(compiler->map++) = 0xc3;
+}
+#define RET emit_ret(compiler)
+
 void dynasm_emit_exception(struct dynarec_compiler *compiler,
                            enum PSX_CPU_EXCEPTION exception) {
    MOV_U32_R32(exception, REG_SI);
    MOV_U32_R32(compiler->pc, REG_DX);
    CALL(dynabi_exception);
+}
+
+void dynasm_emit_exit(struct dynarec_compiler *compiler,
+                      unsigned code,
+                      unsigned val) {
+   assert(code <= 0xf);
+   assert(val <= 0xfffffff);
+
+   MOV_U32_R32((code << 28) | val, REG_AX);
+   RET;
 }
 
 void dynasm_counter_maintenance(struct dynarec_compiler *compiler,
@@ -1206,6 +1223,9 @@ void dynasm_emit_subu(struct dynarec_compiler *compiler,
                           DYNAREC_STATE_REG_OFFSET(reg_target),
                           STATE_REG);
       }
+   } else {
+      (void)op0;
+      UNIMPLEMENTED;
    }
 }
 
@@ -1984,7 +2004,6 @@ static uint8_t emit_branch_cond(struct dynarec_compiler *compiler,
          if (b > 0) {
             CMP_R32_R32(a, b);
          } else {
-            uint8_t *pre = compiler->map;
             CMP_R32_OFF_PR64(a,
                              DYNAREC_STATE_REG_OFFSET(reg_b),
                              STATE_REG);

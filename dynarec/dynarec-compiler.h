@@ -7,85 +7,6 @@
 # include "dynarec-amd64.h"
 #endif
 
-enum PSX_REG {
-   PSX_REG_R0 = 0,
-   PSX_REG_AT = 1,
-   PSX_REG_V0 = 2,
-   PSX_REG_V1 = 3,
-   PSX_REG_A0 = 4,
-   PSX_REG_A1 = 5,
-   PSX_REG_A2 = 6,
-   PSX_REG_A3 = 7,
-   PSX_REG_T0 = 8,
-   PSX_REG_T1 = 9,
-   PSX_REG_T2 = 10,
-   PSX_REG_T3 = 11,
-   PSX_REG_T4 = 12,
-   PSX_REG_T5 = 13,
-   PSX_REG_T6 = 14,
-   PSX_REG_T7 = 15,
-   PSX_REG_S0 = 16,
-   PSX_REG_S1 = 17,
-   PSX_REG_S2 = 18,
-   PSX_REG_S3 = 19,
-   PSX_REG_S4 = 20,
-   PSX_REG_S5 = 21,
-   PSX_REG_S6 = 22,
-   PSX_REG_S7 = 23,
-   PSX_REG_T8 = 24,
-   PSX_REG_T9 = 25,
-   PSX_REG_K0 = 26,
-   PSX_REG_K1 = 27,
-   PSX_REG_GP = 28,
-   PSX_REG_SP = 29,
-   PSX_REG_FP = 30,
-   PSX_REG_RA = 31,
-   /* Dynarec temporary: not a real hardware register, used by the
-      dynarec when it needs to reorder code for delay slots. */
-   PSX_REG_DT = 32,
-};
-
-/* Coprocessor 0 registers (accessed with mtc0/mfc0) */
-enum PSX_COP0_REG {
-   PSX_COP0_R0 = 0,       /* N/A */
-   PSX_COP0_R1 = 1,       /* N/A */
-   PSX_COP0_R2 = 2,       /* N/A */
-   PSX_COP0_BPC = 3,      /* Breakpoint on execute (RW) */
-   PSX_COP0_R4 = 4,       /* N/A */
-   PSX_COP0_BDA = 5,      /* Breakpoint on data access (RW) */
-   PSX_COP0_JUMPDEST = 6, /* Jump address (RO) */
-   PSX_COP0_DCIC = 7,     /* Breakpoint control (RW) */
-   PSX_COP0_BADVADDR = 8, /* Bad virtual address (RO) */
-   PSX_COP0_BDAM = 9,     /* Data access breakpoint mask (RW) */
-   PSX_COP0_R10 = 10,     /* N/A */
-   PSX_COP0_BPCM = 11,    /* Execute breakpoint mask (RW) */
-   PSX_COP0_SR = 12,      /* System status (RW) */
-   PSX_COP0_CAUSE = 13,   /* Exception cause (RW) */
-   PSX_COP0_EPC = 14,     /* Exception PC (R) */
-   PSX_COP0_PRID = 15,    /* CPU ID (R) */
-};
-
-enum PSX_CPU_EXCEPTION {
-   /* Interrupt Request */
-   PSX_EXCEPTION_INTERRUPT = 0x0,
-   /* Alignment error on load */
-   PSX_EXCEPTION_LOAD_ALIGN = 0x4,
-   /* Alignment error on store */
-   PSX_EXCEPTION_STORE_ALIGN = 0x5,
-   /* System call (caused by the SYSCALL opcode) */
-   PSX_EXCEPTION_SYSCALL = 0x8,
-   /* Breakpoint (caused by the BREAK opcode) */
-   PSX_EXCEPTION_BREAK = 0x9,
-   /* CPU encountered an unknown instruction */
-   PSX_EXCEPTION_ILLEGAL_INSTRUCTION = 0xa,
-   /* Unsupported coprocessor operation */
-   PSX_COPROCESSOR_ERROR = 0xb,
-   /* Arithmetic overflow */
-   PSX_OVERFLOW = 0xc,
-   /* Fake exception for dynarec use */
-   PSX_DYNAREC_UNIMPLEMENTED = 0xdead,
-};
-
 enum DYNAREC_JUMP_COND {
    /* Unconditional jump */
    DYNAREC_JUMP_ALWAYS = 0,
@@ -135,8 +56,7 @@ struct dynarec_compiler {
    struct dynarec_page_local_patch local_patch[DYNAREC_PAGE_INSTRUCTIONS];
 };
 
-typedef void (*dynarec_fn_t)(void);
-
+typedef uint32_t (*dynarec_fn_t)(void);
 
 extern int dynarec_recompile(struct dynarec_state *state,
                              uint32_t page_index);
@@ -148,11 +68,14 @@ extern void dynarec_prepare_patch(struct dynarec_compiler *compiler);
 extern void dynasm_counter_maintenance(struct dynarec_compiler *compiler,
                                        unsigned cycles);
 extern void dynasm_patch(struct dynarec_compiler *compiler, int32_t offset);
-extern int32_t dynasm_execute(struct dynarec_state *state,
-                              dynarec_fn_t target,
-                              int32_t counter);
+extern uint32_t dynasm_execute(struct dynarec_state *state,
+                               dynarec_fn_t target,
+                               int32_t counter);
 extern void dynasm_emit_exception(struct dynarec_compiler *compiler,
                                   enum PSX_CPU_EXCEPTION exception);
+extern void dynasm_emit_exit(struct dynarec_compiler *compiler,
+                             unsigned code,
+                             unsigned val);
 extern void dynasm_emit_li(struct dynarec_compiler *compiler,
                            enum PSX_REG reg,
                            uint32_t val);
