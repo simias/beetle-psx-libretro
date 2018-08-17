@@ -8,6 +8,7 @@
 # define MIPS_FN_SRL            0x02U
 # define MIPS_FN_SRA            0x03U
 # define MIPS_FN_BREAK          0x0DU
+# define MIPS_FN_ADD            0x20U
 # define MIPS_FN_ADDU           0x21U
 #define MIPS_OP_ORI            0x0DU
 #define MIPS_OP_LUI            0x0FU

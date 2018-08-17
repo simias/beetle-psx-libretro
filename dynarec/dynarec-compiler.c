@@ -542,8 +542,8 @@ static enum delay_slot dynarec_instruction_registers(uint32_t instruction,
       case 0x13: /* MTLO */
          *reg_op0 = reg_s;
          break;
-      case 0x20: /* ADD */
-      case 0x21: /* ADDU */
+      case MIPS_FN_ADD:
+      case MIPS_FN_ADDU:
       case 0x23: /* SUBU */
       case 0x24: /* AND */
       case 0x25: /* OR */
@@ -703,13 +703,13 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
       case 0x13: /* MTLO */
          dynasm_emit_mtlo(compiler, reg_op0);
          break;
-      case 0x20: /* ADD */
+      case MIPS_FN_ADD:
          emit_add(compiler,
                   reg_target,
                   reg_op0,
                   reg_op1);
          break;
-      case 0x21: /* ADDU */
+      case MIPS_FN_ADDU:
          emit_addu(compiler,
                    reg_target,
                    reg_op0,

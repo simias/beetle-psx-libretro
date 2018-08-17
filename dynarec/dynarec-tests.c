@@ -165,6 +165,15 @@ static int run_test(const char *name, test_fn_t f) {
            .reg_s = (_ro),                      \
            .imm = (_i) }}
 
+#define ALU_RR(_fn, _rt, _ro1, _ro2)            \
+   (union mips_instruction){                    \
+      .alu_rr =                                 \
+         { .opcode = MIPS_OP_FN,                \
+           .fn = (_fn),                         \
+           .reg_d = (_rt),                      \
+           .reg_s = (_ro1),                     \
+           .reg_t = (_ro2), }}
+
 #define SHIFT_RI(_fn, _rt, _ro, _s)             \
    (union mips_instruction){                    \
       .shift_ri =                               \
@@ -190,6 +199,8 @@ static int run_test(const char *name, test_fn_t f) {
    SHIFT_RI(MIPS_FN_SRA, (_rt), (_ro), (_s))
 #define NOP                                     \
    SLL(PSX_REG_R0, PSX_REG_R0, 0)
+#define ADDU(_rt, _ro1, _ro2)                   \
+   ALU_RR(MIPS_FN_ADDU, (_rt), (_ro1), (_ro2))
 #define ORI(_rt, _ro, _i)                       \
    ALU_RI(MIPS_OP_ORI, (_rt), (_ro), (_i))
 #define LUI(_rt, _i)                            \
@@ -402,6 +413,40 @@ static int test_sra(struct dynarec_state *state) {
    return check_regs(state, expected, ARRAY_SIZE(expected));
 }
 
+static int test_addu(struct dynarec_state *state) {
+   union mips_instruction code[] = {
+      LI(PSX_REG_T0, 1),
+      LI(PSX_REG_T1, 2),
+      ADDU(PSX_REG_T3, PSX_REG_T0, PSX_REG_T1),
+      ADDU(PSX_REG_T4, PSX_REG_T0, PSX_REG_T0),
+      ADDU(PSX_REG_T5, PSX_REG_T1, PSX_REG_T1),
+      ADDU(PSX_REG_V0, PSX_REG_T0, PSX_REG_T0),
+      ADDU(PSX_REG_V1, PSX_REG_T1, PSX_REG_V0),
+      ADDU(PSX_REG_V1, PSX_REG_V1, PSX_REG_V1),
+      ADDU(PSX_REG_T5, PSX_REG_T5, PSX_REG_T5),
+
+      BREAK(0xdead),
+   };
+   struct reg_val expected[] = {
+      { .r = PSX_REG_T0, .v = 0x1 },
+      { .r = PSX_REG_T1, .v = 0x2 },
+      { .r = PSX_REG_T3, .v = 0x3 },
+      { .r = PSX_REG_T4, .v = 0x2 },
+      { .r = PSX_REG_T5, .v = 0x8 },
+      { .r = PSX_REG_V0, .v = 0x2 },
+      { .r = PSX_REG_V1, .v = 0x8 },
+   };
+   uint32_t ret;
+
+   load_code(state, code, ARRAY_SIZE(code), 0);
+
+   ret = dynarec_run(state, 0x1000);
+
+   TEST_EQ(ret >> 28, DYNAREC_EXIT_BREAK);
+   TEST_EQ(ret & 0xfffffff, 0xdead);
+
+   return check_regs(state, expected, ARRAY_SIZE(expected));
+}
 
 int main() {
    unsigned ntests = 0;
@@ -420,6 +465,7 @@ int main() {
    RUN_TEST(test_sll);
    RUN_TEST(test_srl);
    RUN_TEST(test_sra);
+   RUN_TEST(test_addu);
 
    printf("Tests done, results: %u/%u\n", nsuccess, ntests);
 }

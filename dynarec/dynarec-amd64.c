@@ -1277,21 +1277,21 @@ void dynasm_emit_addu(struct dynarec_compiler *compiler,
    if (r0 < 0) {
       MOVE_FROM_BANKED(reg_op0, REG_AX);
       r0 = REG_AX;
+   }
 
-      if (reg_op1 == reg_op0) {
-         r1 = REG_AX;
-      } else if (r1 < 0) {
-         MOVE_FROM_BANKED(reg_op1, REG_SI);
-         r1 = REG_SI;
-      }
+   if (reg_op1 == reg_op0) {
+      r1 = r0;
+   } else if (r1 < 0) {
+      MOVE_FROM_BANKED(reg_op1, REG_SI);
+      r1 = REG_SI;
    }
 
    // Add using LEA
    if (target >= 0) {
       LEA_OFF_SIB_R32(0, r0, r1, 1, target);
    } else {
-      LEA_OFF_SIB_R32(0, r0, r0, 1, REG_AX);
-      MOVE_TO_BANKED(REG_AX, target);
+      LEA_OFF_SIB_R32(0, r0, r1, 1, REG_AX);
+      MOVE_TO_BANKED(REG_AX, reg_target);
    }
 }
 
