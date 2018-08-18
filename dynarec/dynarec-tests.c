@@ -203,6 +203,8 @@ static int run_test(const char *name, test_fn_t f) {
    ALU_RR(MIPS_FN_ADD, (_rt), (_ro1), (_ro2))
 #define ADDU(_rt, _ro1, _ro2)                   \
    ALU_RR(MIPS_FN_ADDU, (_rt), (_ro1), (_ro2))
+#define SUBU(_rt, _ro1, _ro2)                   \
+   ALU_RR(MIPS_FN_SUBU, (_rt), (_ro1), (_ro2))
 #define ORI(_rt, _ro, _i)                       \
    ALU_RI(MIPS_OP_ORI, (_rt), (_ro), (_i))
 #define LUI(_rt, _i)                            \
@@ -427,6 +429,11 @@ static int test_addu(struct dynarec_state *state) {
       ADDU(PSX_REG_V1, PSX_REG_V1, PSX_REG_V1),
       ADDU(PSX_REG_T5, PSX_REG_T5, PSX_REG_T5),
 
+      LI(PSX_REG_S0, 0x7fffffff),
+      LI(PSX_REG_S1, 0xffffffff),
+      ADDU(PSX_REG_S2, PSX_REG_S0, PSX_REG_T0),
+      ADDU(PSX_REG_S3, PSX_REG_S1, PSX_REG_T1),
+
       BREAK(0xdead),
    };
    struct reg_val expected[] = {
@@ -437,6 +444,10 @@ static int test_addu(struct dynarec_state *state) {
       { .r = PSX_REG_T5, .v = 0x8 },
       { .r = PSX_REG_V0, .v = 0x2 },
       { .r = PSX_REG_V1, .v = 0x8 },
+      { .r = PSX_REG_S0, .v = 0x7fffffff },
+      { .r = PSX_REG_S1, .v = 0xffffffff },
+      { .r = PSX_REG_S2, .v = 0x80000000 },
+      { .r = PSX_REG_S3, .v = 0x00000001 },
    };
    uint32_t ret;
 
@@ -486,6 +497,46 @@ static int test_add_no_exception(struct dynarec_state *state) {
    return check_regs(state, expected, ARRAY_SIZE(expected));
 }
 
+static int test_subu(struct dynarec_state *state) {
+   union mips_instruction code[] = {
+      LI(PSX_REG_T0, 1),
+      LI(PSX_REG_T1, 2),
+      LI(PSX_REG_T2, 10),
+      LI(PSX_REG_T3, 0x80000000),
+      SUBU(PSX_REG_V0, PSX_REG_T2, PSX_REG_T1),
+      SUBU(PSX_REG_V1, PSX_REG_T0, PSX_REG_T1),
+      SUBU(PSX_REG_AT, PSX_REG_V0, PSX_REG_T0),
+      SUBU(PSX_REG_S0, PSX_REG_T0, PSX_REG_V0),
+      SUBU(PSX_REG_S1, PSX_REG_T3, PSX_REG_T0),
+      SUBU(PSX_REG_V0, PSX_REG_V0, PSX_REG_T1),
+      SUBU(PSX_REG_T0, PSX_REG_T0, PSX_REG_T0),
+      SUBU(PSX_REG_T1, PSX_REG_T1, PSX_REG_T1),
+
+      BREAK(0xdead),
+   };
+   struct reg_val expected[] = {
+      { .r = PSX_REG_T0, .v = 0 },
+      { .r = PSX_REG_T1, .v = 0 },
+      { .r = PSX_REG_T2, .v = 10 },
+      { .r = PSX_REG_T3, .v = 0x80000000 },
+      { .r = PSX_REG_V0, .v = 6 },
+      { .r = PSX_REG_V1, .v = 0xffffffff },
+      { .r = PSX_REG_AT, .v = 7 },
+      { .r = PSX_REG_S0, .v = 0xfffffff9 },
+      { .r = PSX_REG_S1, .v = 0x7fffffff },
+   };
+   uint32_t ret;
+
+   load_code(state, code, ARRAY_SIZE(code), 0);
+
+   ret = dynarec_run(state, 0x1000);
+
+   TEST_EQ(ret >> 28, DYNAREC_EXIT_BREAK);
+   TEST_EQ(ret & 0xfffffff, 0xdead);
+
+   return check_regs(state, expected, ARRAY_SIZE(expected));
+}
+
 int main() {
    unsigned ntests = 0;
    unsigned nsuccess = 0;
@@ -505,6 +556,7 @@ int main() {
    RUN_TEST(test_sra);
    RUN_TEST(test_addu);
    RUN_TEST(test_add_no_exception);
+   RUN_TEST(test_subu);
 
    printf("Tests done, results: %u/%u\n", nsuccess, ntests);
 }

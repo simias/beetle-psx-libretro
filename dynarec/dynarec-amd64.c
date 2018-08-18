@@ -1265,8 +1265,30 @@ void dynasm_emit_subu(struct dynarec_compiler *compiler,
                           STATE_REG);
       }
    } else {
-      (void)op0;
-      UNIMPLEMENTED;
+      int target_tmp;
+      if (target >= 0) {
+         target_tmp = target;
+      } else {
+         target_tmp = REG_AX;
+      }
+
+      if (op0 >= 0) {
+         MOV_R32_R32(op0, target_tmp);
+      } else {
+         MOVE_FROM_BANKED(reg_op0, target_tmp);
+      }
+
+      if (op1 >= 0) {
+         SUB_R32_R32(op1, target_tmp);
+      } else {
+         SUB_OFF_PR64_R32(DYNAREC_STATE_REG_OFFSET(reg_op1),
+                          STATE_REG,
+                          target_tmp);
+      }
+
+      if (target != target_tmp) {
+         MOVE_TO_BANKED(target_tmp, reg_target);
+      }
    }
 }
 

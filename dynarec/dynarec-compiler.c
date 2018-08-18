@@ -544,7 +544,7 @@ static enum delay_slot dynarec_instruction_registers(uint32_t instruction,
          break;
       case MIPS_FN_ADD:
       case MIPS_FN_ADDU:
-      case 0x23: /* SUBU */
+      case MIPS_FN_SUBU:
       case 0x24: /* AND */
       case 0x25: /* OR */
       case 0x2b: /* SLTU */
@@ -715,7 +715,7 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
                    reg_op0,
                    reg_op1);
          break;
-      case 0x23: /* SUBU */
+      case MIPS_FN_SUBU:
          emit_subu(compiler,
                    reg_target,
                    reg_op0,
