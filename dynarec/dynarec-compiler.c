@@ -465,7 +465,12 @@ static void emit_or(struct dynarec_compiler *compiler,
          return;
       }
    } else if (reg_op0 == reg_op1) {
-      dynasm_emit_mov(compiler, reg_target, reg_op0);
+      if (reg_target == reg_op0) {
+         /* OR a, a, a -> NOP */
+         return;
+      } else {
+         dynasm_emit_mov(compiler, reg_target, reg_op0);
+      }
    } else {
       dynasm_emit_or(compiler, reg_target, reg_op0, reg_op1);
    }
@@ -545,8 +550,8 @@ static enum delay_slot dynarec_instruction_registers(uint32_t instruction,
       case MIPS_FN_ADD:
       case MIPS_FN_ADDU:
       case MIPS_FN_SUBU:
-      case 0x24: /* AND */
-      case 0x25: /* OR */
+      case MIPS_FN_AND:
+      case MIPS_FN_OR:
       case 0x2b: /* SLTU */
          *reg_target = reg_d;
          *reg_op0 = reg_s;
@@ -721,13 +726,13 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
                    reg_op0,
                    reg_op1);
          break;
-      case 0x24: /* AND */
+      case MIPS_FN_AND:
          emit_and(compiler,
                   reg_target,
                   reg_op0,
                   reg_op1);
          break;
-      case 0x25: /* OR */
+      case MIPS_FN_OR:
          emit_or(compiler,
                  reg_target,
                  reg_op0,

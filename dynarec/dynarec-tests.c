@@ -199,12 +199,16 @@ static int run_test(const char *name, test_fn_t f) {
    SHIFT_RI(MIPS_FN_SRA, (_rt), (_ro), (_s))
 #define NOP                                     \
    SLL(PSX_REG_R0, PSX_REG_R0, 0)
-#define ADD(_rt, _ro1, _ro2)                   \
+#define ADD(_rt, _ro1, _ro2)                    \
    ALU_RR(MIPS_FN_ADD, (_rt), (_ro1), (_ro2))
 #define ADDU(_rt, _ro1, _ro2)                   \
    ALU_RR(MIPS_FN_ADDU, (_rt), (_ro1), (_ro2))
 #define SUBU(_rt, _ro1, _ro2)                   \
    ALU_RR(MIPS_FN_SUBU, (_rt), (_ro1), (_ro2))
+#define AND(_rt, _ro1, _ro2)                    \
+   ALU_RR(MIPS_FN_AND, (_rt), (_ro1), (_ro2))
+#define OR(_rt, _ro1, _ro2)                     \
+   ALU_RR(MIPS_FN_OR, (_rt), (_ro1), (_ro2))
 #define ORI(_rt, _ro, _i)                       \
    ALU_RI(MIPS_OP_ORI, (_rt), (_ro), (_i))
 #define LUI(_rt, _i)                            \
@@ -570,6 +574,96 @@ static int test_subu(struct dynarec_state *state) {
    return check_regs(state, expected, ARRAY_SIZE(expected));
 }
 
+static int test_and(struct dynarec_state *state) {
+   union mips_instruction code[] = {
+      LI(PSX_REG_T0, 6),
+      LI(PSX_REG_T1, 3),
+      LI(PSX_REG_T2, 0xffffffff),
+      LI(PSX_REG_T3, 0),
+
+      AND(PSX_REG_S0, PSX_REG_R0, PSX_REG_T2),
+      AND(PSX_REG_S1, PSX_REG_T0, PSX_REG_T1),
+      AND(PSX_REG_V0, PSX_REG_T0, PSX_REG_T1),
+      AND(PSX_REG_V1, PSX_REG_T0, PSX_REG_V0),
+      AND(PSX_REG_S2, PSX_REG_T0, PSX_REG_T2),
+      AND(PSX_REG_S3, PSX_REG_T0, PSX_REG_T3),
+      AND(PSX_REG_T0, PSX_REG_T0, PSX_REG_T0),
+      AND(PSX_REG_T1, PSX_REG_T2, PSX_REG_T1),
+      AND(PSX_REG_T1, PSX_REG_T1, PSX_REG_T2),
+      AND(PSX_REG_T2, PSX_REG_T2, PSX_REG_T1),
+      AND(PSX_REG_T0, PSX_REG_T0, PSX_REG_V0),
+
+      BREAK(0xdead),
+   };
+   struct reg_val expected[] = {
+      { .r = PSX_REG_T0, .v = 2 },
+      { .r = PSX_REG_T1, .v = 3 },
+      { .r = PSX_REG_T2, .v = 3 },
+      { .r = PSX_REG_T3, .v = 0 },
+      { .r = PSX_REG_S0, .v = 0 },
+      { .r = PSX_REG_S1, .v = 2 },
+      { .r = PSX_REG_V0, .v = 2 },
+      { .r = PSX_REG_V1, .v = 2 },
+      { .r = PSX_REG_S2, .v = 6 },
+      { .r = PSX_REG_S3, .v = 0 },
+   };
+   uint32_t ret;
+
+   load_code(state, code, ARRAY_SIZE(code), 0);
+
+   ret = dynarec_run(state, 0x1000);
+
+   TEST_EQ(ret >> 28, DYNAREC_EXIT_BREAK);
+   TEST_EQ(ret & 0xfffffff, 0xdead);
+
+   return check_regs(state, expected, ARRAY_SIZE(expected));
+}
+
+static int test_or(struct dynarec_state *state) {
+   union mips_instruction code[] = {
+      LI(PSX_REG_T0, 6),
+      LI(PSX_REG_T1, 3),
+      LI(PSX_REG_T2, 0xffffffff),
+      LI(PSX_REG_T3, 0),
+
+      OR(PSX_REG_S0, PSX_REG_R0, PSX_REG_T2),
+      OR(PSX_REG_S1, PSX_REG_T0, PSX_REG_T1),
+      OR(PSX_REG_V0, PSX_REG_T0, PSX_REG_T1),
+      OR(PSX_REG_V1, PSX_REG_T0, PSX_REG_V0),
+      OR(PSX_REG_S2, PSX_REG_T0, PSX_REG_T2),
+      OR(PSX_REG_S3, PSX_REG_T0, PSX_REG_T3),
+      OR(PSX_REG_T0, PSX_REG_T0, PSX_REG_T0),
+      OR(PSX_REG_T1, PSX_REG_T2, PSX_REG_T1),
+      OR(PSX_REG_T1, PSX_REG_T1, PSX_REG_T2),
+      OR(PSX_REG_T2, PSX_REG_T2, PSX_REG_T1),
+      OR(PSX_REG_T0, PSX_REG_T0, PSX_REG_V0),
+
+      BREAK(0xdead),
+   };
+   struct reg_val expected[] = {
+      { .r = PSX_REG_T0, .v = 7 },
+      { .r = PSX_REG_T1, .v = 0xffffffff },
+      { .r = PSX_REG_T2, .v = 0xffffffff },
+      { .r = PSX_REG_T3, .v = 0 },
+      { .r = PSX_REG_S0, .v = 0xffffffff },
+      { .r = PSX_REG_S1, .v = 7 },
+      { .r = PSX_REG_V0, .v = 7 },
+      { .r = PSX_REG_V1, .v = 7 },
+      { .r = PSX_REG_S2, .v = 0xffffffff },
+      { .r = PSX_REG_S3, .v = 6 },
+   };
+   uint32_t ret;
+
+   load_code(state, code, ARRAY_SIZE(code), 0);
+
+   ret = dynarec_run(state, 0x1000);
+
+   TEST_EQ(ret >> 28, DYNAREC_EXIT_BREAK);
+   TEST_EQ(ret & 0xfffffff, 0xdead);
+
+   return check_regs(state, expected, ARRAY_SIZE(expected));
+}
+
 int main() {
    unsigned ntests = 0;
    unsigned nsuccess = 0;
@@ -591,6 +685,8 @@ int main() {
    RUN_TEST(test_addu);
    RUN_TEST(test_add_no_exception);
    RUN_TEST(test_subu);
+   RUN_TEST(test_and);
+   RUN_TEST(test_or);
 
    printf("Tests done, results: %u/%u\n", nsuccess, ntests);
 }

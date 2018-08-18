@@ -1359,54 +1359,89 @@ void dynasm_emit_addu(struct dynarec_compiler *compiler,
 }
 
 static void dynasm_emit_alu(struct dynarec_compiler *compiler,
-                     uint8_t alu_op,
-                     enum PSX_REG reg_target,
-                     enum PSX_REG reg_op0,
-                     enum PSX_REG reg_op1) {
+                            uint8_t alu_op,
+                            enum PSX_REG reg_target,
+                            enum PSX_REG reg_op0,
+                            enum PSX_REG reg_op1) {
    const int target = register_location(reg_target);
-   enum PSX_REG reg_op;
-   int op;
 
-   /* Move one or the other operands into `target`. Try to be
-      clever about it: if one of the operand is already the target
-      then we have nothing to do. */
-   if (reg_op0 == reg_target) {
-      reg_op = reg_op1;
-   } else  if (reg_op1 == reg_target) {
-      reg_op = reg_op0;
-   } else {
-      dynasm_emit_mov(compiler, reg_target, reg_op1);
-      reg_op = reg_op0;
-   }
+   if (reg_op0 == reg_target || reg_op1 == reg_target) {
+      /* We're using the target register as operand, that simplifies
+         things a bit. We assume that the operation is commutative, if
+         it's not (e.g. SUB) the optimisation below won't work */
+      int op;
+      enum PSX_REG reg_op;
 
-   op = register_location(reg_op);
-
-   /* At this point all that's left to compute is `reg_target |= reg_op` */
-   if (target >= 0) {
-      if (op >= 0) {
-         ALU_R32_R32(alu_op, op, target);
-      } else {
-         ALU_OFF_PR64_R32(alu_op,
-                          DYNAREC_STATE_REG_OFFSET(reg_op),
-                          STATE_REG,
-                          target);
+      if (reg_op0 == reg_target) {
+         reg_op = reg_op1;
+      } else if (reg_op1 == reg_target) {
+         reg_op = reg_op0;
       }
-   } else {
-      if (op >= 0) {
+
+      op = register_location(reg_op);
+
+      /* At this point all that's left to compute is
+         `reg_target <alu_op>= reg_op` */
+      if (target >= 0) {
+         if (op >= 0) {
+            ALU_R32_R32(alu_op, op, target);
+         } else {
+            ALU_OFF_PR64_R32(alu_op,
+                             DYNAREC_STATE_REG_OFFSET(reg_op),
+                             STATE_REG,
+                             target);
+         }
+      } else {
+         if (op < 0) {
+            MOVE_FROM_BANKED(reg_op, REG_AX);
+            op = REG_AX;
+         }
+
          ALU_R32_OFF_PR64(alu_op,
                           op,
                           DYNAREC_STATE_REG_OFFSET(reg_target),
                           STATE_REG);
+      }
+   } else {
+      /* The target register isn't an operand */
+      const int op0 = register_location(reg_op0);
+      const int op1 = register_location(reg_op1);
+      int target_tmp;
+
+      if (target >= 0) {
+         target_tmp = target;
       } else {
-         /* Need to use an intermediate register */
-         MOVE_FROM_BANKED(reg_op, REG_AX);
-         ALU_R32_OFF_PR64(alu_op,
-                          REG_AX,
-                          DYNAREC_STATE_REG_OFFSET(reg_target),
-                          STATE_REG);
+         target_tmp = REG_AX;
+      }
+
+      if (op0 >= 0) {
+         MOV_R32_R32(op0, target_tmp);
+      } else {
+         MOVE_FROM_BANKED(reg_op0, target_tmp);
+      }
+
+      if (op1 >= 0) {
+         ALU_R32_R32(alu_op, op1, target_tmp);
+      } else {
+         ALU_OFF_PR64_R32(alu_op,
+                          DYNAREC_STATE_REG_OFFSET(reg_op1),
+                          STATE_REG,
+                          target_tmp);
+      }
+
+      if (target_tmp != target) {
+         MOVE_TO_BANKED(target_tmp, reg_target);
       }
    }
 }
+
+void dynasm_emit_and(struct dynarec_compiler *compiler,
+                     enum PSX_REG reg_target,
+                     enum PSX_REG reg_op0,
+                     enum PSX_REG reg_op1) {
+   dynasm_emit_alu(compiler, AND_OP, reg_target, reg_op0, reg_op1);
+}
+
 
 void dynasm_emit_or(struct dynarec_compiler *compiler,
                     enum PSX_REG reg_target,
@@ -1456,52 +1491,6 @@ void dynasm_emit_ori(struct dynarec_compiler *compiler,
                           DYNAREC_STATE_REG_OFFSET(reg_t),
                           STATE_REG);
       }
-   }
-}
-
-void dynasm_emit_and(struct dynarec_compiler *compiler,
-                     enum PSX_REG reg_target,
-                     enum PSX_REG reg_a,
-                     enum PSX_REG reg_b) {
-   const int a = register_location(reg_a);
-   const int b = register_location(reg_b);
-   const int target = register_location(reg_target);
-   int t;
-
-   assert(reg_target != reg_a || reg_target != reg_b);
-
-   if (reg_target == reg_b) {
-      // If we're and'ing with ourselves put the other register in
-      // `reg_b`.
-      reg_b = reg_a;
-      reg_a = reg_target;
-   }
-
-   if (target > 0) {
-      t = target;
-   } else {
-      // Use AX as temporary
-      t = REG_AX;
-   }
-
-   if (reg_target != reg_a) {
-      if (a > 0) {
-         MOV_R32_R32(a, t);
-      } else {
-         MOVE_FROM_BANKED(reg_a, t);
-      }
-   }
-
-   if (b > 0) {
-      AND_R32_R32(reg_b, reg_target);
-   } else {
-      AND_OFF_PR64_R32(DYNAREC_STATE_REG_OFFSET(reg_b),
-                       STATE_REG,
-                       t);
-   }
-
-   if (t != target) {
-      MOVE_TO_BANKED(t, reg_target);
    }
 }
 
