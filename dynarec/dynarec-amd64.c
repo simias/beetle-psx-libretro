@@ -172,8 +172,18 @@ static void emit_rex_prefix_64(struct dynarec_compiler *compiler,
    *(compiler->map++) = rex | 0x40;
 }
 
+static void emit_imm64(struct dynarec_compiler *compiler,
+                       uint64_t val) {
+   int i;
+
+   for (i = 0; i < 8; i++) {
+      *(compiler->map++) = val & 0xff;
+      val >>= 8;
+   }
+}
+
 static void emit_imm32(struct dynarec_compiler *compiler,
-                        int32_t val) {
+                       uint32_t val) {
    int i;
 
    for (i = 0; i < 4; i++) {
@@ -286,6 +296,21 @@ static void emit_mov_u32_r32(struct dynarec_compiler *compiler,
    }
 }
 #define MOV_U32_R32(_v, _r) emit_mov_u32_r32(compiler, (_v), (_r))
+
+/* MOV $val, %reg64 */
+static void emit_mov_u64_r64(struct dynarec_compiler *compiler,
+                             uint64_t val,
+                             enum X86_REG reg) {
+   if (val == 0) {
+      CLEAR_REG(reg);
+   } else {
+      emit_rex_prefix_64(compiler, reg, 0, 0);
+
+      *(compiler->map++) = 0xb8 | (reg & 7);
+      emit_imm64(compiler, val);
+   }
+}
+#define MOV_U64_R64(_v, _r) emit_mov_u64_r64(compiler, (_v), (_r))
 
 /* MOV $val, off(%reg64) */
 static void emit_mov_u32_off_pr64(struct dynarec_compiler *compiler,
@@ -620,7 +645,7 @@ static void emit_alu_r32_r32(struct dynarec_compiler *compiler,
                              uint8_t op,
                              enum X86_REG op0,
                              enum X86_REG op1) {
-   emit_rex_prefix(compiler, op0, op1, 0);
+   emit_rex_prefix(compiler, op1, op0, 0);
 
    op0 &= 7;
    op1 &= 7;
@@ -916,18 +941,34 @@ static void emit_call_off_pr64(struct dynarec_compiler *compiler,
 }
 #define CALL_OFF_PR64(_o, _r) emit_call_off_pr64(compiler, (_o), (_r))
 
+static void emit_call_r64(struct dynarec_compiler *compiler,
+                          enum X86_REG reg) {
+   emit_rex_prefix(compiler, reg, 0, 0);
+
+   *(compiler->map++) = 0xff;
+   *(compiler->map++) = 0xd0 | (reg & 7);
+}
+#define CALL_R64(_r) emit_call_r64(compiler, _r)
+
 static void emit_call(struct dynarec_compiler *compiler,
                       dynarec_fn_t fn) {
    uint8_t *target = (void*)fn;
    intptr_t offset = target - compiler->map;
 
-   assert(is_imms32(offset));
+   if (is_imms32(offset)) {
+      /* Issue a PC-relative call */
 
-   /* Offset is relative to the end of the instruction */
-   offset -= 5;
+      /* Offset is relative to the end of the instruction */
+      offset -= 5;
 
-   *(compiler->map++) = 0xe8;
-   emit_imm32(compiler, offset);
+      *(compiler->map++) = 0xe8;
+      emit_imm32(compiler, offset);
+   } else {
+      /* Function is too far away, we must use an intermediary
+         register */
+      MOV_U64_R64((uint64_t)target, REG_AX);
+      CALL_R64(REG_AX);
+   }
 }
 #define CALL(_fn) emit_call(compiler, (dynarec_fn_t)_fn)
 
