@@ -209,9 +209,12 @@ static int run_test(const char *name, test_fn_t f) {
    ALU_RI(MIPS_OP_ORI, (_rt), (_ro), (_i))
 #define LUI(_rt, _i)                            \
    ALU_RI(MIPS_OP_LUI, (_rt), PSX_REG_R0, (_i))
+/* Dumb 2-instruction Load Immediate implementation. For simplicity
+   doesn't attempt to reduce to a single instruction if the immediate
+   fits 16 bits. */
 #define LI(_rt, _i)                             \
    LUI((_rt), ((_i) >> 16)),                    \
-   ORI((_rt), _rt, (_i) & 0xffff)
+   ORI((_rt), (_rt), (_i) & 0xffff)
 
 /*********
  * Tests *
@@ -301,6 +304,36 @@ static int test_li(struct dynarec_state *state) {
    };
    struct reg_val expected[] = {
       { .r = PSX_REG_T0, .v = 0x89abcdef },
+   };
+   uint32_t ret;
+
+   load_code(state, code, ARRAY_SIZE(code), 0);
+
+   ret = dynarec_run(state, 0x1000);
+
+   TEST_EQ(ret >> 28, DYNAREC_EXIT_BREAK);
+   TEST_EQ(ret & 0xfffffff, 0xdead);
+
+   return check_regs(state, expected, ARRAY_SIZE(expected));
+}
+
+static int test_r0(struct dynarec_state *state) {
+   union mips_instruction code[] = {
+      LI(PSX_REG_T0, 0x1),
+      ADD(PSX_REG_T1, PSX_REG_R0, PSX_REG_R0),
+      ADD(PSX_REG_R0, PSX_REG_T0, PSX_REG_T0),
+      ADD(PSX_REG_T2, PSX_REG_R0, PSX_REG_R0),
+      ADD(PSX_REG_R0, PSX_REG_R0, PSX_REG_T0),
+      ADD(PSX_REG_T3, PSX_REG_T0, PSX_REG_R0),
+      ADD(PSX_REG_T4, PSX_REG_T1, PSX_REG_R0),
+      BREAK(0xdead),
+   };
+   struct reg_val expected[] = {
+      { .r = PSX_REG_T0, .v = 1 },
+      { .r = PSX_REG_T1, .v = 0 },
+      { .r = PSX_REG_T2, .v = 0 },
+      { .r = PSX_REG_T3, .v = 1 },
+      { .r = PSX_REG_T4, .v = 0 },
    };
    uint32_t ret;
 
@@ -551,6 +584,7 @@ int main() {
    RUN_TEST(test_lui);
    RUN_TEST(test_ori);
    RUN_TEST(test_li);
+   RUN_TEST(test_r0);
    RUN_TEST(test_sll);
    RUN_TEST(test_srl);
    RUN_TEST(test_sra);
