@@ -66,6 +66,8 @@ static const char *reg_names[] = {
    "PSX_REG_FP",
    "PSX_REG_RA",
    "PSX_REG_DT",
+   "PSX_REG_HI",
+   "PSX_REG_LO",
 };
 
 static int check_regs(struct dynarec_state *state,
@@ -199,6 +201,14 @@ static int run_test(const char *name, test_fn_t f) {
    SHIFT_RI(MIPS_FN_SRA, (_rt), (_ro), (_s))
 #define NOP                                     \
    SLL(PSX_REG_R0, PSX_REG_R0, 0)
+#define MFHI(_rt)                               \
+   ALU_RR(MIPS_FN_MFHI, (_rt), 0, 0)
+#define MTHI(_rs)                               \
+   ALU_RR(MIPS_FN_MTHI, 0, (_rs), 0)
+#define MFLO(_rt)                               \
+   ALU_RR(MIPS_FN_MFLO, (_rt), 0, 0)
+#define MTLO(_rs)                               \
+   ALU_RR(MIPS_FN_MTLO, 0, (_rs), 0)
 #define ADD(_rt, _ro1, _ro2)                    \
    ALU_RR(MIPS_FN_ADD, (_rt), (_ro1), (_ro2))
 #define ADDU(_rt, _ro1, _ro2)                   \
@@ -664,6 +674,46 @@ static int test_or(struct dynarec_state *state) {
    return check_regs(state, expected, ARRAY_SIZE(expected));
 }
 
+static int test_hi_lo(struct dynarec_state *state) {
+   union mips_instruction code[] = {
+      LI(PSX_REG_T0, 6),
+      LI(PSX_REG_T1, 0xffffffff),
+
+      MTHI(PSX_REG_T0),
+      MTLO(PSX_REG_T1),
+      MFHI(PSX_REG_V0),
+      MFLO(PSX_REG_V1),
+      MFLO(PSX_REG_V1),
+      MTHI(PSX_REG_R0),
+      MFLO(PSX_REG_R0),
+      MFHI(PSX_REG_S0),
+      MFLO(PSX_REG_S1),
+      MTHI(PSX_REG_T0),
+
+      BREAK(0xdead),
+   };
+   struct reg_val expected[] = {
+      { .r = PSX_REG_T0, .v = 6 },
+      { .r = PSX_REG_T1, .v = 0xffffffff },
+      { .r = PSX_REG_V0, .v = 6 },
+      { .r = PSX_REG_V1, .v = 0xffffffff },
+      { .r = PSX_REG_S0, .v = 0 },
+      { .r = PSX_REG_S1, .v = 0xffffffff },
+      { .r = PSX_REG_HI, .v = 6 },
+      { .r = PSX_REG_LO, .v = 0xffffffff },
+   };
+   uint32_t ret;
+
+   load_code(state, code, ARRAY_SIZE(code), 0);
+
+   ret = dynarec_run(state, 0x1000);
+
+   TEST_EQ(ret >> 28, DYNAREC_EXIT_BREAK);
+   TEST_EQ(ret & 0xfffffff, 0xdead);
+
+   return check_regs(state, expected, ARRAY_SIZE(expected));
+}
+
 int main() {
    unsigned ntests = 0;
    unsigned nsuccess = 0;
@@ -687,6 +737,7 @@ int main() {
    RUN_TEST(test_subu);
    RUN_TEST(test_and);
    RUN_TEST(test_or);
+   RUN_TEST(test_hi_lo);
 
    printf("Tests done, results: %u/%u\n", nsuccess, ntests);
 }

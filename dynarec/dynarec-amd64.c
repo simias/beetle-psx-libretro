@@ -2140,16 +2140,6 @@ extern void dynasm_emit_long_jump_imm_cond(struct dynarec_compiler *compiler,
    } ENDIF;
 }
 
-void dynasm_emit_mfhi(struct dynarec_compiler *compiler,
-                      enum PSX_REG ret_target) {
-   dynasm_emit_exception(compiler, PSX_DYNAREC_UNIMPLEMENTED);
-}
-
-void dynasm_emit_mtlo(struct dynarec_compiler *compiler,
-                      enum PSX_REG ret_source) {
-   dynasm_emit_exception(compiler, PSX_DYNAREC_UNIMPLEMENTED);
-}
-
 void dynasm_emit_mfc0(struct dynarec_compiler *compiler,
                       enum PSX_REG reg_target,
                       enum PSX_COP0_REG reg_cop0) {

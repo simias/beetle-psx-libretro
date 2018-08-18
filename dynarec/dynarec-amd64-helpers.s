@@ -12,10 +12,10 @@
 .EQU DT_REG_OFFSET,    (STATE_REG_OFFSET + 4 * 31)
 
 /* offsetof(struct dynarec_state, cause) */
-.EQU STATE_CAUSE_OFFSET, 0xc0
+.EQU STATE_CAUSE_OFFSET, 0xc8
 
 /* offsetof(struct dynarec_state, sr) */
-.EQU STATE_SR_OFFSET, 0xc4
+.EQU STATE_SR_OFFSET, 0xcc
 
 .text
 
@@ -45,7 +45,7 @@ dynasm_execute:
         mov     T0_REG_OFFSET(%rdi), %r13d
         mov     SP_REG_OFFSET(%rdi), %r14d
         mov     RA_REG_OFFSET(%rdi), %r15d
-        mov     DT_REG_OFFSET(%rdi), %rbx
+        mov     DT_REG_OFFSET(%rdi), %ebx
 
         /* Move cycles_to_run to %ecx */
         mov     %edx, %ecx
@@ -64,7 +64,7 @@ dynasm_execute:
         mov     %r13d, T0_REG_OFFSET(%rdi)
         mov     %r14d, SP_REG_OFFSET(%rdi)
         mov     %r15d, RA_REG_OFFSET(%rdi)
-        mov     %rbx,  DT_REG_OFFSET(%rdi)
+        mov     %ebx,  DT_REG_OFFSET(%rdi)
 
         /* Pop the preserved registers */
         pop     %r12

@@ -541,12 +541,33 @@ static enum delay_slot dynarec_instruction_registers(uint32_t instruction,
          break;
       case MIPS_FN_BREAK:
          break;
-      case 0x10: /* MFHI */
+      case MIPS_FN_MFHI:
+         *reg_op0 = PSX_REG_HI;
          *reg_target = reg_d;
          break;
-      case 0x13: /* MTLO */
+      case MIPS_FN_MTHI:
          *reg_op0 = reg_s;
+         *reg_target = PSX_REG_HI;
          break;
+      case MIPS_FN_MFLO:
+         *reg_op0 = PSX_REG_LO;
+         *reg_target = reg_d;
+         break;
+      case MIPS_FN_MTLO:
+         *reg_op0 = reg_s;
+         *reg_target = PSX_REG_LO;
+         break;
+      case MIPS_FN_MULTU:
+        *reg_op0 = reg_s;
+        *reg_op1 = reg_t;
+        /* XXX It's actually LO and HI, but for the moment we only
+           support a single target reg in the logic. That being said
+           I don't think it's an issue: HI and LO cannot be addressed
+           directly by regular instructions, you have to use
+           MTHI/MFHI/MTLO/MFLO to move them to a GPR so I can't think
+           of any situation where a data hazard could occur. */
+        *reg_target = PSX_REG_LO;
+        break;
       case MIPS_FN_ADD:
       case MIPS_FN_ADDU:
       case MIPS_FN_SUBU:
@@ -702,11 +723,21 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
             dynasm_emit_exception(compiler, PSX_EXCEPTION_BREAK);
          }
          break;
-      case 0x10: /* MFHI */
-         dynasm_emit_mfhi(compiler, reg_target);
-         break;
-      case 0x13: /* MTLO */
-         dynasm_emit_mtlo(compiler, reg_op0);
+      case MIPS_FN_MFHI:
+      case MIPS_FN_MTHI:
+      case MIPS_FN_MFLO:
+      case MIPS_FN_MTLO:
+         if (reg_target == PSX_REG_R0) {
+            /* nop */
+            break;
+         }
+
+         if (reg_op0 == PSX_REG_R0) {
+            dynasm_emit_li(compiler, reg_target, 0);
+            break;
+         }
+
+         dynasm_emit_mov(compiler, reg_target, reg_op0);
          break;
       case MIPS_FN_ADD:
          emit_add(compiler,

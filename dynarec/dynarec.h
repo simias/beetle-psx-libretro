@@ -79,41 +79,45 @@ extern "C" {
 
 
 enum PSX_REG {
-   PSX_REG_R0 = 0,
-   PSX_REG_AT = 1,
-   PSX_REG_V0 = 2,
-   PSX_REG_V1 = 3,
-   PSX_REG_A0 = 4,
-   PSX_REG_A1 = 5,
-   PSX_REG_A2 = 6,
-   PSX_REG_A3 = 7,
-   PSX_REG_T0 = 8,
-   PSX_REG_T1 = 9,
-   PSX_REG_T2 = 10,
-   PSX_REG_T3 = 11,
-   PSX_REG_T4 = 12,
-   PSX_REG_T5 = 13,
-   PSX_REG_T6 = 14,
-   PSX_REG_T7 = 15,
-   PSX_REG_S0 = 16,
-   PSX_REG_S1 = 17,
-   PSX_REG_S2 = 18,
-   PSX_REG_S3 = 19,
-   PSX_REG_S4 = 20,
-   PSX_REG_S5 = 21,
-   PSX_REG_S6 = 22,
-   PSX_REG_S7 = 23,
-   PSX_REG_T8 = 24,
-   PSX_REG_T9 = 25,
-   PSX_REG_K0 = 26,
-   PSX_REG_K1 = 27,
-   PSX_REG_GP = 28,
-   PSX_REG_SP = 29,
-   PSX_REG_FP = 30,
-   PSX_REG_RA = 31,
+   PSX_REG_R0,
+   PSX_REG_AT,
+   PSX_REG_V0,
+   PSX_REG_V1,
+   PSX_REG_A0,
+   PSX_REG_A1,
+   PSX_REG_A2,
+   PSX_REG_A3,
+   PSX_REG_T0,
+   PSX_REG_T1,
+   PSX_REG_T2,
+   PSX_REG_T3,
+   PSX_REG_T4,
+   PSX_REG_T5,
+   PSX_REG_T6,
+   PSX_REG_T7,
+   PSX_REG_S0,
+   PSX_REG_S1,
+   PSX_REG_S2,
+   PSX_REG_S3,
+   PSX_REG_S4,
+   PSX_REG_S5,
+   PSX_REG_S6,
+   PSX_REG_S7,
+   PSX_REG_T8,
+   PSX_REG_T9,
+   PSX_REG_K0,
+   PSX_REG_K1,
+   PSX_REG_GP,
+   PSX_REG_SP,
+   PSX_REG_FP,
+   PSX_REG_RA,
    /* Dynarec temporary: not a real hardware register, used by the
       dynarec when it needs to reorder code for delay slots. */
-   PSX_REG_DT = 32,
+   PSX_REG_DT,
+   /* Registers used by MULT/DIV and related opcodes */
+   PSX_REG_HI,
+   PSX_REG_LO,
+   PSX_REG_TOTAL,
 };
 
 /* Coprocessor 0 registers (accessed with mtc0/mfc0) */
@@ -169,9 +173,8 @@ struct dynarec_state {
    uint8_t            *scratchpad;
    /* Pointer to the PSX BIOS */
    const uint8_t      *bios;
-   /* All general purpose CPU registers except R0 plus the "dynarec
-      temporary" register. */
-   uint32_t            regs[32];
+   /* All general purpose CPU registers except R0 */
+   uint32_t            regs[PSX_REG_TOTAL - 1];
    /* Cop0r11: cause register */
    uint32_t            cause;
    /* Cop0r12: status register */
