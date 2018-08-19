@@ -6,47 +6,7 @@
 #include "dynarec-compiler.h"
 #include "psx-instruction.h"
 
-/* Keep track of an unresolved local jump (i.e. within the same page)
-   that will have to be patched once we're done recompiling the
-   page. */
-void dynarec_prepare_patch(struct dynarec_compiler *compiler) {
-   uint32_t target = compiler->jump_target;
-   uint32_t pos = compiler->local_patch_len;
-
-   /* Jumps should always be 32bit-aligned*/
-   assert((target & 3) == 0);
-
-   assert(pos < DYNAREC_PAGE_INSTRUCTIONS);
-   compiler->local_patch[pos].patch_loc = compiler->map;
-   compiler->local_patch[pos].target = target;
-   compiler->local_patch_len++;
-}
-
-/* Called when we're done recompiling a page to "patch" the correct
-   target addresses */
-static void resolve_local_patches(struct dynarec_compiler *compiler) {
-   uint32_t i;
-
-   for (i = 0; i < compiler->local_patch_len; i++) {
-      uint8_t *patch_loc = compiler->local_patch[i].patch_loc;
-      uint32_t target    = compiler->local_patch[i].target;
-      uint8_t *target_loc;
-      int32_t offset;
-
-      /* We know for sure that the target is within the same page,
-         compute the relative offset */
-      target = target & (DYNAREC_PAGE_SIZE - 1);
-
-      target_loc = compiler->dynarec_instructions[target >> 2];
-
-      offset = target_loc - patch_loc;
-
-      compiler->map = patch_loc;
-
-      dynasm_patch(compiler, offset);
-   }
-}
-
+#if 0
 static void emit_branch_or_jump(struct dynarec_compiler *compiler,
                                 uint32_t target,
                                 enum PSX_REG reg_a,
@@ -119,6 +79,15 @@ static void emit_branch_or_jump(struct dynarec_compiler *compiler,
                                         cond);
       }
    }
+}
+#endif
+
+static void emit_branch_or_jump(struct dynarec_compiler *compiler,
+                                uint32_t target,
+                                enum PSX_REG reg_a,
+                                enum PSX_REG reg_b,
+                                enum DYNAREC_JUMP_COND cond) {
+   dynasm_emit_exception(compiler, PSX_DYNAREC_UNIMPLEMENTED);
 }
 
 static void emit_jump(struct dynarec_compiler *compiler,
@@ -476,29 +445,24 @@ static void emit_or(struct dynarec_compiler *compiler,
    }
 }
 
-static void emit_skip_next_instruction(struct dynarec_compiler *compiler) {
-   uint32_t cur_target = compiler->jump_target;
-
-   compiler->jump_target = compiler->pc + 8;
-
-   dynasm_emit_page_local_jump(compiler,
-                               compiler->map + DYNAREC_INSTRUCTION_MAX_LEN,
-                               true);
-
-   compiler->jump_target = cur_target;
-}
-
-
 static void emit_rfe(struct dynarec_compiler *compiler,
                      uint32_t instruction) {
    (void)instruction;
    dynasm_emit_exception(compiler, PSX_DYNAREC_UNIMPLEMENTED);
 }
 
-enum delay_slot {
-   NO_DELAY = 0,
-   BRANCH_DELAY_SLOT,
-   LOAD_DELAY_SLOT,
+enum optype {
+   /* Anything that doesn't fit any of the other types */
+   OP_SIMPLE,
+   /* Unconditional branch jump (we're shure that the control will
+      leave the block) */
+   OP_BRANCH_ALWAYS,
+   /* Conditional branch: may or may not be taken at runtime */
+   OP_BRANCH_COND,
+   /* Exception: no delay slot but execution leaves the block */
+   OP_EXCEPTION,
+   /* Load instruction, followed by a load delay slot. */
+   OP_LOAD,
 };
 
 /* Gets the general purpose registers referenced by `instruction`. At
@@ -508,14 +472,14 @@ enum delay_slot {
  *
  * Returns the number of cycles taken by this instruction to execute.
  */
-static enum delay_slot dynarec_instruction_registers(uint32_t instruction,
-                                                     enum PSX_REG *reg_target,
-                                                     enum PSX_REG *reg_op0,
-                                                     enum PSX_REG *reg_op1) {
+static enum optype dynarec_instruction_registers(uint32_t instruction,
+                                                 enum PSX_REG *reg_target,
+                                                 enum PSX_REG *reg_op0,
+                                                 enum PSX_REG *reg_op1) {
    uint8_t reg_d = (instruction >> 11) & 0x1f;
    uint8_t reg_t = (instruction >> 16) & 0x1f;
    uint8_t reg_s = (instruction >> 21) & 0x1f;
-   enum delay_slot ds = NO_DELAY;
+   enum optype type = OP_SIMPLE;
 
    *reg_target = PSX_REG_R0;
    *reg_op0    = PSX_REG_R0;
@@ -532,14 +496,15 @@ static enum delay_slot dynarec_instruction_registers(uint32_t instruction,
          break;
       case 0x08: /* JR */
          *reg_op0 = reg_s;
-         ds = BRANCH_DELAY_SLOT;
+         type = OP_BRANCH_ALWAYS;
          break;
       case 0x09: /* JALR */
          *reg_op0 = reg_s;
          *reg_target = reg_d;
-         ds = BRANCH_DELAY_SLOT;
+         type = OP_BRANCH_ALWAYS;
          break;
       case MIPS_FN_BREAK:
+         type = OP_BRANCH_ALWAYS;
          break;
       case MIPS_FN_MFHI:
          *reg_op0 = PSX_REG_HI;
@@ -597,25 +562,22 @@ static enum delay_slot dynarec_instruction_registers(uint32_t instruction,
       *reg_op0 = reg_s;
       break;
    case 0x02: /* J */
-      ds = BRANCH_DELAY_SLOT;
+      type = OP_BRANCH_ALWAYS;
       break;
    case 0x03: /* JAL */
-      ds = BRANCH_DELAY_SLOT;
+      type = OP_BRANCH_ALWAYS;
       *reg_target = PSX_REG_RA;
       break;
    case 0x04: /* BEQ */
    case 0x05: /* BNE */
       *reg_op0 = reg_s;
       *reg_op1 = reg_t;
-      ds = BRANCH_DELAY_SLOT;
+      type = OP_BRANCH_COND;
       break;
    case 0x06: /* BLEZ */
-      *reg_op0 = reg_s;
-      ds = BRANCH_DELAY_SLOT;
-      break;
    case 0x07: /* BGTZ */
       *reg_op0 = reg_s;
-      ds = BRANCH_DELAY_SLOT;
+      type = OP_BRANCH_COND;
       break;
    case 0x08: /* ADDI */
    case 0x09: /* ADDIU */
@@ -650,7 +612,7 @@ static enum delay_slot dynarec_instruction_registers(uint32_t instruction,
    case 0x24: /* LBU */
       *reg_target = reg_t;
       *reg_op0 = reg_s;
-      ds = LOAD_DELAY_SLOT;
+      type = OP_LOAD;
       break;
    case 0x28: /* SB */
    case 0x29: /* SH */
@@ -672,7 +634,7 @@ static enum delay_slot dynarec_instruction_registers(uint32_t instruction,
       abort();
    }
 
-   return ds;
+   return type;
 }
 
 static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
@@ -919,56 +881,46 @@ static uint32_t load_le(const uint8_t *p) {
       (((uint32_t)p[3]) << 24);
 }
 
-int dynarec_recompile(struct dynarec_state *state,
-                      uint32_t page_index) {
-   const uint8_t           *emulated_page;
-   const uint8_t           *next_page;
-   uint8_t                 *page_start;
+struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
+                                        uint32_t addr) {
    struct dynarec_compiler  compiler = { 0 };
-   unsigned                 i;
+   const uint8_t           *emulated_block;
+   const uint8_t           *block_end;
+   const uint8_t           *cur;
+   enum optype              optype = OP_SIMPLE;
+   size_t                   block_size;
 
-   DYNAREC_LOG("Recompiling page %u\n", page_index);
+   DYNAREC_LOG("Recompiling block starting at 0x%08x\n", addr);
 
-   state->page_valid[page_index] = 0;
+   assert((addr & 3) == 0);
 
-   page_start = dynarec_page_start(state, page_index);
-
-   compiler.state = state;
-   compiler.page_index = page_index;
-   compiler.local_patch_len = 0;
-   compiler.map = page_start;
-
-   /* We'll fill up each individual's instruction address as we
-      recompile them */
-   compiler.dynarec_instructions =
-      &state->dynarec_instructions[page_index * DYNAREC_PAGE_INSTRUCTIONS];
-
-   if (page_index < DYNAREC_RAM_PAGES) {
-      uint32_t ram_index = page_index;
-
-      emulated_page = state->ram + DYNAREC_PAGE_SIZE * ram_index;
-      compiler.pc = DYNAREC_PAGE_SIZE * ram_index;
-
-      /* XXX This is not accurate if we're at the very end of the last
-         mirror of memory. Not that I expect that it matters much. */
-      ram_index = (ram_index + 1) % DYNAREC_RAM_PAGES;
-      next_page = state->ram + DYNAREC_PAGE_SIZE * ram_index;
+   if (addr < PSX_RAM_SIZE) {
+      emulated_block = state->ram + addr;
+      block_end = state->ram + PSX_RAM_SIZE;
+   } else if (addr >= PSX_BIOS_BASE &&
+              addr < (PSX_BIOS_BASE + PSX_BIOS_SIZE)){
+      emulated_block = state->bios + (addr - PSX_BIOS_BASE);
+      block_end = state->bios + PSX_RAM_SIZE;
    } else {
-      uint32_t bios_index = page_index - DYNAREC_RAM_PAGES;
-
-      emulated_page = state->bios + DYNAREC_PAGE_SIZE * bios_index;
-      compiler.pc = PSX_BIOS_BASE + DYNAREC_PAGE_SIZE * bios_index;
-
-      /* XXX This is not accurate if we're at the very end of the
-         BIOS. Not that I expect that it matters much. */
-      bios_index = (bios_index + 1) % DYNAREC_BIOS_PAGES;
-      next_page = state->bios + DYNAREC_PAGE_SIZE * bios_index;
+      /* What are we trying to recompile here exactly ? */
+      assert("Recompiling unknown address" == NULL);
    }
 
-   /* Helper macros for instruction decoding */
-   for (i = 0; i < DYNAREC_PAGE_INSTRUCTIONS; i++, compiler.pc += 4) {
-      unsigned pg_byte_off = i * 4;
-      uint32_t instruction = load_le(emulated_page + pg_byte_off);
+   if ((block_end - emulated_block) > DYNAREC_MAX_BLOCK_SIZE) {
+      block_end = emulated_block + DYNAREC_MAX_BLOCK_SIZE;
+   }
+
+   /* Make sure that we're not running out of free space */
+   assert(state->map_len - (state->free_map - state->map) > (1 * 1024 * 1024));
+
+   compiler.state = state;
+   compiler.block = (struct dynarec_block *)state->free_map;
+   compiler.map = compiler.block->code;
+   compiler.pc = addr;
+   compiler.spent_cycles = 0;
+
+   for (cur = emulated_block; cur < block_end; cur += 4, compiler.pc += 4) {
+      uint32_t instruction = load_le(cur);
 
       /* Various decodings of the fields, of course they won't all be
          valid for a given instruction. For now I'll trust the
@@ -978,46 +930,44 @@ int dynarec_recompile(struct dynarec_state *state,
       enum PSX_REG reg_target;
       enum PSX_REG reg_op0;
       enum PSX_REG reg_op1;
-      enum delay_slot delay_slot;
-      uint8_t *instruction_start;
-      unsigned cycles;
-      uint32_t ds_instruction;
+      uint32_t ds_instruction = 0;
+      int has_branch_delay_slot;
+      int has_load_delay_slot;
+      int has_delay_slot;
 
       DYNAREC_LOG("Compiling 0x%08x\n", instruction);
 
-      delay_slot =
+      compiler.spent_cycles += PSX_CYCLES_PER_INSTRUCTION;
+
+      optype =
          dynarec_instruction_registers(instruction,
                                        &reg_target,
                                        &reg_op0,
                                        &reg_op1);
 
-      instruction_start = compiler.map;
-      compiler.dynarec_instructions[i] = instruction_start;
+      has_branch_delay_slot =
+         (optype == OP_BRANCH_ALWAYS) || (optype == OP_BRANCH_COND);
+      has_load_delay_slot = (optype == OP_LOAD);
+      has_delay_slot = has_branch_delay_slot || has_load_delay_slot;
 
-      /* For now I assume every instruction takes exactly 4 cycles to
-         execute. It's rather optimistic (the average in practice is
-         closer to 5 cycles) but obviously in practice it varies a lot
-         depending on the instruction, the icache, memory latency
-         etc... */
-      cycles = 4;
-
-      if (i + 1 < DYNAREC_PAGE_INSTRUCTIONS) {
-         ds_instruction = load_le(emulated_page + pg_byte_off + 4);
+      if (has_delay_slot && (cur + 4) < block_end) {
+         ds_instruction = load_le(cur + 4);
       } else {
-         ds_instruction = load_le(next_page);
+         /* Assume the delay slot is a NOP */
+         ds_instruction = 0;
       }
 
-      if (delay_slot == LOAD_DELAY_SLOT &&
+      if (has_load_delay_slot &&
           reg_target != PSX_REG_R0 &&
           ds_instruction != 0) {
-         /* We have to check if the next instruction references the
-            load target */
-         enum delay_slot ds_delay_slot;
+         /* We have to check if the next instruction conflicts with
+            the load target */
+         enum optype ds_type;
          enum PSX_REG ds_target;
          enum PSX_REG ds_op0;
          enum PSX_REG ds_op1;
 
-         ds_delay_slot =
+         ds_type =
             dynarec_instruction_registers(ds_instruction,
                                           &ds_target,
                                           &ds_op0,
@@ -1031,18 +981,15 @@ int dynarec_recompile(struct dynarec_state *state,
                since it's functionally equivalent. */
             reg_target = PSX_REG_R0;
 
-            dynasm_counter_maintenance(&compiler, cycles);
             dynarec_emit_instruction(&compiler, instruction,
                                      reg_target, reg_op0, reg_op1);
 
          } else if (reg_target == ds_op0 || reg_target == ds_op1) {
             /* That's a bit trickier, we need to make sure that the
                previous value of `reg_target` is used in the load
-               delay. The only way to have this work in all cases
-               (consider if we have a branch in the delay slot for
-               instance) */
+               delay. */
 
-            if (ds_delay_slot != NO_DELAY) {
+            if (ds_type == OP_BRANCH_ALWAYS || ds_type == OP_BRANCH_COND) {
                /* If the instruction in the delay slot is a branch we
                   can't reorder (otherwise we'll jump away before we
                   have a chance to execute the load). If this needs
@@ -1065,8 +1012,6 @@ int dynarec_recompile(struct dynarec_state *state,
                   reg_op1 = PSX_REG_DT;
                }
 
-               dynasm_counter_maintenance(&compiler, cycles * 2);
-
                if (needs_dt) {
                   /* The instruction in the delay slot targets a register
                      used by the branch, we need to keep a copy. */
@@ -1083,19 +1028,18 @@ int dynarec_recompile(struct dynarec_state *state,
                dynarec_emit_instruction(&compiler, instruction,
                                         reg_target, reg_op0, reg_op1);
 
-               /* Then we want to step over the instruction in the
-                  delay slot that's going to be emitted next since
-                  we've already executed it here. */
-               emit_skip_next_instruction(&compiler);
+               /* Since we reordered we must jump ahead not to execute
+                  the load delay instruction twice */
+               cur += 4;
+               compiler.spent_cycles += PSX_CYCLES_PER_INSTRUCTION;
             }
          } else {
-            /* We don't have any hazard, we can emit the load */
-            dynasm_counter_maintenance(&compiler, cycles);
+            /* We don't have any hazard, we can simply emit the load
+               normally */
             dynarec_emit_instruction(&compiler, instruction,
                                      reg_target, reg_op0, reg_op1);
          }
-
-      } else if (delay_slot == BRANCH_DELAY_SLOT &&
+      } else if (has_branch_delay_slot &&
                  /* Special case a NOP in the delay slot since it's
                     fairly common. A branch with a NOP in the delay
                     slot behaves like a common instruction. */
@@ -1107,32 +1051,37 @@ int dynarec_recompile(struct dynarec_state *state,
          enum PSX_REG ds_target;
          enum PSX_REG ds_op0;
          enum PSX_REG ds_op1;
-         enum delay_slot ds_delay_slot;
+         enum optype ds_type;
          int needs_dt = 0;
 
-         dynasm_counter_maintenance(&compiler, cycles * 2);
-
-         ds_delay_slot =
+         ds_type =
             dynarec_instruction_registers(ds_instruction,
                                           &ds_target,
                                           &ds_op0,
                                           &ds_op1);
 
-         if (ds_delay_slot == BRANCH_DELAY_SLOT) {
-            /* This would be a pain to implement. Let's not the
-               average game doesn't require something like that. */
+         if (ds_type == OP_BRANCH_ALWAYS || ds_type == OP_BRANCH_COND) {
+            /* Nested branch delay slot. This would be a pain to
+               implement. Let's hope the average game doesn't require
+               something like that. */
             dynasm_emit_exception(&compiler, PSX_DYNAREC_UNIMPLEMENTED);
-         } else if (ds_delay_slot == LOAD_DELAY_SLOT) {
-            /* This is technically inaccurate but probably fine the
-               vast majority of the time (relying on load delay slot
-               behaviour across a jump sounds nasty, but who
-               knows). Remove after running more tests. */
+         } else if (ds_type == OP_LOAD) {
+            /* Emitting this directly would be technically inaccurate
+               but probably fine the vast majority of the time
+               (relying on load delay slot behaviour across a jump
+               sounds nasty, but who knows). Remove after running more
+               tests. */
             dynasm_emit_exception(&compiler, PSX_DYNAREC_UNIMPLEMENTED);
          }
 
-         if (ds_target != 0) {
+         if (ds_target != PSX_REG_R0) {
             /* Check for data hazard */
             if (ds_target == reg_target) {
+               /* Not sure what happes if the jump and delay slot
+                  write to the same register. If the jump wins then we
+                  have nothing to do, if it's the instruction we just
+                  need to replace the jump with the equivalent
+                  instruction that doesn't link. */
                DYNAREC_FATAL("Register race on branch target\n");
             }
 
@@ -1159,46 +1108,54 @@ int dynarec_recompile(struct dynarec_state *state,
                                   ds_target, ds_op0, ds_op1);
          compiler.pc -= 4;
 
+         /* Move ahead not to emit the same instruction twice if this
+            is a conditional branch */
+         cur += 4;
+         compiler.spent_cycles += PSX_CYCLES_PER_INSTRUCTION;
+
          /* Emit branch instruction */
          dynarec_emit_instruction(&compiler, instruction,
                                   reg_target, reg_op0, reg_op1);
-
-         /* In case this is a conditional branch we want to jump over
-            the delay slot if it's not taken (otherwise we'll execute
-            the instruction twice).
-
-            XXX We could skip this if the branch/jump is unconditional
-            since this code will never be reached. */
-         emit_skip_next_instruction(&compiler);
       } else {
          /* Boring old instruction, no delay slot involved. */
-         dynasm_counter_maintenance(&compiler, cycles);
          dynarec_emit_instruction(&compiler, instruction,
                                   reg_target, reg_op0, reg_op1);
       }
-
-      assert(compiler.map - instruction_start <= DYNAREC_INSTRUCTION_MAX_LEN);
-
-#ifdef DYNAREC_DEBUG
-      DYNAREC_LOG("Emited:");
-      for (; instruction_start != compiler.map; instruction_start++) {
-         printf(" %02x", *instruction_start);
-      }
-      printf("\n");
-#endif
 
 #if 1
       {
          int fd = open("/tmp/dump.amd64", O_WRONLY | O_CREAT| O_TRUNC, 0644);
 
-         write(fd, page_start, compiler.map - page_start);
+         write(fd, compiler.block, compiler.map - (uint8_t*)compiler.block);
 
          close(fd);
       }
 #endif
+
+      if ((optype == OP_BRANCH_ALWAYS) || (optype == OP_EXCEPTION)) {
+         /* We are certain that the execution won't continue after
+            this instruction (besides potentially the load delay slot
+            which has already been handled above) */
+         break;
+      }
    }
 
-   resolve_local_patches(&compiler);
-   state->page_valid[page_index] = 1;
-   return 0;
+   /* We're done with this block */
+   if ((optype != OP_BRANCH_ALWAYS) && (optype != OP_EXCEPTION)) {
+      /* Execution continues after this block, we need to link it to
+         the next one */
+      abort();
+   }
+
+   block_size = compiler.map - (uint8_t *)compiler.block;
+
+   DYNAREC_LOG("Block len: %uB\n", block_size);
+   DYNAREC_LOG("Number of PSX instructions: %u\n", (compiler.pc - addr) / 4);
+
+   /* Align block size to a multiple of 64bytes as a vague attempt to
+      be cache-friendly */
+   block_size = (block_size + 63) & (~63UL);
+   state->free_map += block_size;
+
+   return compiler.block;
 }

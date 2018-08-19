@@ -1789,19 +1789,6 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
       /* Mask the address in case it was in one of the mirrors */
       AND_U32_R32(PSX_RAM_SIZE - 1, REG_DX);
 
-      if (dir == DIR_STORE) {
-         /* Compute page index in %eax */
-         MOV_R32_R32(REG_DX, REG_AX);
-         SHR_U8_R32(DYNAREC_PAGE_SIZE_SHIFT, REG_AX);
-
-         /* Clear valid flag */
-         MOV_U8_OFF_SIB(0,
-                        offsetof(struct dynarec_state, page_valid),
-                        STATE_REG,
-                        REG_AX,
-                        1);
-      }
-
       /* Add the address of the RAM buffer in host memory */
       ADD_OFF_PR64_R64(offsetof(struct dynarec_state, ram),
                        STATE_REG,
@@ -2013,41 +2000,6 @@ void dynasm_emit_lbu(struct dynarec_compiler *compiler,
                       DIR_LOAD_UNSIGNED, WIDTH_BYTE);
 }
 
-void dynasm_patch(struct dynarec_compiler *compiler, int32_t offset) {
-   /* `offset` is relative to the beginning of the address while the
-      instruction parameter is relative to the *end* of the
-      instruction so we must offset. */
-   emit_imm32(compiler, ((uint32_t)offset) - 4);
-}
-
-void dynasm_emit_page_local_jump(struct dynarec_compiler *compiler,
-                                 uint8_t *dynarec_target,
-                                 bool placeholder) {
-   int32_t offset = dynarec_target - compiler->map;
-
-   if (placeholder == false) {
-      EMIT_JMP(offset);
-   } else {
-      /* We're adding placeholder code we'll patch later. */
-      /* XXX for not I assume the worst case scenario and make room
-         for a 32bit relative jump. Since `dynarec_target` contains
-         the worst case scenario we could use it to see if we could
-         use a near jump instead. */
-      /* JMP off32 */
-      *(compiler->map++) = 0xe9;
-      /* I'm supposed to put the offset here, but I don't know what it
-         is yet. I use 0x90 because it's a NOP, this way we'll be able
-         to patch a shorter instruction if we want later and not run
-         into any issues. */
-      dynarec_prepare_patch(compiler);
-
-      *(compiler->map++) = 0x90;
-      *(compiler->map++) = 0x90;
-      *(compiler->map++) = 0x90;
-      *(compiler->map++) = 0x90;
-   }
-}
-
 static uint8_t emit_branch_cond(struct dynarec_compiler *compiler,
                                 enum PSX_REG reg_a,
                                 enum PSX_REG reg_b,
@@ -2146,44 +2098,13 @@ void dynasm_emit_page_local_jump_cond(struct dynarec_compiler *compiler,
    uint8_t op = emit_branch_cond(compiler, reg_a, reg_b, cond);
 
    IF(op) {
-      dynasm_emit_page_local_jump(compiler, dynarec_target, placeholder);
+      UNIMPLEMENTED;
    } ENDIF;
 }
 
 void dynasm_emit_long_jump_imm(struct dynarec_compiler *compiler,
                                uint32_t target) {
-   int32_t target_page_index = dynarec_find_page_index(compiler->state, target);
-   size_t  page_valid_off = offsetof(struct dynarec_state, page_valid);
-   size_t instruction_pos;
-
-   assert(target_page_index >= 0);
-
-   page_valid_off += target_page_index * sizeof(uint8_t);
-
-   CMP_U8_OFF_PR64(0, page_valid_off, STATE_REG);
-
-   IF_EQUAL {
-      // The target page is invalid, we need to recompile it.
-
-      // Load the target page index in SI
-      MOV_U32_R32(target_page_index, REG_SI);
-      CALL(dynabi_recompile);
-   } ENDIF;
-
-   // If we reach this point we know that the target is valid. Let's
-   // look it up in `dynarec_instructions`
-
-   // Page address
-   instruction_pos = target_page_index * DYNAREC_PAGE_INSTRUCTIONS;
-   // Instruction offset
-   instruction_pos += (target & (DYNAREC_PAGE_SIZE - 1)) / 4;
-   // Array of void *
-   instruction_pos *= sizeof(void *);
-   // Add offset in struct dynarec_state1
-   instruction_pos += offsetof(struct dynarec_state, dynarec_instructions);
-
-   // Jump into the new page
-   JMP_OFF_PR64(instruction_pos, STATE_REG);
+   UNIMPLEMENTED;
 }
 
 extern void dynasm_emit_long_jump_imm_cond(struct dynarec_compiler *compiler,

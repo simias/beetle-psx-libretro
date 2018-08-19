@@ -19,25 +19,6 @@ static uint32_t dynarec_mask_address(uint32_t addr) {
    return addr & region_mask[addr >> 29];
 }
 
-/* Returns the maximum size a recompiled page can take, in bytes. */
-static uint32_t dynarec_max_page_size(void) {
-   uint32_t s;
-
-   /* We may end up duplicating instructions in the load delay slots,
-      and we need an additional pseudo-instruction at the end to jump
-      to the next page. The typical page size will be a fraction of
-      that but we'll rely on the kernel's lazy memory allocation to
-      avoid wasting memory. */
-   s = (DYNAREC_PAGE_INSTRUCTIONS * 2 + 1) * DYNAREC_INSTRUCTION_MAX_LEN;
-
-   /* Align to a real hardware page size to avoid having a dynarec
-      page starting at the end of a hardware page. Assume that pages
-      are always 4096B long. */
-   s = (s + 4095) & ~4095U;
-
-   return s;
-}
-
 struct dynarec_state *dynarec_init(uint8_t *ram,
                                    uint8_t *scratchpad,
                                    const uint8_t *bios) {
@@ -59,8 +40,13 @@ struct dynarec_state *dynarec_init(uint8_t *ram,
    state->ram = ram;
    state->scratchpad = scratchpad;
    state->bios = bios;
+   rbt_init(&state->blocks);
 
-   state->map_len = dynarec_max_page_size() * DYNAREC_TOTAL_PAGES;
+   /* For now let's be greedy and allocate a huge buffer. Untouched
+      pages shouldn't take any resident memory so it shouldn't be too
+      bad. Later it might make more sense to allocate smaller buffers
+      and free or reuse them when they're no longer referenced. */
+   state->map_len = 256 * 1024 * 1024;
    state->map = mmap(NULL,
                      state->map_len,
 #ifdef DYNAREC_DEBUG
@@ -77,6 +63,8 @@ struct dynarec_state *dynarec_init(uint8_t *ram,
       return NULL;
    }
 
+   state->free_map = state->map;
+
    memcpy(state->region_mask, region_mask, sizeof(region_mask));
 
    return state;
@@ -92,49 +80,27 @@ void dynarec_set_pc(struct dynarec_state *state, uint32_t pc) {
    state->pc = pc;
 }
 
-/* Find the offset of the page containing `addr`. Returns -1 if no
-   page is found. */
-int32_t dynarec_find_page_index(struct dynarec_state *state,
-                                uint32_t addr) {
-   addr = dynarec_mask_address(addr);
+uint32_t dynarec_run(struct dynarec_state *state, int32_t cycles_to_run) {
+   uint32_t addr;
+   struct dynarec_block *block;
+
+   addr = dynarec_mask_address(state->pc);
 
    /* RAM is mirrored 4 times */
    if (addr < (PSX_RAM_SIZE * 4)) {
       addr = addr % PSX_RAM_SIZE;
-
-      return addr / DYNAREC_PAGE_SIZE;
    }
 
-   if (addr >= PSX_BIOS_BASE && addr < (PSX_BIOS_BASE + PSX_BIOS_SIZE)) {
-      addr -= PSX_BIOS_BASE;
+   block = TO_DYNAREC_BLOCK(rbt_find(&state->blocks, addr));
 
-      /* BIOS pages follow the RAM's */
-      return (addr / DYNAREC_PAGE_SIZE) + DYNAREC_RAM_PAGES;
+   if (block == NULL) {
+      /* Recompile */
+      block = dynarec_recompile(state, addr);
+      assert(block != NULL);
+      rbt_insert(&state->blocks, &block->tree_node);
    }
 
-   /* Unhandled address. TODO: add Expansion 1 @ 0x1f000000 */
-   return -1;
-}
-
-uint8_t *dynarec_page_start(struct dynarec_state *state,
-                            uint32_t page_index) {
-   return state->map + (dynarec_max_page_size() * page_index);
-}
-
-uint32_t dynarec_run(struct dynarec_state *state, int32_t cycles_to_run) {
-   int32_t page_index = dynarec_find_page_index(state, state->pc);
-
-   if (page_index < 0) {
-      DYNAREC_FATAL("Unhandled address PC 0x%08x\n", state->pc);
-   }
-
-   if (!state->page_valid[page_index]) {
-      if (dynarec_recompile(state, page_index) < 0) {
-         DYNAREC_FATAL("Recompilation failed\n");
-      }
-   }
-
-   dynarec_fn_t f = (dynarec_fn_t)dynarec_page_start(state, page_index);
+   dynarec_fn_t f = (void *)&block->code;
 
    return dynasm_execute(state, f, cycles_to_run);
 }

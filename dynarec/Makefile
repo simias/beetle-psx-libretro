@@ -4,7 +4,7 @@ CFLAGS = -Wall -g -MMD -MP -DDYNAREC_ARCH_AMD64 -Wno-unused-function
 
 AFLAGS = -Wall
 
-SRC = dynarec-tests.c dynarec.c dynarec-compiler.c dynarec-amd64.c
+SRC = dynarec-tests.c dynarec.c dynarec-compiler.c rbtree.c dynarec-amd64.c
 ASM = dynarec-amd64-helpers.s
 
 OBJ = $(SRC:%.c=%.o) $(ASM:%.s=%.o)

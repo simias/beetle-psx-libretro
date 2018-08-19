@@ -26,13 +26,6 @@ enum DYNAREC_JUMP_COND {
    (assert((_r) != PSX_REG_R0),                                         \
     offsetof(struct dynarec_state, regs) + ((_r) - 1) * sizeof(uint32_t))
 
-struct dynarec_page_local_patch {
-   /* Location of the instruction that needs patching */
-   uint8_t *patch_loc;
-   /* Address of the target PSX instruction */
-   uint32_t target;
-};
-
 /* Structure holding the temporary variables during the recompilation
    sequence */
 struct dynarec_compiler {
@@ -42,24 +35,16 @@ struct dynarec_compiler {
    uint8_t *map;
    /* Current value of the PC */
    uint32_t pc;
-   /* Index of the page currently being recompiled */
-   uint32_t page_index;
-   /* Pointer towards the dynarec's `dynarec_instruction` array for
-      the current page */
-   void   **dynarec_instructions;
-   /* When recompiling a jump this contains the target address in PSX
-      memory. */
-   uint32_t jump_target;
-   /* Number of entries in local_patch */
-   uint32_t local_patch_len;
-   /* Contains offset of instructions that need patching */
-   struct dynarec_page_local_patch local_patch[DYNAREC_PAGE_INSTRUCTIONS];
+   /* Current block */
+   struct dynarec_block *block;
+   /* Cycles spent emulating the current block so far */
+   uint32_t spent_cycles;
 };
 
 typedef uint32_t (*dynarec_fn_t)(void);
 
-extern int dynarec_recompile(struct dynarec_state *state,
-                             uint32_t page_index);
+extern struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
+                                               uint32_t page_index);
 
 extern void dynarec_prepare_patch(struct dynarec_compiler *compiler);
 

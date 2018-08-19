@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <stddef.h>
 
+#include "rbtree.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -42,27 +44,28 @@ extern "C" {
 /* Base address for the scratchpad */
 #define PSX_SCRATCHPAD_BASE        0x1F800000U
 
-/* Log in base 2 of the page size in bytes */
-#define DYNAREC_PAGE_SIZE_SHIFT    11U
-/* Length of a recompilation page in bytes */
-#define DYNAREC_PAGE_SIZE          (1U << DYNAREC_PAGE_SIZE_SHIFT)
-/* Number of instructions per page */
-#define DYNAREC_PAGE_INSTRUCTIONS  (DYNAREC_PAGE_SIZE / 4U)
+/* For now I assume every instruction takes exactly 4 cycles to
+   execute. It's rather optimistic (the average in practice is
+   closer to 5 cycles) but obviously in practice it varies a lot
+   depending on the instruction, the icache, memory latency
+   etc... */
+#define PSX_CYCLES_PER_INSTRUCTION 4
 
-/* Total number of dynarec pages in RAM */
-#define DYNAREC_RAM_PAGES          (PSX_RAM_SIZE / DYNAREC_PAGE_SIZE)
-/* Total number of dynarec pages in BIOS ROM */
-#define DYNAREC_BIOS_PAGES         (PSX_BIOS_SIZE / DYNAREC_PAGE_SIZE)
-
-/* Total number of dynarec pages for the system */
-#define DYNAREC_TOTAL_PAGES        (DYNAREC_RAM_PAGES + DYNAREC_BIOS_PAGES)
-
-/* Total number of potential instructions in the system */
-#define DYNAREC_TOTAL_INSTRUCTIONS (DYNAREC_TOTAL_PAGES *       \
-                                    DYNAREC_PAGE_INSTRUCTIONS)
+/* Maximum number of instructions in a recompiled block.
+ *
+ * If a stretch of instruction goes uninterrupted by an unconditional
+ * branch for longer than this it'll automatically be split into
+ * multiple blocks. */
+#define DYNAREC_MAX_BLOCK_INSTRUCTIONS 128U
+#define DYNAREC_MAX_BLOCK_SIZE         (DYNAREC_MAX_BLOCK_INSTRUCTIONS * 4)
 
 #ifndef ARRAY_SIZE
 # define ARRAY_SIZE(_a) (sizeof(_a) / sizeof((_a)[0]))
+#endif
+
+#ifndef CONTAINER_OF
+# define CONTAINER_OF(ptr, type, member)                 \
+   ((type *)((char *)ptr - offsetof(type, member)))
 #endif
 
 #ifdef DYNAREC_DEBUG
@@ -161,40 +164,50 @@ enum PSX_CPU_EXCEPTION {
    PSX_DYNAREC_UNIMPLEMENTED = 0xdead,
 };
 
+/* Structure representing one block of recompiled code */
+struct dynarec_block {
+   /* Entry in the Red Black tree. The start address of the block in
+      PSX memory is the tree key */
+   struct rbt_node tree_node;
+   /* Recompiled code follows direcly */
+   uint8_t code[];
+};
+#define TO_DYNAREC_BLOCK(_rbtn) \
+   CONTAINER_OF((_rbtn), struct dynarec_block, tree_node)
+
 struct dynarec_state {
    /* Current value of the PC */
-   uint32_t            pc;
+   uint32_t pc;
    /* Region mask, it's used heavily in the dynarec'd code so it's
       convenient to have it accessible in this struct. */
-   uint32_t            region_mask[8];
+   uint32_t region_mask[8];
    /* Pointer to the PSX RAM */
-   uint8_t            *ram;
+   uint8_t *ram;
    /* Pointer to the PSX scratchpad */
-   uint8_t            *scratchpad;
+   uint8_t *scratchpad;
    /* Pointer to the PSX BIOS */
-   const uint8_t      *bios;
+   const uint8_t *bios;
    /* All general purpose CPU registers except R0 */
-   uint32_t            regs[PSX_REG_TOTAL - 1];
+   uint32_t regs[PSX_REG_TOTAL - 1];
    /* Cop0r11: cause register */
-   uint32_t            cause;
+   uint32_t cause;
    /* Cop0r12: status register */
-   uint32_t            sr;
+   uint32_t sr;
    /* Executable region of memory containing the dynarec'd code */
-   uint8_t            *map;
+   uint8_t *map;
    /* Length of the map */
-   uint32_t            map_len;
+   uint32_t map_len;
+   /* Pointer to unused portion of `map` */
+   uint8_t *free_map;
    /* Pointer to the real RAM buffer */
-   uint8_t            *true_ram;
+   uint8_t *true_ram;
    /* Pointer to the dummy RAM buffer used when cache isolation is
       active */
-   uint8_t            *dummy_ram;
+   uint8_t *dummy_ram;
    /* Recompilation options (see DYNAREC_OPT_* )*/
-   uint32_t            options;
-   /* Keeps track of whether each page is valid or needs to be
-      recompiled */
-   uint8_t             page_valid[DYNAREC_TOTAL_PAGES];
-   /* Look up table for any (valid) recompiled instruction */
-   void               *dynarec_instructions[DYNAREC_TOTAL_INSTRUCTIONS];
+   uint32_t options;
+   /* Recompiled blocks stored by PSX start address */
+   struct rbtree blocks;
 };
 
 extern struct dynarec_state *dynarec_init(uint8_t *ram,
