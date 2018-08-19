@@ -739,6 +739,15 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
 
          dynasm_emit_mov(compiler, reg_target, reg_op0);
          break;
+      case MIPS_FN_MULTU:
+         if (reg_op0 == PSX_REG_R0 || reg_op1 == PSX_REG_R0) {
+            // Multiplication by zero yields zero
+            dynasm_emit_li(compiler, PSX_REG_LO, 0);
+            dynasm_emit_li(compiler, PSX_REG_HI, 0);
+         } else {
+            dynasm_emit_multu(compiler, reg_op0, reg_op1);
+         }
+         break;
       case MIPS_FN_ADD:
          emit_add(compiler,
                   reg_target,
