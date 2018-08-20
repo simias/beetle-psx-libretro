@@ -174,6 +174,19 @@ enum PSX_CPU_EXCEPTION {
    PSX_DYNAREC_UNIMPLEMENTED = 0xdead,
 };
 
+static const uint32_t dynarec_region_mask[8] = {
+   0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, /* KUSEG: 2048MB */
+   0x7fffffff,                                     /* KSEG0:  512MB */
+   0x1fffffff,                                     /* KSEG1:  512MB */
+   0xffffffff, 0xffffffff,                         /* KSEG2: 1024MB */
+};
+
+/* Mask "addr" to remove the region bits and return a "canonical"
+   address. */
+static uint32_t dynarec_mask_address(uint32_t addr) {
+   return addr & dynarec_region_mask[addr >> 29];
+}
+
 /* Expected length of a cacheline in bytes. Must be a power of two
    otherwise alignment calculations */
 #define CACHE_LINE_SIZE  64U
@@ -196,6 +209,7 @@ static struct dynarec_block *dynarec_block_from_node(struct rbt_node *n) {
 
 static void *dynarec_block_code(struct dynarec_block *b) {
    /* Code follows the block directly */
+   assert(b != NULL);
    return (void *)(b + 1);
 }
 
@@ -228,6 +242,11 @@ struct dynarec_state {
    /* Pointer to the dummy RAM buffer used when cache isolation is
       active */
    uint8_t *dummy_ram;
+   /* Pointer towards the link trampoline which is a small code thunk
+      used as a placeholder when the compiler can't statically find
+      the target of a jump (because it hasn't been recompiled yet or
+      because it's an indirect jump) */
+   void *link_trampoline;
    /* Recompilation options (see DYNAREC_OPT_* )*/
    uint32_t options;
    /* Recompiled blocks stored by PSX start address */
@@ -237,13 +256,10 @@ struct dynarec_state {
 extern struct dynarec_state *dynarec_init(uint8_t *ram,
                                           uint8_t *scratchpad,
                                           const uint8_t *bios);
-
-extern int32_t dynarec_find_page_index(struct dynarec_state *state,
-                                       uint32_t addr);
-extern uint8_t *dynarec_page_start(struct dynarec_state *state,
-                                   uint32_t page_index);
-extern uint8_t *dynarec_instruction_address(struct dynarec_state *state,
-                                            uint32_t addr);
+extern struct dynarec_block *dynarec_find_block(struct dynarec_state *state,
+                                                uint32_t addr);
+struct dynarec_block *dynarec_find_or_compile_block(struct dynarec_state *state,
+                                                    uint32_t addr);
 extern void dynarec_delete(struct dynarec_state *state);
 extern void dynarec_set_next_event(struct dynarec_state *state,
                                    int32_t cycles);

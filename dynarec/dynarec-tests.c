@@ -192,6 +192,11 @@ static int run_test(const char *name, test_fn_t f) {
            .fn = MIPS_FN_BREAK,                 \
            .code = (_code) }}
 
+#define J(_target)                              \
+   (union mips_instruction){                    \
+      .jump =                                   \
+         { .opcode = MIPS_OP_J,                 \
+           .target = (_target >> 2) }}
 
 #define SLL(_rt, _ro, _s)                       \
    SHIFT_RI(MIPS_FN_SLL, (_rt), (_ro), (_s))
@@ -238,7 +243,7 @@ static int run_test(const char *name, test_fn_t f) {
 
 static int test_break(struct dynarec_state *state) {
    union mips_instruction code[] = {
-      BREAK(0xdead),
+      BREAK(0x0ff0ff),
    };
    uint32_t ret;
 
@@ -247,7 +252,7 @@ static int test_break(struct dynarec_state *state) {
    ret = dynarec_run(state, 0x1000);
 
    TEST_EQ(ret >> 28, DYNAREC_EXIT_BREAK);
-   TEST_EQ(ret & 0xfffffff, 0xdead);
+   TEST_EQ(ret & 0xfffffff, 0x0ff0ff);
 
    return check_regs(state, NULL, 0);
 }
@@ -255,7 +260,7 @@ static int test_break(struct dynarec_state *state) {
 static int test_lui(struct dynarec_state *state) {
    union mips_instruction code[] = {
       LUI(PSX_REG_T0, 0xbeef),
-      BREAK(0xdead),
+      BREAK(0x0ff0ff),
    };
    struct reg_val expected[] = {
       { .r = PSX_REG_T0, .v = 0xbeef0000 },
@@ -267,7 +272,7 @@ static int test_lui(struct dynarec_state *state) {
    ret = dynarec_run(state, 0x1000);
 
    TEST_EQ(ret >> 28, DYNAREC_EXIT_BREAK);
-   TEST_EQ(ret & 0xfffffff, 0xdead);
+   TEST_EQ(ret & 0xfffffff, 0x0ff0ff);
 
    return check_regs(state, expected, ARRAY_SIZE(expected));
 }
@@ -277,7 +282,7 @@ static int test_nop(struct dynarec_state *state) {
       NOP,
       NOP,
       NOP,
-      BREAK(0xdead),
+      BREAK(0x0ff0ff),
    };
    uint32_t ret;
 
@@ -286,7 +291,7 @@ static int test_nop(struct dynarec_state *state) {
    ret = dynarec_run(state, 0x1000);
 
    TEST_EQ(ret >> 28, DYNAREC_EXIT_BREAK);
-   TEST_EQ(ret & 0xfffffff, 0xdead);
+   TEST_EQ(ret & 0xfffffff, 0x0ff0ff);
 
    return check_regs(state, NULL, 0);
 }
@@ -295,7 +300,7 @@ static int test_ori(struct dynarec_state *state) {
    union mips_instruction code[] = {
       LUI(PSX_REG_T0, 0xabcd),
       ORI(PSX_REG_T1, PSX_REG_T0, 0x1234),
-      BREAK(0xdead),
+      BREAK(0x0ff0ff),
    };
    struct reg_val expected[] = {
       { .r = PSX_REG_T0, .v = 0xabcd0000 },
@@ -308,7 +313,7 @@ static int test_ori(struct dynarec_state *state) {
    ret = dynarec_run(state, 0x1000);
 
    TEST_EQ(ret >> 28, DYNAREC_EXIT_BREAK);
-   TEST_EQ(ret & 0xfffffff, 0xdead);
+   TEST_EQ(ret & 0xfffffff, 0x0ff0ff);
 
    return check_regs(state, expected, ARRAY_SIZE(expected));
 }
@@ -316,7 +321,7 @@ static int test_ori(struct dynarec_state *state) {
 static int test_li(struct dynarec_state *state) {
    union mips_instruction code[] = {
       LI(PSX_REG_T0, 0x89abcdef),
-      BREAK(0xdead),
+      BREAK(0x0ff0ff),
    };
    struct reg_val expected[] = {
       { .r = PSX_REG_T0, .v = 0x89abcdef },
@@ -328,7 +333,7 @@ static int test_li(struct dynarec_state *state) {
    ret = dynarec_run(state, 0x1000);
 
    TEST_EQ(ret >> 28, DYNAREC_EXIT_BREAK);
-   TEST_EQ(ret & 0xfffffff, 0xdead);
+   TEST_EQ(ret & 0xfffffff, 0x0ff0ff);
 
    return check_regs(state, expected, ARRAY_SIZE(expected));
 }
@@ -342,7 +347,7 @@ static int test_r0(struct dynarec_state *state) {
       ADD(PSX_REG_R0, PSX_REG_R0, PSX_REG_T0),
       ADD(PSX_REG_T3, PSX_REG_T0, PSX_REG_R0),
       ADD(PSX_REG_T4, PSX_REG_T1, PSX_REG_R0),
-      BREAK(0xdead),
+      BREAK(0x0ff0ff),
    };
    struct reg_val expected[] = {
       { .r = PSX_REG_T0, .v = 1 },
@@ -358,7 +363,7 @@ static int test_r0(struct dynarec_state *state) {
    ret = dynarec_run(state, 0x1000);
 
    TEST_EQ(ret >> 28, DYNAREC_EXIT_BREAK);
-   TEST_EQ(ret & 0xfffffff, 0xdead);
+   TEST_EQ(ret & 0xfffffff, 0x0ff0ff);
 
    return check_regs(state, expected, ARRAY_SIZE(expected));
 }
@@ -374,7 +379,7 @@ static int test_sll(struct dynarec_state *state) {
       SLL(PSX_REG_T0, PSX_REG_T0, 16),
       SLL(PSX_REG_S1, PSX_REG_S1, 16),
 
-      BREAK(0xdead),
+      BREAK(0x0ff0ff),
    };
    struct reg_val expected[] = {
       { .r = PSX_REG_T0, .v = 0xcdef0000 },
@@ -391,7 +396,7 @@ static int test_sll(struct dynarec_state *state) {
    ret = dynarec_run(state, 0x1000);
 
    TEST_EQ(ret >> 28, DYNAREC_EXIT_BREAK);
-   TEST_EQ(ret & 0xfffffff, 0xdead);
+   TEST_EQ(ret & 0xfffffff, 0x0ff0ff);
 
    return check_regs(state, expected, ARRAY_SIZE(expected));
 }
@@ -407,7 +412,7 @@ static int test_srl(struct dynarec_state *state) {
       SRL(PSX_REG_T0, PSX_REG_T0, 16),
       SRL(PSX_REG_S1, PSX_REG_S1, 16),
 
-      BREAK(0xdead),
+      BREAK(0x0ff0ff),
    };
    struct reg_val expected[] = {
       { .r = PSX_REG_T0, .v = 0x000089ab },
@@ -424,7 +429,7 @@ static int test_srl(struct dynarec_state *state) {
    ret = dynarec_run(state, 0x1000);
 
    TEST_EQ(ret >> 28, DYNAREC_EXIT_BREAK);
-   TEST_EQ(ret & 0xfffffff, 0xdead);
+   TEST_EQ(ret & 0xfffffff, 0x0ff0ff);
 
    return check_regs(state, expected, ARRAY_SIZE(expected));
 }
@@ -442,7 +447,7 @@ static int test_sra(struct dynarec_state *state) {
       LI(PSX_REG_T4, 0x12345678),
       SRA(PSX_REG_T5, PSX_REG_T4, 16),
 
-      BREAK(0xdead),
+      BREAK(0x0ff0ff),
    };
    struct reg_val expected[] = {
       { .r = PSX_REG_T0, .v = 0xffff89ab },
@@ -461,7 +466,7 @@ static int test_sra(struct dynarec_state *state) {
    ret = dynarec_run(state, 0x1000);
 
    TEST_EQ(ret >> 28, DYNAREC_EXIT_BREAK);
-   TEST_EQ(ret & 0xfffffff, 0xdead);
+   TEST_EQ(ret & 0xfffffff, 0x0ff0ff);
 
    return check_regs(state, expected, ARRAY_SIZE(expected));
 }
@@ -483,7 +488,7 @@ static int test_addu(struct dynarec_state *state) {
       ADDU(PSX_REG_S2, PSX_REG_S0, PSX_REG_T0),
       ADDU(PSX_REG_S3, PSX_REG_S1, PSX_REG_T1),
 
-      BREAK(0xdead),
+      BREAK(0x0ff0ff),
    };
    struct reg_val expected[] = {
       { .r = PSX_REG_T0, .v = 0x1 },
@@ -505,7 +510,7 @@ static int test_addu(struct dynarec_state *state) {
    ret = dynarec_run(state, 0x1000);
 
    TEST_EQ(ret >> 28, DYNAREC_EXIT_BREAK);
-   TEST_EQ(ret & 0xfffffff, 0xdead);
+   TEST_EQ(ret & 0xfffffff, 0x0ff0ff);
 
    return check_regs(state, expected, ARRAY_SIZE(expected));
 }
@@ -523,7 +528,7 @@ static int test_add_no_exception(struct dynarec_state *state) {
       ADD(PSX_REG_T5, PSX_REG_T5, PSX_REG_T5),
       ADD(PSX_REG_T4, PSX_REG_V0, PSX_REG_T1),
 
-      BREAK(0xdead),
+      BREAK(0x0ff0ff),
    };
    struct reg_val expected[] = {
       { .r = PSX_REG_T0, .v = 0x1 },
@@ -541,7 +546,7 @@ static int test_add_no_exception(struct dynarec_state *state) {
    ret = dynarec_run(state, 0x1000);
 
    TEST_EQ(ret >> 28, DYNAREC_EXIT_BREAK);
-   TEST_EQ(ret & 0xfffffff, 0xdead);
+   TEST_EQ(ret & 0xfffffff, 0x0ff0ff);
 
    return check_regs(state, expected, ARRAY_SIZE(expected));
 }
@@ -561,7 +566,7 @@ static int test_subu(struct dynarec_state *state) {
       SUBU(PSX_REG_T0, PSX_REG_T0, PSX_REG_T0),
       SUBU(PSX_REG_T1, PSX_REG_T1, PSX_REG_T1),
 
-      BREAK(0xdead),
+      BREAK(0x0ff0ff),
    };
    struct reg_val expected[] = {
       { .r = PSX_REG_T0, .v = 0 },
@@ -581,7 +586,7 @@ static int test_subu(struct dynarec_state *state) {
    ret = dynarec_run(state, 0x1000);
 
    TEST_EQ(ret >> 28, DYNAREC_EXIT_BREAK);
-   TEST_EQ(ret & 0xfffffff, 0xdead);
+   TEST_EQ(ret & 0xfffffff, 0x0ff0ff);
 
    return check_regs(state, expected, ARRAY_SIZE(expected));
 }
@@ -605,7 +610,7 @@ static int test_and(struct dynarec_state *state) {
       AND(PSX_REG_T2, PSX_REG_T2, PSX_REG_T1),
       AND(PSX_REG_T0, PSX_REG_T0, PSX_REG_V0),
 
-      BREAK(0xdead),
+      BREAK(0x0ff0ff),
    };
    struct reg_val expected[] = {
       { .r = PSX_REG_T0, .v = 2 },
@@ -626,7 +631,7 @@ static int test_and(struct dynarec_state *state) {
    ret = dynarec_run(state, 0x1000);
 
    TEST_EQ(ret >> 28, DYNAREC_EXIT_BREAK);
-   TEST_EQ(ret & 0xfffffff, 0xdead);
+   TEST_EQ(ret & 0xfffffff, 0x0ff0ff);
 
    return check_regs(state, expected, ARRAY_SIZE(expected));
 }
@@ -650,7 +655,7 @@ static int test_or(struct dynarec_state *state) {
       OR(PSX_REG_T2, PSX_REG_T2, PSX_REG_T1),
       OR(PSX_REG_T0, PSX_REG_T0, PSX_REG_V0),
 
-      BREAK(0xdead),
+      BREAK(0x0ff0ff),
    };
    struct reg_val expected[] = {
       { .r = PSX_REG_T0, .v = 7 },
@@ -671,7 +676,7 @@ static int test_or(struct dynarec_state *state) {
    ret = dynarec_run(state, 0x1000);
 
    TEST_EQ(ret >> 28, DYNAREC_EXIT_BREAK);
-   TEST_EQ(ret & 0xfffffff, 0xdead);
+   TEST_EQ(ret & 0xfffffff, 0x0ff0ff);
 
    return check_regs(state, expected, ARRAY_SIZE(expected));
 }
@@ -692,7 +697,7 @@ static int test_hi_lo(struct dynarec_state *state) {
       MFLO(PSX_REG_S1),
       MTHI(PSX_REG_T0),
 
-      BREAK(0xdead),
+      BREAK(0x0ff0ff),
    };
    struct reg_val expected[] = {
       { .r = PSX_REG_T0, .v = 6 },
@@ -711,7 +716,7 @@ static int test_hi_lo(struct dynarec_state *state) {
    ret = dynarec_run(state, 0x1000);
 
    TEST_EQ(ret >> 28, DYNAREC_EXIT_BREAK);
-   TEST_EQ(ret & 0xfffffff, 0xdead);
+   TEST_EQ(ret & 0xfffffff, 0x0ff0ff);
 
    return check_regs(state, expected, ARRAY_SIZE(expected));
 }
@@ -741,7 +746,7 @@ static int test_multu(struct dynarec_state *state) {
 
       MULTU(PSX_REG_T3, PSX_REG_R0),
 
-      BREAK(0xdead),
+      BREAK(0x0ff0ff),
    };
    struct reg_val expected[] = {
       { .r = PSX_REG_T0, .v = 6 },
@@ -771,7 +776,41 @@ static int test_multu(struct dynarec_state *state) {
    ret = dynarec_run(state, 0x1000);
 
    TEST_EQ(ret >> 28, DYNAREC_EXIT_BREAK);
-   TEST_EQ(ret & 0xfffffff, 0xdead);
+   TEST_EQ(ret & 0xfffffff, 0x0ff0ff);
+
+   return check_regs(state, expected, ARRAY_SIZE(expected));
+}
+
+static int test_j(struct dynarec_state *state) {
+   union mips_instruction code[] = {
+      LI(PSX_REG_T0, 0),
+      LI(PSX_REG_T1, 1),
+
+      J(0x1000),
+      ORI(PSX_REG_T2, PSX_REG_R0, 2),
+
+      BREAK(0xbad),
+   };
+   union mips_instruction handler[] = {
+      LI(PSX_REG_T3, 3),
+
+      BREAK(0x0ff0ff),
+   };
+   struct reg_val expected[] = {
+      { .r = PSX_REG_T0, .v = 0 },
+      { .r = PSX_REG_T1, .v = 1 },
+      { .r = PSX_REG_T2, .v = 2 },
+      { .r = PSX_REG_T3, .v = 3 },
+   };
+   uint32_t ret;
+
+   load_code(state, code, ARRAY_SIZE(code), 0);
+   load_code(state, handler, ARRAY_SIZE(handler), 0x1000);
+
+   ret = dynarec_run(state, 0x1000);
+
+   TEST_EQ(ret >> 28, DYNAREC_EXIT_BREAK);
+   TEST_EQ(ret & 0xfffffff, 0x0ff0ff);
 
    return check_regs(state, expected, ARRAY_SIZE(expected));
 }
@@ -801,6 +840,7 @@ int main() {
    RUN_TEST(test_or);
    RUN_TEST(test_hi_lo);
    RUN_TEST(test_multu);
+   RUN_TEST(test_j);
 
    printf("Tests done, results: %u/%u\n", nsuccess, ntests);
 }

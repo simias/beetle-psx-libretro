@@ -926,10 +926,22 @@ static void emit_imul_u32_r32_r32(struct dynarec_compiler *compiler,
 #define IMUL_U32_R32_R32(_a, _b, _t)                    \
    emit_imul_u32_r32_r32(compiler, (_a), (_b), (_t))
 
+/* JMP *%reg64 */
+static void emit_jmp_r64(struct dynarec_compiler *compiler,
+                              enum X86_REG reg) {
+   emit_rex_prefix(compiler, reg, 0, 0);
+
+   *(compiler->map++) = 0xff;
+   *(compiler->map++) = 0xe0 | (reg & 7);
+}
+#define JMP_R64(_r) emit_jmp_r64(compiler, (_r))
+
 /* JMP off. Offset is from the address of this instruction (so off = 0
    points at this jump) */
 static void emit_jmp_off(struct dynarec_compiler *compiler,
-                         uint32_t off) {
+                         intptr_t off) {
+   assert(is_imms32(off));
+
    if (is_imms8(off - 2)) {
       *(compiler->map++) = 0xeb;
       emit_imms8(compiler, off - 2);
@@ -938,7 +950,7 @@ static void emit_jmp_off(struct dynarec_compiler *compiler,
       emit_imm32(compiler, off - 5);
    }
 }
-#define EMIT_JMP(_o) emit_jmp_off(compiler, (_o))
+#define JMP_OFF(_o) emit_jmp_off(compiler, (_o))
 
 /* JMP *off(%reg64) */
 static void emit_jmp_off_pr64(struct dynarec_compiler *compiler,
@@ -1035,11 +1047,6 @@ void dynasm_emit_exit(struct dynarec_compiler *compiler,
 
    MOV_U32_R32((code << 28) | val, REG_AX);
    RET;
-}
-
-void dynasm_counter_maintenance(struct dynarec_compiler *compiler,
-                                unsigned cycles) {
-   SUB_U32_R32(cycles, REG_CX);
 }
 
 /************************
@@ -2089,33 +2096,80 @@ static uint8_t emit_branch_cond(struct dynarec_compiler *compiler,
    return op;
 }
 
-void dynasm_emit_page_local_jump_cond(struct dynarec_compiler *compiler,
-                                      uint8_t *dynarec_target,
-                                      bool placeholder,
+void dynasm_emit_link_trampoline(struct dynarec_compiler *compiler) {
+   /* This piece of code is called when a jump target is not known at
+      compilation time, its job is to resolve the actual target, patch
+      the caller if necessary and resume the execution. The code is
+      called with the PSX target address in ESI and the patch offset
+      in `state->map` in EDX (or 0 if no patching is requested) */
+   /* Bank registers not preserved across function calls */
+   MOVE_TO_BANKED(REG_R8,  PSX_REG_AT);
+   MOVE_TO_BANKED(REG_R9,  PSX_REG_V0);
+   MOVE_TO_BANKED(REG_R10, PSX_REG_V1);
+   MOVE_TO_BANKED(REG_R11, PSX_REG_A0);
+
+   PUSH_R64(STATE_REG);
+   /* Push counter */
+   PUSH_R64(REG_CX);
+
+   CALL(dynarec_recompile_and_patch);
+
+   POP_R64(REG_CX);
+   POP_R64(STATE_REG);
+
+   MOVE_FROM_BANKED(PSX_REG_AT, REG_R8);
+   MOVE_FROM_BANKED(PSX_REG_V0, REG_R9);
+   MOVE_FROM_BANKED(PSX_REG_V1, REG_R10);
+   MOVE_FROM_BANKED(PSX_REG_A0, REG_R11);
+
+   /* The actual target should be in RAX */
+   JMP_R64(REG_AX);
+}
+
+extern void dynasm_patch_link(struct dynarec_compiler *compiler,
+                              void *link) {
+   intptr_t off = link - (void *)compiler->map;
+
+   JMP_OFF(off);
+}
+
+void dynasm_emit_jump_imm(struct dynarec_compiler *compiler,
+                          uint32_t target,
+                          void *link,
+                          bool needs_patch) {
+   intptr_t off;
+
+   /* Update cycle counter*/
+   SUB_U32_R32(compiler->spent_cycles, REG_CX);
+
+   if (needs_patch) {
+      /* We're going to put the current offset in the mapping in a
+         register to let the recompiler patch this location when it
+         knows the address of the actual target */
+      uint32_t patch_off = compiler->map - compiler->state->map;
+      MOV_U32_R32(patch_off, REG_DX);
+
+      /* We're going to jump into a dummy function that's going to
+         trigger the recompiler, let it know what's our actual target
+         address */
+      MOV_U32_R32(target, REG_SI);
+   }
+
+   off = link - (void *)compiler->map;
+   JMP_OFF(off);
+}
+
+extern void dynasm_emit_jump_imm_cond(struct dynarec_compiler *compiler,
+                                      uint32_t target,
+                                      void *link,
+                                      bool needs_patch,
                                       enum PSX_REG reg_a,
                                       enum PSX_REG reg_b,
                                       enum DYNAREC_JUMP_COND cond) {
    uint8_t op = emit_branch_cond(compiler, reg_a, reg_b, cond);
 
    IF(op) {
-      UNIMPLEMENTED;
-   } ENDIF;
-}
-
-void dynasm_emit_long_jump_imm(struct dynarec_compiler *compiler,
-                               uint32_t target) {
-   UNIMPLEMENTED;
-}
-
-extern void dynasm_emit_long_jump_imm_cond(struct dynarec_compiler *compiler,
-                                           uint32_t target,
-                                           enum PSX_REG reg_a,
-                                           enum PSX_REG reg_b,
-                                           enum DYNAREC_JUMP_COND cond) {
-   uint8_t op = emit_branch_cond(compiler, reg_a, reg_b, cond);
-
-   IF(op) {
-      dynasm_emit_long_jump_imm(compiler, target);
+      dynasm_emit_jump_imm(compiler, target, link, needs_patch);
    } ENDIF;
 }
 

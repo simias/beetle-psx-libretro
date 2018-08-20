@@ -18,6 +18,7 @@
 # define MIPS_FN_SUBU           0x23U
 # define MIPS_FN_AND            0x24U
 # define MIPS_FN_OR             0x25U
+#define MIPS_OP_J              0x02U
 #define MIPS_OP_ORI            0x0DU
 #define MIPS_OP_LUI            0x0FU
 
@@ -60,6 +61,11 @@ union mips_instruction {
       unsigned code: 20;
       unsigned opcode: 6;
    } brk;
+
+   struct {
+      unsigned target: 26;
+      unsigned opcode: 6;
+   } jump;
 };
 
 #endif /* __PSX_INSTRUCTION_H__ */

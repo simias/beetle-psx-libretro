@@ -87,7 +87,31 @@ static void emit_branch_or_jump(struct dynarec_compiler *compiler,
                                 enum PSX_REG reg_a,
                                 enum PSX_REG reg_b,
                                 enum DYNAREC_JUMP_COND cond) {
-   dynasm_emit_exception(compiler, PSX_DYNAREC_UNIMPLEMENTED);
+   struct dynarec_block *b = dynarec_find_block(compiler->state, target);
+   bool needs_patch;
+   void *link;
+
+   if (b) {
+      /* The target has already been recompiled, we can link it directly */
+      needs_patch = false;
+      link = dynarec_block_code(b);
+   } else {
+      /* We don't know the target, use a placeholder */
+      needs_patch = true;
+      link = compiler->state->link_trampoline;
+   }
+
+   if (cond == DYNAREC_JUMP_ALWAYS) {
+      dynasm_emit_jump_imm(compiler, target, link, needs_patch);
+   } else {
+      dynasm_emit_jump_imm_cond(compiler,
+                                     target,
+                                     link,
+                                     needs_patch,
+                                     reg_a,
+                                     reg_b,
+                                     cond);
+   }
 }
 
 static void emit_jump(struct dynarec_compiler *compiler,
@@ -561,7 +585,7 @@ static enum optype dynarec_instruction_registers(uint32_t instruction,
       }
       *reg_op0 = reg_s;
       break;
-   case 0x02: /* J */
+   case MIPS_OP_J:
       type = OP_BRANCH_ALWAYS;
       break;
    case 0x03: /* JAL */
@@ -763,7 +787,7 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
    case 0x01: /* BXX */
       emit_bxx(compiler, simm_se, reg_target, reg_op0, (instruction >> 16) & 1);
       break;
-   case 0x02: /* J */
+   case MIPS_OP_J:
       emit_jump(compiler, instruction);
       break;
    case 0x03: /* JAL */
@@ -924,7 +948,6 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
    compiler.map = dynarec_block_code(block);
    compiler.pc = addr;
    compiler.spent_cycles = 0;
-
 
    for (cur = block_start; cur < block_end; cur += 4, compiler.pc += 4) {
       uint32_t instruction = load_le(cur);
@@ -1133,7 +1156,8 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
       {
          int fd = open("/tmp/dump.amd64", O_WRONLY | O_CREAT| O_TRUNC, 0644);
 
-         write(fd, compiler.block, compiler.map - (uint8_t*)compiler.block);
+         write(fd, compiler.block + 1,
+               compiler.map - (uint8_t*)(compiler.block + 1));
 
          close(fd);
       }
@@ -1165,4 +1189,48 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
    state->free_map += block->block_len_bytes;
 
    return compiler.block;
+}
+
+/* Called by the recompiled code when a target needs to be
+   resolved. Should patch the caller if `patch_offset` isn't 0 and
+   return the target location. */
+void *dynarec_recompile_and_patch(struct dynarec_state *state,
+                                  uint32_t target,
+                                  uint32_t patch_offset) {
+   struct dynarec_block *b = dynarec_find_or_compile_block(state, target);
+   void *link;
+
+   printf("dynarec_recompile_and_patch(%08x, %08x)\n", target, patch_offset);
+
+   link = dynarec_block_code(b);
+
+   if (patch_offset != 0) {
+      /* Patch the caller */
+      struct dynarec_compiler compiler = { 0 };
+
+      compiler.state = state;
+      compiler.map = state->map + patch_offset;
+
+      dynasm_patch_link(&compiler, link);
+   }
+
+   return link;
+}
+
+int dynarec_compiler_init(struct dynarec_state *state) {
+   /* Generate the trampoline at the beginning of the map */
+   struct dynarec_compiler compiler = { 0 };
+   size_t len;
+
+   compiler.state = state;
+   compiler.map = state->free_map;
+
+   state->link_trampoline = compiler.map;
+   dynasm_emit_link_trampoline(&compiler);
+
+   len = compiler.map - state->free_map;
+   len = dynarec_align(len, CACHE_LINE_SIZE);
+   state->free_map += len;
+
+   return 0;
 }

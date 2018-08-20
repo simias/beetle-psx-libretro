@@ -43,19 +43,22 @@ struct dynarec_compiler {
 
 typedef uint32_t (*dynarec_fn_t)(void);
 
+extern int dynarec_compiler_init(struct dynarec_state *state);
 extern struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
                                                uint32_t page_index);
-
-extern void dynarec_prepare_patch(struct dynarec_compiler *compiler);
+extern void *dynarec_recompile_and_patch(struct dynarec_state *state,
+                                         uint32_t target,
+                                         uint32_t patch_offset);
 
 /* These methods are provided by the various architecture-dependent
    backends */
-extern void dynasm_counter_maintenance(struct dynarec_compiler *compiler,
-                                       unsigned cycles);
 extern void dynasm_patch(struct dynarec_compiler *compiler, int32_t offset);
 extern uint32_t dynasm_execute(struct dynarec_state *state,
                                dynarec_fn_t target,
                                int32_t counter);
+extern void dynasm_emit_link_trampoline(struct dynarec_compiler *compiler);
+extern void dynasm_patch_link(struct dynarec_compiler *compiler,
+                              void *link);
 extern void dynasm_emit_exception(struct dynarec_compiler *compiler,
                                   enum PSX_CPU_EXCEPTION exception);
 extern void dynasm_emit_exit(struct dynarec_compiler *compiler,
@@ -157,22 +160,17 @@ extern void dynasm_emit_lbu(struct dynarec_compiler *compiler,
                             enum PSX_REG reg_target,
                             int16_t offset,
                             enum PSX_REG reg_addr);
-extern void dynasm_emit_page_local_jump(struct dynarec_compiler *compiler,
-                                        uint8_t *dynarec_target,
-                                        bool placeholder);
-extern void dynasm_emit_page_local_jump_cond(struct dynarec_compiler *compiler,
-                                             uint8_t *dynarec_target,
-                                             bool placeholder,
-                                             enum PSX_REG reg_a,
-                                             enum PSX_REG reg_b,
-                                             enum DYNAREC_JUMP_COND cond);
-extern void dynasm_emit_long_jump_imm(struct dynarec_compiler *compiler,
-                                      uint32_t target);
-extern void dynasm_emit_long_jump_imm_cond(struct dynarec_compiler *compiler,
-                                           uint32_t target,
-                                           enum PSX_REG reg_a,
-                                           enum PSX_REG reg_b,
-                                           enum DYNAREC_JUMP_COND cond);
+extern void dynasm_emit_jump_imm(struct dynarec_compiler *compiler,
+                                 uint32_t target,
+                                 void *link,
+                                 bool needs_patch);
+extern void dynasm_emit_jump_imm_cond(struct dynarec_compiler *compiler,
+                                      uint32_t target,
+                                      void *link,
+                                      bool needs_patch,
+                                      enum PSX_REG reg_a,
+                                      enum PSX_REG reg_b,
+                                      enum DYNAREC_JUMP_COND cond);
 extern void dynasm_emit_mfc0(struct dynarec_compiler *compiler,
                              enum PSX_REG reg_target,
                              enum PSX_COP0_REG reg_cop0);

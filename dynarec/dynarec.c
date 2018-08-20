@@ -6,19 +6,6 @@
 #include "dynarec.h"
 #include "dynarec-compiler.h"
 
-static const uint32_t region_mask[8] = {
-   0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, /* KUSEG: 2048MB */
-   0x7fffffff,                                     /* KSEG0:  512MB */
-   0x1fffffff,                                     /* KSEG1:  512MB */
-   0xffffffff, 0xffffffff,                         /* KSEG2: 1024MB */
-};
-
-/* Mask "addr" to remove the region bits and return a "canonical"
-   address. */
-static uint32_t dynarec_mask_address(uint32_t addr) {
-   return addr & region_mask[addr >> 29];
-}
-
 struct dynarec_state *dynarec_init(uint8_t *ram,
                                    uint8_t *scratchpad,
                                    const uint8_t *bios) {
@@ -65,7 +52,14 @@ struct dynarec_state *dynarec_init(uint8_t *ram,
 
    state->free_map = state->map;
 
-   memcpy(state->region_mask, region_mask, sizeof(region_mask));
+   memcpy(state->region_mask,
+          dynarec_region_mask,
+          sizeof(dynarec_region_mask));
+
+   if (dynarec_compiler_init(state)) {
+      dynarec_delete(state);
+      return NULL;
+   }
 
    return state;
 }
@@ -80,16 +74,29 @@ void dynarec_set_pc(struct dynarec_state *state, uint32_t pc) {
    state->pc = pc;
 }
 
-uint32_t dynarec_run(struct dynarec_state *state, int32_t cycles_to_run) {
-   uint32_t addr;
-   struct dynarec_block *block;
-
-   addr = dynarec_mask_address(state->pc);
+static uint32_t dynarec_canonical_address(uint32_t addr) {
+   addr = dynarec_mask_address(addr);
 
    /* RAM is mirrored 4 times */
    if (addr < (PSX_RAM_SIZE * 4)) {
       addr = addr % PSX_RAM_SIZE;
    }
+
+   return addr;
+}
+
+struct dynarec_block *dynarec_find_block(struct dynarec_state *state,
+                                         uint32_t addr) {
+   addr = dynarec_canonical_address(addr);
+
+   return dynarec_block_from_node(rbt_find(&state->blocks, addr));
+}
+
+struct dynarec_block *dynarec_find_or_compile_block(struct dynarec_state *state,
+                                                    uint32_t addr) {
+   struct dynarec_block *block;
+
+   addr = dynarec_canonical_address(addr);
 
    block = dynarec_block_from_node(rbt_find(&state->blocks, addr));
 
@@ -99,6 +106,14 @@ uint32_t dynarec_run(struct dynarec_state *state, int32_t cycles_to_run) {
       assert(block != NULL);
       rbt_insert(&state->blocks, &block->tree_node);
    }
+
+   return block;
+}
+
+uint32_t dynarec_run(struct dynarec_state *state, int32_t cycles_to_run) {
+   struct dynarec_block *block;
+
+   block = dynarec_find_or_compile_block(state, state->pc);
 
    dynarec_fn_t f = dynarec_block_code(block);
 
