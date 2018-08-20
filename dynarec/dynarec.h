@@ -80,6 +80,14 @@ extern "C" {
       abort();                                     \
    } while(0)
 
+static size_t dynarec_align(size_t n, size_t align) {
+   size_t mask = align - 1;
+
+   /* Aligns to powers of two only */
+   assert((align & mask) == 0);
+
+   return (n + mask) & ~mask;
+}
 
 enum PSX_REG {
    PSX_REG_R0,
@@ -120,6 +128,8 @@ enum PSX_REG {
    /* Registers used by MULT/DIV and related opcodes */
    PSX_REG_HI,
    PSX_REG_LO,
+
+   /* Must be last */
    PSX_REG_TOTAL,
 };
 
@@ -164,16 +174,30 @@ enum PSX_CPU_EXCEPTION {
    PSX_DYNAREC_UNIMPLEMENTED = 0xdead,
 };
 
-/* Structure representing one block of recompiled code */
+/* Expected length of a cacheline in bytes. Must be a power of two
+   otherwise alignment calculations */
+#define CACHE_LINE_SIZE  64U
+
+/* Structure representing one block of recompiled code. Recompiled
+   code follows directly after this structure in memory. */
 struct dynarec_block {
    /* Entry in the Red Black tree. The start address of the block in
       PSX memory is the tree key */
    struct rbt_node tree_node;
-   /* Recompiled code follows direcly */
-   uint8_t code[];
-};
-#define TO_DYNAREC_BLOCK(_rbtn) \
-   CONTAINER_OF((_rbtn), struct dynarec_block, tree_node)
+   /* Length of the block in bytes */
+   unsigned block_len_bytes;
+   /* Number of PSX instruction recompiled in this block */
+   unsigned psx_instructions;
+} __attribute__((aligned(CACHE_LINE_SIZE)));
+
+static struct dynarec_block *dynarec_block_from_node(struct rbt_node *n) {
+   return CONTAINER_OF(n, struct dynarec_block, tree_node);
+}
+
+static void *dynarec_block_code(struct dynarec_block *b) {
+   /* Code follows the block directly */
+   return (void *)(b + 1);
+}
 
 struct dynarec_state {
    /* Current value of the PC */

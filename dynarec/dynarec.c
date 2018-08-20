@@ -91,7 +91,7 @@ uint32_t dynarec_run(struct dynarec_state *state, int32_t cycles_to_run) {
       addr = addr % PSX_RAM_SIZE;
    }
 
-   block = TO_DYNAREC_BLOCK(rbt_find(&state->blocks, addr));
+   block = dynarec_block_from_node(rbt_find(&state->blocks, addr));
 
    if (block == NULL) {
       /* Recompile */
@@ -100,7 +100,7 @@ uint32_t dynarec_run(struct dynarec_state *state, int32_t cycles_to_run) {
       rbt_insert(&state->blocks, &block->tree_node);
    }
 
-   dynarec_fn_t f = (void *)&block->code;
+   dynarec_fn_t f = dynarec_block_code(block);
 
    return dynasm_execute(state, f, cycles_to_run);
 }

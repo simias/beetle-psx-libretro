@@ -884,42 +884,49 @@ static uint32_t load_le(const uint8_t *p) {
 struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
                                         uint32_t addr) {
    struct dynarec_compiler  compiler = { 0 };
-   const uint8_t           *emulated_block;
+   struct dynarec_block    *block;
+   const uint8_t           *block_start;
    const uint8_t           *block_end;
+   const uint8_t           *block_max;
    const uint8_t           *cur;
    enum optype              optype = OP_SIMPLE;
-   size_t                   block_size;
 
    DYNAREC_LOG("Recompiling block starting at 0x%08x\n", addr);
 
    assert((addr & 3) == 0);
 
    if (addr < PSX_RAM_SIZE) {
-      emulated_block = state->ram + addr;
-      block_end = state->ram + PSX_RAM_SIZE;
+      block_start = state->ram + addr;
+      block_max = state->ram + PSX_RAM_SIZE;
    } else if (addr >= PSX_BIOS_BASE &&
               addr < (PSX_BIOS_BASE + PSX_BIOS_SIZE)){
-      emulated_block = state->bios + (addr - PSX_BIOS_BASE);
-      block_end = state->bios + PSX_RAM_SIZE;
+      block_start = state->bios + (addr - PSX_BIOS_BASE);
+      block_max = state->bios + PSX_RAM_SIZE;
    } else {
       /* What are we trying to recompile here exactly ? */
       assert("Recompiling unknown address" == NULL);
    }
 
-   if ((block_end - emulated_block) > DYNAREC_MAX_BLOCK_SIZE) {
-      block_end = emulated_block + DYNAREC_MAX_BLOCK_SIZE;
+   if ((block_max - block_start) > DYNAREC_MAX_BLOCK_SIZE) {
+      block_end = block_start + DYNAREC_MAX_BLOCK_SIZE;
+   } else {
+      block_end = block_max;
    }
 
    /* Make sure that we're not running out of free space */
    assert(state->map_len - (state->free_map - state->map) > (1 * 1024 * 1024));
 
+   block = (struct dynarec_block *)state->free_map;
+   block->tree_node.key = addr;
+
    compiler.state = state;
-   compiler.block = (struct dynarec_block *)state->free_map;
-   compiler.map = compiler.block->code;
+   compiler.block = block;
+   compiler.map = dynarec_block_code(block);
    compiler.pc = addr;
    compiler.spent_cycles = 0;
 
-   for (cur = emulated_block; cur < block_end; cur += 4, compiler.pc += 4) {
+
+   for (cur = block_start; cur < block_end; cur += 4, compiler.pc += 4) {
       uint32_t instruction = load_le(cur);
 
       /* Various decodings of the fields, of course they won't all be
@@ -950,7 +957,7 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
       has_load_delay_slot = (optype == OP_LOAD);
       has_delay_slot = has_branch_delay_slot || has_load_delay_slot;
 
-      if (has_delay_slot && (cur + 4) < block_end) {
+      if (has_delay_slot && (cur + 4) < block_max) {
          ds_instruction = load_le(cur + 4);
       } else {
          /* Assume the delay slot is a NOP */
@@ -1147,15 +1154,15 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
       abort();
    }
 
-   block_size = compiler.map - (uint8_t *)compiler.block;
+   block->block_len_bytes = compiler.map - (uint8_t *)compiler.block;
+   block->block_len_bytes = dynarec_align(block->block_len_bytes,
+                                          CACHE_LINE_SIZE);
+   block->psx_instructions = (compiler.pc - addr) / 4;
 
-   DYNAREC_LOG("Block len: %uB\n", block_size);
-   DYNAREC_LOG("Number of PSX instructions: %u\n", (compiler.pc - addr) / 4);
+   DYNAREC_LOG("Block len: %uB\n", block->block_len_bytes);
+   DYNAREC_LOG("Number of PSX instructions: %u\n", block->psx_instructions);
 
-   /* Align block size to a multiple of 64bytes as a vague attempt to
-      be cache-friendly */
-   block_size = (block_size + 63) & (~63UL);
-   state->free_map += block_size;
+   state->free_map += block->block_len_bytes;
 
    return compiler.block;
 }

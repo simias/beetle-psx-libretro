@@ -119,7 +119,7 @@ static void rbt_rotate_left(struct rbt_node *n) {
  *      / \            / \
  *     L   z    =>    x   N
  *    / \                / \
- *   x    y             y   z
+ *   x   y              y   z
  */
 static void rbt_rotate_right(struct rbt_node *n) {
    struct rbt_node *l = n->left;
@@ -150,7 +150,7 @@ static void rbt_rotate_right(struct rbt_node *n) {
 }
 
 /* Rebalance the tree. Returns the new root if it changed, otherwise NULL */
-struct rbt_node *rbt_balance(struct rbt_node *n) {
+static struct rbt_node *rbt_balance(struct rbt_node *n) {
    struct rbt_node *p = n->parent;
 
    if (p == NULL) {
@@ -166,7 +166,7 @@ struct rbt_node *rbt_balance(struct rbt_node *n) {
       struct rbt_node *gp = p->parent;
       struct rbt_node *u;
 
-      /* P isn't black so it can be the root node, so GP can't be NULL */
+      /* `p` isn't black so it can be the root node, so `gp` can't be NULL */
       assert(gp != NULL);
 
       u = rbt_uncle(n);
@@ -176,9 +176,8 @@ struct rbt_node *rbt_balance(struct rbt_node *n) {
          p->color = RBT_BLACK;
          u->color = RBT_BLACK;
 
-         /* To satisfy the red-black alternance we must now paint the
-            grandparent red and rebalance from there (since the root
-            must be black) */
+         /* In order to maintain the number of black nodes toward each
+            leaf invariant we need to paint the GP RED and rebalance from there. */
          gp->color = RBT_RED;
          return rbt_balance(gp);
       } else {
