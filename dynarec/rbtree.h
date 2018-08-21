@@ -31,8 +31,10 @@ struct rbtree {
    struct rbt_node *root;
 };
 
-void rbt_init(struct rbtree *t);
+typedef void (*rbt_visitor_t)(struct rbt_node *n, void *data);
 
+/* Initialize an empty tree*/
+void rbt_init(struct rbtree *t);
 /* Insert `n` in `t`. If a node with the same key exists it's removed
    from the tree and returned, otherwise NULL is returned. */
 struct rbt_node *rbt_insert(struct rbtree *t, struct rbt_node *n);
@@ -41,7 +43,9 @@ struct rbt_node *rbt_insert(struct rbtree *t, struct rbt_node *n);
 struct rbt_node *rbt_find(struct rbtree *t, uint32_t key);
 /* Visit the entire tree (in order from lowest to highest value) and
    run `visitor` on each node */
-void rbt_visit(struct rbtree *t, void (*visitor)(struct rbt_node *));
+void rbt_visit(struct rbtree *t, rbt_visitor_t, void *data);
+
+size_t rbt_size(struct rbtree *t);
 
 #ifdef __cplusplus
 }

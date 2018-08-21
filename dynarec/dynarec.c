@@ -105,6 +105,7 @@ struct dynarec_block *dynarec_find_or_compile_block(struct dynarec_state *state,
       block = dynarec_recompile(state, addr);
       assert(block != NULL);
       rbt_insert(&state->blocks, &block->tree_node);
+      DYNAREC_LOG("Number of blocks: %lu\n", rbt_size(&state->blocks));
    }
 
    return block;

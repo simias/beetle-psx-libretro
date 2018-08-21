@@ -6,82 +6,6 @@
 #include "dynarec-compiler.h"
 #include "psx-instruction.h"
 
-#if 0
-static void emit_branch_or_jump(struct dynarec_compiler *compiler,
-                                uint32_t target,
-                                enum PSX_REG reg_a,
-                                enum PSX_REG reg_b,
-                                enum DYNAREC_JUMP_COND cond) {
-   int32_t target_page;
-
-   compiler->jump_target = target;
-
-   /* Test if the target is in the current page */
-   target_page = dynarec_find_page_index(compiler->state, target);
-   if (target_page < 0) {
-      DYNAREC_FATAL("Dynarec: jump to unhandled address 0x%08x", target);
-   }
-
-   if (target_page == compiler->page_index) {
-      /* We're aiming at the current page, we don't have to worry
-         about the target being invalidated and we can hardcode the
-         jump target */
-      uint32_t pc_index = compiler->pc % DYNAREC_PAGE_SIZE;
-      uint32_t target_index = target % DYNAREC_PAGE_SIZE;
-      uint8_t *dynarec_target;
-      bool placeholder;
-
-      /* Convert from bytes to instructions */
-      pc_index >>= 2;
-      target_index >>= 2;
-
-      if (target_index <= pc_index) {
-         /* We're jumping backwards, we already know the offset of the
-            target instruction */
-         placeholder = false;
-
-         dynarec_target = compiler->dynarec_instructions[target_index];
-      } else {
-         uint32_t offset;
-         /* We're jumping forward, we don't know where we're going (do
-            we ever?). Add placeholder code and patch the right
-            address later. */
-         placeholder = true;
-         /* As a hint we compute the maximum possible offset */
-         offset =
-            (target_index - pc_index) * DYNAREC_INSTRUCTION_MAX_LEN;
-
-         dynarec_target = compiler->map + offset;
-      }
-
-      if (cond == DYNAREC_JUMP_ALWAYS) {
-         dynasm_emit_page_local_jump(compiler,
-                                     dynarec_target,
-                                     placeholder);
-      } else {
-         dynasm_emit_page_local_jump_cond(compiler,
-                                          dynarec_target,
-                                          placeholder,
-                                          reg_a,
-                                          reg_b,
-                                          cond);
-      }
-   } else {
-      /* Non-local jump */
-      if (cond == DYNAREC_JUMP_ALWAYS) {
-         dynasm_emit_long_jump_imm(compiler,
-                                   target);
-      } else {
-         dynasm_emit_long_jump_imm_cond(compiler,
-                                        target,
-                                        reg_a,
-                                        reg_b,
-                                        cond);
-      }
-   }
-}
-#endif
-
 static void emit_branch_or_jump(struct dynarec_compiler *compiler,
                                 uint32_t target,
                                 enum PSX_REG reg_a,
@@ -105,31 +29,37 @@ static void emit_branch_or_jump(struct dynarec_compiler *compiler,
       dynasm_emit_jump_imm(compiler, target, link, needs_patch);
    } else {
       dynasm_emit_jump_imm_cond(compiler,
-                                     target,
-                                     link,
-                                     needs_patch,
-                                     reg_a,
-                                     reg_b,
-                                     cond);
+                                target,
+                                link,
+                                needs_patch,
+                                reg_a,
+                                reg_b,
+                                cond);
    }
 }
 
 static void emit_jump(struct dynarec_compiler *compiler,
-                      uint32_t instruction) {
+                      uint32_t target) {
+
+   emit_branch_or_jump(compiler, target, 0, 0, DYNAREC_JUMP_ALWAYS);
+}
+
+static void emit_j(struct dynarec_compiler *compiler,
+                   uint32_t instruction) {
    uint32_t imm_jump = (instruction & 0x3ffffff) << 2;
    uint32_t target;
 
    target = compiler->pc & 0xf0000000;
    target |= imm_jump;
 
-   emit_branch_or_jump(compiler, target, 0, 0, DYNAREC_JUMP_ALWAYS);
+   emit_jump(compiler, target);
 }
 
 static void emit_jal(struct dynarec_compiler *compiler,
                      uint32_t instruction) {
    /* Store return address in RA */
    dynasm_emit_li(compiler, PSX_REG_RA, compiler->pc + 8);
-   emit_jump(compiler, instruction);
+   emit_j(compiler, instruction);
 }
 
 static void emit_branch(struct dynarec_compiler *compiler,
@@ -788,7 +718,7 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
       emit_bxx(compiler, simm_se, reg_target, reg_op0, (instruction >> 16) & 1);
       break;
    case MIPS_OP_J:
-      emit_jump(compiler, instruction);
+      emit_j(compiler, instruction);
       break;
    case 0x03: /* JAL */
       emit_jal(compiler, instruction);
@@ -1175,7 +1105,7 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
    if ((optype != OP_BRANCH_ALWAYS) && (optype != OP_EXCEPTION)) {
       /* Execution continues after this block, we need to link it to
          the next one */
-      abort();
+      emit_jump(&compiler, compiler.pc);
    }
 
    block->block_len_bytes = compiler.map - (uint8_t *)compiler.block;
@@ -1197,10 +1127,12 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
 void *dynarec_recompile_and_patch(struct dynarec_state *state,
                                   uint32_t target,
                                   uint32_t patch_offset) {
-   struct dynarec_block *b = dynarec_find_or_compile_block(state, target);
+   struct dynarec_block *b;
    void *link;
 
-   printf("dynarec_recompile_and_patch(%08x, %08x)\n", target, patch_offset);
+   DYNAREC_LOG("dynarec_recompile_and_patch(%08x, %08x)\n", target, patch_offset);
+
+   b = dynarec_find_or_compile_block(state, target);
 
    link = dynarec_block_code(b);
 

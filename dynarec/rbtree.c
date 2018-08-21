@@ -276,14 +276,29 @@ struct rbt_node *rbt_find(struct rbtree *t, uint32_t key) {
 }
 
 static void rbt_node_visit(struct rbt_node *n,
-                           void (*visitor)(struct rbt_node *)) {
+                           rbt_visitor_t visitor,
+                           void *data) {
    if (n) {
-      rbt_node_visit(n->left, visitor);
-      visitor(n);
-      rbt_node_visit(n->right, visitor);
+      rbt_node_visit(n->left, visitor, data);
+      visitor(n, data);
+      rbt_node_visit(n->right, visitor, data);
    }
 }
 
-void rbt_visit(struct rbtree *t, void (*visitor)(struct rbt_node *)) {
-   rbt_node_visit(t->root, visitor);
+void rbt_visit(struct rbtree *t, rbt_visitor_t visitor, void *data) {
+   rbt_node_visit(t->root, visitor, data);
+}
+
+static void rbt_size_visitor(struct rbt_node *n, void *data) {
+   size_t *size = data;
+
+   (*size)++;
+}
+
+size_t rbt_size(struct rbtree *t) {
+   size_t size = 0;
+
+   rbt_visit(t, rbt_size_visitor, &size);
+
+   return size;
 }
