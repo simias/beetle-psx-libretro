@@ -36,10 +36,10 @@ struct dynarec_state *dynarec_init(uint8_t *ram,
    state->map_len = 256 * 1024 * 1024;
    state->map = mmap(NULL,
                      state->map_len,
-#ifdef DYNAREC_DEBUG
-                     PROT_READ |
-#endif
-                     PROT_WRITE | PROT_EXEC,
+                     /* Needs to be readable since we keep block
+                        metadata (tree pointers etc...) in a block
+                        header */
+                     PROT_READ | PROT_WRITE | PROT_EXEC,
                      MAP_PRIVATE | MAP_ANONYMOUS,
                      -1,
                      0);
