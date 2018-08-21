@@ -169,7 +169,7 @@ static int run_test(const char *name, test_fn_t f) {
 
 #define ALU_RR(_fn, _rt, _ro1, _ro2)            \
    (union mips_instruction){                    \
-      .alu_rr =                                 \
+      .fn_rr =                                  \
          { .opcode = MIPS_OP_FN,                \
            .fn = (_fn),                         \
            .reg_d = (_rt),                      \
@@ -204,6 +204,10 @@ static int run_test(const char *name, test_fn_t f) {
          { .opcode = MIPS_OP_JAL,               \
            .target = (_target >> 2) }}
 
+#define JR(_r)                                  \
+   ALU_RR(MIPS_FN_JR, 0, (_r), 0)
+#define JALR(_rt, _r)                           \
+   ALU_RR(MIPS_FN_JALR, (_rt), (_r), 0)
 #define SLL(_rt, _ro, _s)                       \
    SHIFT_RI(MIPS_FN_SLL, (_rt), (_ro), (_s))
 #define SRL(_rt, _ro, _s)                       \
@@ -856,6 +860,105 @@ static int test_jal(struct dynarec_state *state) {
    return check_regs(state, expected, ARRAY_SIZE(expected));
 }
 
+static int test_jr(struct dynarec_state *state) {
+   union mips_instruction code[] = {
+      LI(PSX_REG_T0, 0),
+      LI(PSX_REG_T1, 1),
+
+      LI(PSX_REG_S0, 0x1000),
+      LI(PSX_REG_S1, 0x2000),
+      JR(PSX_REG_S0),
+      ORI(PSX_REG_T2, PSX_REG_R0, 2),
+
+      BREAK(0xbad),
+   };
+   union mips_instruction handler[] = {
+      LI(PSX_REG_T3, 3),
+
+      JR(PSX_REG_S1),
+      ORI(PSX_REG_T4, PSX_REG_R0, 4),
+
+      BREAK(0xbaad),
+   };
+   union mips_instruction handler2[] = {
+      LI(PSX_REG_T5, 5),
+
+      BREAK(0x0ff0ff),
+   };
+   struct reg_val expected[] = {
+      { .r = PSX_REG_T0, .v = 0 },
+      { .r = PSX_REG_T1, .v = 1 },
+      { .r = PSX_REG_T2, .v = 2 },
+      { .r = PSX_REG_T3, .v = 3 },
+      { .r = PSX_REG_T4, .v = 4 },
+      { .r = PSX_REG_T5, .v = 5 },
+      { .r = PSX_REG_S0, .v = 0x1000 },
+      { .r = PSX_REG_S1, .v = 0x2000 },
+   };
+   uint32_t ret;
+
+   load_code(state, code, ARRAY_SIZE(code), 0);
+   load_code(state, handler, ARRAY_SIZE(handler), 0x1000);
+   load_code(state, handler2, ARRAY_SIZE(handler2), 0x2000);
+
+   ret = dynarec_run(state, 0x1000);
+
+   TEST_EQ(ret >> 28, DYNAREC_EXIT_BREAK);
+   TEST_EQ(ret & 0xfffffff, 0x0ff0ff);
+
+   return check_regs(state, expected, ARRAY_SIZE(expected));
+}
+
+static int test_jalr(struct dynarec_state *state) {
+   union mips_instruction code[] = {
+      LI(PSX_REG_T0, 0),
+      LI(PSX_REG_T1, 1),
+
+      LI(PSX_REG_S0, 0x1000),
+      LI(PSX_REG_S1, 0x2000),
+      JALR(PSX_REG_V0, PSX_REG_S0),
+      ORI(PSX_REG_T2, PSX_REG_R0, 2),
+
+      BREAK(0xbad),
+   };
+   union mips_instruction handler[] = {
+      LI(PSX_REG_T3, 3),
+
+      JALR(PSX_REG_S1, PSX_REG_S1),
+      ORI(PSX_REG_T4, PSX_REG_R0, 4),
+
+      BREAK(0xbaad),
+   };
+   union mips_instruction handler2[] = {
+      LI(PSX_REG_T5, 5),
+
+      BREAK(0x0ff0ff),
+   };
+   struct reg_val expected[] = {
+      { .r = PSX_REG_T0, .v = 0 },
+      { .r = PSX_REG_T1, .v = 1 },
+      { .r = PSX_REG_T2, .v = 2 },
+      { .r = PSX_REG_T3, .v = 3 },
+      { .r = PSX_REG_T4, .v = 4 },
+      { .r = PSX_REG_T5, .v = 5 },
+      { .r = PSX_REG_S0, .v = 0x1000 },
+      { .r = PSX_REG_S1, .v = 0x1010 },
+      { .r = PSX_REG_V0, .v = 0x28 },
+   };
+   uint32_t ret;
+
+   load_code(state, code, ARRAY_SIZE(code), 0);
+   load_code(state, handler, ARRAY_SIZE(handler), 0x1000);
+   load_code(state, handler2, ARRAY_SIZE(handler2), 0x2000);
+
+   ret = dynarec_run(state, 0x1000);
+
+   TEST_EQ(ret >> 28, DYNAREC_EXIT_BREAK);
+   TEST_EQ(ret & 0xfffffff, 0x0ff0ff);
+
+   return check_regs(state, expected, ARRAY_SIZE(expected));
+}
+
 int main() {
    unsigned ntests = 0;
    unsigned nsuccess = 0;
@@ -883,6 +986,8 @@ int main() {
    RUN_TEST(test_multu);
    RUN_TEST(test_j);
    RUN_TEST(test_jal);
+   RUN_TEST(test_jr);
+   RUN_TEST(test_jalr);
 
    printf("Tests done, results: %u/%u\n", nsuccess, ntests);
 }

@@ -2133,6 +2133,33 @@ extern void dynasm_patch_link(struct dynarec_compiler *compiler,
    JMP_OFF(off);
 }
 
+extern void dynasm_emit_jump_reg(struct dynarec_compiler *compiler,
+                                 enum PSX_REG reg_target,
+                                 enum PSX_REG reg_link,
+                                 void *link) {
+   int target = register_location(reg_target);
+   intptr_t off;
+
+   /* Update cycle counter*/
+   SUB_U32_R32(compiler->spent_cycles, REG_CX);
+
+   /* We can't patch this jump since the target is potentially dynamic */
+   CLEAR_REG(REG_DX);
+
+   if (target >= 0) {
+      MOV_R32_R32(target, REG_SI);
+   } else {
+      MOVE_FROM_BANKED(reg_target, REG_SI);
+   }
+
+   if (reg_link != PSX_REG_R0) {
+      dynasm_emit_li(compiler, reg_link, compiler->pc + 8);
+   }
+
+   off = link - (void *)compiler->map;
+   JMP_OFF(off);
+}
+
 void dynasm_emit_jump_imm(struct dynarec_compiler *compiler,
                           uint32_t target,
                           void *link,

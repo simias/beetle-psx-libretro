@@ -62,6 +62,22 @@ static void emit_jal(struct dynarec_compiler *compiler,
    emit_j(compiler, instruction);
 }
 
+static void emit_jalr(struct dynarec_compiler *compiler,
+                      enum PSX_REG reg_target,
+                      enum PSX_REG reg_link) {
+   if (reg_target == PSX_REG_R0) {
+      if (reg_link != PSX_REG_R0) {
+         dynasm_emit_li(compiler, PSX_REG_RA, compiler->pc + 8);
+      }
+      emit_jump(compiler, 0);
+   } else {
+      dynasm_emit_jump_reg(compiler,
+                           reg_target,
+                           reg_link,
+                           compiler->state->link_trampoline);
+   }
+}
+
 static void emit_branch(struct dynarec_compiler *compiler,
                         int16_t offset,
                         enum PSX_REG reg_a,
@@ -448,11 +464,11 @@ static enum optype dynarec_instruction_registers(uint32_t instruction,
          *reg_target = reg_d;
          *reg_op0    = reg_t;
          break;
-      case 0x08: /* JR */
+      case MIPS_FN_JR:
          *reg_op0 = reg_s;
          type = OP_BRANCH_ALWAYS;
          break;
-      case 0x09: /* JALR */
+      case MIPS_FN_JALR:
          *reg_op0 = reg_s;
          *reg_target = reg_d;
          type = OP_BRANCH_ALWAYS;
@@ -626,11 +642,11 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
                         shift,
                         dynasm_emit_sra);
          break;
-      case 0x08: /* JR */
-         dynasm_emit_exception(compiler, PSX_DYNAREC_UNIMPLEMENTED);
+      case MIPS_FN_JR:
+         emit_jalr(compiler, reg_op0, PSX_REG_R0);
          break;
-      case 0x09: /* JALR */
-         dynasm_emit_exception(compiler, PSX_DYNAREC_UNIMPLEMENTED);
+      case MIPS_FN_JALR:
+         emit_jalr(compiler, reg_op0, reg_target);
          break;
       case MIPS_FN_BREAK:
          if (compiler->state->options & DYNAREC_OPT_EXIT_ON_BREAK) {

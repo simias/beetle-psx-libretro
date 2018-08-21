@@ -7,6 +7,8 @@
 # define MIPS_FN_SLL            0x00U
 # define MIPS_FN_SRL            0x02U
 # define MIPS_FN_SRA            0x03U
+# define MIPS_FN_JR             0x08U
+# define MIPS_FN_JALR           0x09U
 # define MIPS_FN_BREAK          0x0DU
 # define MIPS_FN_MFHI           0x10U
 # define MIPS_FN_MTHI           0x11U
@@ -48,7 +50,7 @@ union mips_instruction {
       unsigned reg_t: 5;
       unsigned reg_s: 5;
       unsigned opcode: 6;
-   } alu_rr;
+   } fn_rr;
 
    struct {
       unsigned imm: 16;
@@ -67,6 +69,7 @@ union mips_instruction {
       unsigned target: 26;
       unsigned opcode: 6;
    } jump_i;
+
 };
 
 #endif /* __PSX_INSTRUCTION_H__ */
