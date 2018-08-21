@@ -518,7 +518,7 @@ static enum optype dynarec_instruction_registers(uint32_t instruction,
    case MIPS_OP_J:
       type = OP_BRANCH_ALWAYS;
       break;
-   case 0x03: /* JAL */
+   case MIPS_OP_JAL:
       type = OP_BRANCH_ALWAYS;
       *reg_target = PSX_REG_RA;
       break;
@@ -720,7 +720,7 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
    case MIPS_OP_J:
       emit_j(compiler, instruction);
       break;
-   case 0x03: /* JAL */
+   case MIPS_OP_JAL:
       emit_jal(compiler, instruction);
       break;
    case 0x04: /* BEQ */

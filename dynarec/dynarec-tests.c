@@ -194,8 +194,14 @@ static int run_test(const char *name, test_fn_t f) {
 
 #define J(_target)                              \
    (union mips_instruction){                    \
-      .jump =                                   \
+      .jump_i =                                 \
          { .opcode = MIPS_OP_J,                 \
+           .target = (_target >> 2) }}
+
+#define JAL(_target)                            \
+   (union mips_instruction){                    \
+      .jump_i =                                 \
+         { .opcode = MIPS_OP_JAL,               \
            .target = (_target >> 2) }}
 
 #define SLL(_rt, _ro, _s)                       \
@@ -815,6 +821,41 @@ static int test_j(struct dynarec_state *state) {
    return check_regs(state, expected, ARRAY_SIZE(expected));
 }
 
+static int test_jal(struct dynarec_state *state) {
+   union mips_instruction code[] = {
+      LI(PSX_REG_T0, 0),
+      LI(PSX_REG_T1, 1),
+
+      JAL(0x1000),
+      ORI(PSX_REG_T2, PSX_REG_R0, 2),
+
+      BREAK(0xbad),
+   };
+   union mips_instruction handler[] = {
+      LI(PSX_REG_T3, 3),
+
+      BREAK(0x0ff0ff),
+   };
+   struct reg_val expected[] = {
+      { .r = PSX_REG_T0, .v = 0 },
+      { .r = PSX_REG_T1, .v = 1 },
+      { .r = PSX_REG_T2, .v = 2 },
+      { .r = PSX_REG_T3, .v = 3 },
+      { .r = PSX_REG_RA, .v = 24 },
+   };
+   uint32_t ret;
+
+   load_code(state, code, ARRAY_SIZE(code), 0);
+   load_code(state, handler, ARRAY_SIZE(handler), 0x1000);
+
+   ret = dynarec_run(state, 0x1000);
+
+   TEST_EQ(ret >> 28, DYNAREC_EXIT_BREAK);
+   TEST_EQ(ret & 0xfffffff, 0x0ff0ff);
+
+   return check_regs(state, expected, ARRAY_SIZE(expected));
+}
+
 int main() {
    unsigned ntests = 0;
    unsigned nsuccess = 0;
@@ -841,6 +882,7 @@ int main() {
    RUN_TEST(test_hi_lo);
    RUN_TEST(test_multu);
    RUN_TEST(test_j);
+   RUN_TEST(test_jal);
 
    printf("Tests done, results: %u/%u\n", nsuccess, ntests);
 }
