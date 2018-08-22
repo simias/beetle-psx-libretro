@@ -148,6 +148,7 @@ static int run_test(const char *name, test_fn_t f) {
 
    /* Reset callbacks */
    dynarec_callback_lb(NULL, 0, 0);
+   dynarec_callback_lh(NULL, 0, 0);
 
    printf("[%s] running...\n", name);
 
@@ -261,6 +262,12 @@ static int run_test(const char *name, test_fn_t f) {
    LOAD_STORE(MIPS_OP_LB, (_rv), (_ra), (_off))
 #define LBU(_rv, _ra, _off)                     \
    LOAD_STORE(MIPS_OP_LBU, (_rv), (_ra), (_off))
+#define LH(_rv, _ra, _off)                      \
+   LOAD_STORE(MIPS_OP_LH, (_rv), (_ra), (_off))
+#define LHU(_rv, _ra, _off)                     \
+   LOAD_STORE(MIPS_OP_LHU, (_rv), (_ra), (_off))
+#define LW(_rv, _ra, _off)                      \
+   LOAD_STORE(MIPS_OP_LW, (_rv), (_ra), (_off))
 
 /*********
  * Tests *
@@ -1054,6 +1061,84 @@ static int test_lbu(struct dynarec_state *state) {
    return check_regs(state, expected, ARRAY_SIZE(expected));
 }
 
+static int test_lh(struct dynarec_state *state) {
+   union mips_instruction code[] = {
+      LI(PSX_REG_T0, 0xff000000),
+
+      LH(PSX_REG_S0, PSX_REG_R0, 0),
+      LH(PSX_REG_S1, PSX_REG_R0, 2),
+
+      LH(PSX_REG_S2, PSX_REG_T0, 0),
+      LH(PSX_REG_S2, PSX_REG_T0, 2),
+      LH(PSX_REG_S2, PSX_REG_T0, 4),
+      LH(PSX_REG_S3, PSX_REG_T0, 6),
+
+      LH(PSX_REG_T0, PSX_REG_T0, 0),
+
+      LHU(PSX_REG_S4, PSX_REG_R0, 2),
+      ORI(PSX_REG_S4, PSX_REG_R0, 0xffff),
+
+      BREAK(0x0ff0ff),
+   };
+   struct reg_val expected[] = {
+      { .r = PSX_REG_T0, .v = 0xffff8005 },
+      { .r = PSX_REG_S0, .v = 0xffffff00 },
+      { .r = PSX_REG_S1, .v = 0x00003c08 },
+      { .r = PSX_REG_S2, .v = 0xffff8003 },
+      { .r = PSX_REG_S3, .v = 0xffff8004 },
+      { .r = PSX_REG_S4, .v = 0xffff },
+   };
+   uint32_t ret;
+
+   load_code(state, code, ARRAY_SIZE(code), 0);
+
+   ret = dynarec_run(state, 0x1000);
+
+   TEST_EQ(ret >> 28, DYNAREC_EXIT_BREAK);
+   TEST_EQ(ret & 0xfffffff, 0x0ff0ff);
+
+   return check_regs(state, expected, ARRAY_SIZE(expected));
+}
+
+static int test_lhu(struct dynarec_state *state) {
+   union mips_instruction code[] = {
+      LI(PSX_REG_T0, 0xff000000),
+
+      LHU(PSX_REG_S0, PSX_REG_R0, 0),
+      LHU(PSX_REG_S1, PSX_REG_R0, 2),
+
+      LHU(PSX_REG_S2, PSX_REG_T0, 0),
+      LHU(PSX_REG_S2, PSX_REG_T0, 2),
+      LHU(PSX_REG_S2, PSX_REG_T0, 4),
+      LHU(PSX_REG_S3, PSX_REG_T0, 6),
+
+      LHU(PSX_REG_T0, PSX_REG_T0, 0),
+
+      LHU(PSX_REG_S4, PSX_REG_R0, 2),
+      ORI(PSX_REG_S4, PSX_REG_R0, 0xffff),
+
+      BREAK(0x0ff0ff),
+   };
+   struct reg_val expected[] = {
+      { .r = PSX_REG_T0, .v = 0x8005 },
+      { .r = PSX_REG_S0, .v = 0xff00 },
+      { .r = PSX_REG_S1, .v = 0x3c08 },
+      { .r = PSX_REG_S2, .v = 0x8003 },
+      { .r = PSX_REG_S3, .v = 0x8004 },
+      { .r = PSX_REG_S4, .v = 0xffff },
+   };
+   uint32_t ret;
+
+   load_code(state, code, ARRAY_SIZE(code), 0);
+
+   ret = dynarec_run(state, 0x1000);
+
+   TEST_EQ(ret >> 28, DYNAREC_EXIT_BREAK);
+   TEST_EQ(ret & 0xfffffff, 0x0ff0ff);
+
+   return check_regs(state, expected, ARRAY_SIZE(expected));
+}
+
 int main() {
    unsigned ntests = 0;
    unsigned nsuccess = 0;
@@ -1085,6 +1170,8 @@ int main() {
    RUN_TEST(test_jalr);
    RUN_TEST(test_lb);
    RUN_TEST(test_lbu);
+   RUN_TEST(test_lh);
+   RUN_TEST(test_lhu);
 
    printf("Tests done, results: %u/%u\n", nsuccess, ntests);
 }
@@ -1144,7 +1231,29 @@ struct dynarec_load_val dynarec_callback_lb(struct dynarec_state *s,
    }
 
    r.counter = counter;
-   r.value = val;
+   /* High bits should be ignored */
+   r.value = val | 0xffffff00;
+
+   return r;
+}
+
+struct dynarec_load_val dynarec_callback_lh(struct dynarec_state *s,
+                                            uint32_t addr,
+                                            int32_t counter) {
+   static uint32_t val = 0x8000;
+   struct dynarec_load_val r;
+
+   if (addr == 0) {
+      val = 0x8000;
+   } else {
+      val = (val + 1) % 0xffff;
+
+      DYNAREC_LOG("dynarec lh %08x @ %08x (%d)\n", val, addr, counter);
+   }
+
+   r.counter = counter;
+   /* High bits should be ignored */
+   r.value = val | 0xffff0000;
 
    return r;
 }

@@ -25,7 +25,10 @@
 #define MIPS_OP_ORI            0x0DU
 #define MIPS_OP_LUI            0x0FU
 #define MIPS_OP_LB             0x20U
+#define MIPS_OP_LH             0x21U
+#define MIPS_OP_LW             0x23U
 #define MIPS_OP_LBU            0x24U
+#define MIPS_OP_LHU            0x25U
 
 union mips_instruction {
    uint32_t encoded;

@@ -577,9 +577,11 @@ static enum optype dynarec_instruction_registers(uint32_t instruction,
          abort();
       }
       break;
-   case 0x20: /* LB */
-   case 0x23: /* LW */
-   case 0x24: /* LBU */
+   case MIPS_OP_LBU:
+   case MIPS_OP_LB:
+   case MIPS_OP_LHU:
+   case MIPS_OP_LH:
+   case MIPS_OP_LW:
       *reg_target = reg_t;
       *reg_op0 = reg_s;
       type = OP_LOAD;
@@ -810,14 +812,20 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
          abort();
       }
       break;
-   case 0x20: /* LB */
+   case MIPS_OP_LB:
       dynasm_emit_lb(compiler, reg_target, imm, reg_op0);
       break;
-   case 0x23: /* LW */
-      dynasm_emit_lw(compiler, reg_target, imm, reg_op0);
-      break;
-   case 0x24: /* LBU */
+   case MIPS_OP_LBU:
       dynasm_emit_lbu(compiler, reg_target, imm, reg_op0);
+      break;
+   case MIPS_OP_LH:
+      dynasm_emit_lh(compiler, reg_target, imm, reg_op0);
+      break;
+   case MIPS_OP_LHU:
+      dynasm_emit_lhu(compiler, reg_target, imm, reg_op0);
+      break;
+   case MIPS_OP_LW:
+      dynasm_emit_lw(compiler, reg_target, imm, reg_op0);
       break;
    case 0x28: /* SB */
       dynasm_emit_sb(compiler, reg_op0, imm, reg_op1);

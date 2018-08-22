@@ -1820,6 +1820,13 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
          case WIDTH_WORD:
             MOV_PR64_R32(REG_DX, value_r);
             break;
+         case WIDTH_HALFWORD:
+            if (dir == DIR_LOAD_SIGNED) {
+               MOVSWL_PR64_R32(REG_DX, value_r);
+            } else {
+               MOVZWL_PR64_R32(REG_DX, value_r);
+            }
+            break;
          case WIDTH_BYTE:
             if (dir == DIR_LOAD_SIGNED) {
                MOVSBL_PR64_R32(REG_DX, value_r);
@@ -1860,22 +1867,19 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
          switch (dir) {
          case DIR_STORE:
             switch (width) {
-            case WIDTH_WORD:
-               MOV_R32_PR64(value_r, REG_DX);
+            case WIDTH_BYTE:
+               MOV_R8_PR64(value_r, REG_DX);
                break;
             case WIDTH_HALFWORD:
                MOV_R16_PR64(value_r, REG_DX);
                break;
-            case WIDTH_BYTE:
-               MOV_R8_PR64(value_r, REG_DX);
+            case WIDTH_WORD:
+               MOV_R32_PR64(value_r, REG_DX);
                break;
             }
             break;
          default:
             switch (width) {
-            case WIDTH_WORD:
-               MOV_PR64_R32(REG_DX, value_r);
-               break;
             case WIDTH_BYTE:
                if (dir == DIR_LOAD_SIGNED) {
                   MOVSBL_PR64_R32(REG_DX, value_r);
@@ -1883,8 +1887,16 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
                   MOVZBL_PR64_R32(REG_DX, value_r);
                }
                break;
-            default:
-               UNIMPLEMENTED;
+            case WIDTH_HALFWORD:
+               if (dir == DIR_LOAD_SIGNED) {
+                  MOVSWL_PR64_R32(REG_DX, value_r);
+               } else {
+                  MOVZWL_PR64_R32(REG_DX, value_r);
+               }
+               break;
+            case WIDTH_WORD:
+               MOV_PR64_R32(REG_DX, value_r);
+               break;
             }
 
             /* If we were using SI as temporary register and the target
@@ -1908,22 +1920,19 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
             }
 
             switch (width) {
-            case WIDTH_WORD:
-               CALL(dynabi_device_sw);
+            case WIDTH_BYTE:
+               CALL(dynabi_device_sb);
                break;
             case WIDTH_HALFWORD:
                CALL(dynabi_device_sh);
                break;
-            case WIDTH_BYTE:
-               CALL(dynabi_device_sb);
+            case WIDTH_WORD:
+               CALL(dynabi_device_sw);
                break;
             }
             break;
          default:
             switch (width) {
-            case WIDTH_WORD:
-               CALL(dynabi_device_lw);
-               break;
             case WIDTH_BYTE:
                if (dir == DIR_LOAD_SIGNED) {
                   CALL(dynabi_device_lb);
@@ -1931,8 +1940,16 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
                   CALL(dynabi_device_lbu);
                }
                break;
-            default:
-               UNIMPLEMENTED;
+            case WIDTH_HALFWORD:
+               if (dir == DIR_LOAD_SIGNED) {
+                  CALL(dynabi_device_lh);
+               } else {
+                  CALL(dynabi_device_lhu);
+               }
+               break;
+            case WIDTH_WORD:
+               CALL(dynabi_device_lw);
+               break;
             }
             /* Value is returned in EAX */
             if (value_r == REG_SI) {
@@ -1993,17 +2010,6 @@ void dynasm_emit_lb(struct dynarec_compiler *compiler,
                       DIR_LOAD_SIGNED, WIDTH_BYTE);
 }
 
-void dynasm_emit_lw(struct dynarec_compiler *compiler,
-                    enum PSX_REG reg_target,
-                    int16_t offset,
-                    enum PSX_REG reg_addr) {
-   dynasm_emit_mem_rw(compiler,
-                      reg_addr,
-                      offset,
-                      reg_target,
-                      DIR_LOAD_UNSIGNED, WIDTH_WORD);
-}
-
 void dynasm_emit_lbu(struct dynarec_compiler *compiler,
                      enum PSX_REG reg_target,
                      int16_t offset,
@@ -2013,6 +2019,40 @@ void dynasm_emit_lbu(struct dynarec_compiler *compiler,
                       offset,
                       reg_target,
                       DIR_LOAD_UNSIGNED, WIDTH_BYTE);
+}
+
+void dynasm_emit_lh(struct dynarec_compiler *compiler,
+                    enum PSX_REG reg_target,
+                    int16_t offset,
+                    enum PSX_REG reg_addr) {
+   dynasm_emit_mem_rw(compiler,
+                      reg_addr,
+                      offset,
+                      reg_target,
+                      DIR_LOAD_SIGNED, WIDTH_HALFWORD);
+}
+
+void dynasm_emit_lhu(struct dynarec_compiler *compiler,
+                     enum PSX_REG reg_target,
+                     int16_t offset,
+                     enum PSX_REG reg_addr) {
+   dynasm_emit_mem_rw(compiler,
+                      reg_addr,
+                      offset,
+                      reg_target,
+                      DIR_LOAD_UNSIGNED, WIDTH_HALFWORD);
+}
+
+
+void dynasm_emit_lw(struct dynarec_compiler *compiler,
+                    enum PSX_REG reg_target,
+                    int16_t offset,
+                    enum PSX_REG reg_addr) {
+   dynasm_emit_mem_rw(compiler,
+                      reg_addr,
+                      offset,
+                      reg_target,
+                      DIR_LOAD_UNSIGNED, WIDTH_WORD);
 }
 
 static uint8_t emit_branch_cond(struct dynarec_compiler *compiler,

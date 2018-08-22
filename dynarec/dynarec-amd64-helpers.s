@@ -192,6 +192,47 @@ dynabi_device_lbu:
 
         ret
 
+.global dynabi_device_lh
+.type   dynabi_device_lh, function
+/* Same as LB without sign extension */
+dynabi_device_lh:
+        /* Move target address to arg 1 */
+        mov %edx, %esi
+        /* Move counter to arg 2 */
+        mov %ecx, %edx
+
+        c_call dynarec_callback_lh
+
+        /* Move first return value to the counter */
+        mov %eax, %ecx
+
+        /* Value is returned as high 32bits of %rax. Shift all the way
+	to the left then use an arithmetic shift right to sign-extend */
+        shl $16, %rax
+        sar $48, %rax
+
+        ret
+
+.global dynabi_device_lhu
+.type   dynabi_device_lhu, function
+/* Same as LB without sign extension */
+dynabi_device_lhu:
+        /* Move target address to arg 1 */
+        mov %edx, %esi
+        /* Move counter to arg 2 */
+        mov %ecx, %edx
+
+        c_call dynarec_callback_lh
+
+        /* Move first return value to the counter */
+        mov %eax, %ecx
+
+        /* Value is returned as high 32bits of %rax. */
+        shr $32, %rax
+        movzw %ax, %eax
+
+        ret
+
 .global dynabi_exception
 .type   dynabi_exception, function
 /* Called by the dynarec code when an exception must be

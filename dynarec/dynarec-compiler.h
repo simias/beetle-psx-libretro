@@ -152,14 +152,22 @@ extern void dynasm_emit_lb(struct dynarec_compiler *compiler,
                            enum PSX_REG reg_target,
                            int16_t offset,
                            enum PSX_REG reg_addr);
-extern void dynasm_emit_lw(struct dynarec_compiler *compiler,
-                           enum PSX_REG reg_target,
-                           int16_t offset,
-                           enum PSX_REG reg_addr);
 extern void dynasm_emit_lbu(struct dynarec_compiler *compiler,
                             enum PSX_REG reg_target,
                             int16_t offset,
                             enum PSX_REG reg_addr);
+extern void dynasm_emit_lh(struct dynarec_compiler *compiler,
+                           enum PSX_REG reg_target,
+                           int16_t offset,
+                           enum PSX_REG reg_addr);
+extern void dynasm_emit_lhu(struct dynarec_compiler *compiler,
+                            enum PSX_REG reg_target,
+                            int16_t offset,
+                            enum PSX_REG reg_addr);
+extern void dynasm_emit_lw(struct dynarec_compiler *compiler,
+                           enum PSX_REG reg_target,
+                           int16_t offset,
+                           enum PSX_REG reg_addr);
 extern void dynasm_emit_jump_reg(struct dynarec_compiler *compiler,
                                  enum PSX_REG reg_target,
                                  enum PSX_REG reg_link,
