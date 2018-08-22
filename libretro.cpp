@@ -1006,6 +1006,35 @@ extern "C" struct dynarec_load_val dynarec_callback_lb(struct dynarec_state *s,
    return r;
 }
 
+extern "C" struct dynarec_load_val dynarec_callback_lh(struct dynarec_state *s,
+                                                       uint32_t addr,
+                                                       int32_t counter) {
+   struct dynarec_load_val r;
+   int32_t timestamp = CPU->GetEventNT() - counter;
+
+   r.value = PSX_MemRead16(timestamp, addr);
+
+   DYNAREC_LOG("dynarec lh %08x @ %08x (%d)\n", r.value, addr, counter);
+
+   r.counter = CPU->GetEventNT() - timestamp;
+
+   return r;
+}
+
+extern "C" struct dynarec_load_val dynarec_callback_lw(struct dynarec_state *s,
+                                                       uint32_t addr,
+                                                       int32_t counter) {
+   struct dynarec_load_val r;
+   int32_t timestamp = CPU->GetEventNT() - counter;
+
+   r.value = PSX_MemRead32(timestamp, addr);
+
+   DYNAREC_LOG("dynarec lw %08x @ %08x (%d)\n", r.value, addr, counter);
+
+   r.counter = CPU->GetEventNT() - timestamp;
+
+   return r;
+}
 
 #endif /* HAVE_DYNAREC */
 

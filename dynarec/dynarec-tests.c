@@ -1010,8 +1010,6 @@ static int test_lb(struct dynarec_state *state) {
    };
    uint32_t ret;
 
-   printf("%08x\n", code[0].encoded);
-
    load_code(state, code, ARRAY_SIZE(code), 0);
 
    ret = dynarec_run(state, 0x1000);
@@ -1139,6 +1137,45 @@ static int test_lhu(struct dynarec_state *state) {
    return check_regs(state, expected, ARRAY_SIZE(expected));
 }
 
+static int test_lw(struct dynarec_state *state) {
+   union mips_instruction code[] = {
+      LI(PSX_REG_T0, 0xff000000),
+
+      LW(PSX_REG_S0, PSX_REG_R0, 0),
+      LW(PSX_REG_S1, PSX_REG_R0, 4),
+
+      LW(PSX_REG_S2, PSX_REG_T0, 0),
+      LW(PSX_REG_S2, PSX_REG_T0, 4),
+      LW(PSX_REG_S2, PSX_REG_T0, 8),
+      LW(PSX_REG_S3, PSX_REG_T0, 12),
+
+      LW(PSX_REG_T0, PSX_REG_T0, 0),
+
+      LW(PSX_REG_S4, PSX_REG_R0, 4),
+      ORI(PSX_REG_S4, PSX_REG_R0, 0xffff),
+
+      BREAK(0x0ff0ff),
+   };
+   struct reg_val expected[] = {
+      { .r = PSX_REG_T0, .v = 0x80000005 },
+      { .r = PSX_REG_S0, .v = 0x3c08ff00 },
+      { .r = PSX_REG_S1, .v = 0x35080000 },
+      { .r = PSX_REG_S2, .v = 0x80000003 },
+      { .r = PSX_REG_S3, .v = 0x80000004 },
+      { .r = PSX_REG_S4, .v = 0xffff },
+   };
+   uint32_t ret;
+
+   load_code(state, code, ARRAY_SIZE(code), 0);
+
+   ret = dynarec_run(state, 0x1000);
+
+   TEST_EQ(ret >> 28, DYNAREC_EXIT_BREAK);
+   TEST_EQ(ret & 0xfffffff, 0x0ff0ff);
+
+   return check_regs(state, expected, ARRAY_SIZE(expected));
+}
+
 int main() {
    unsigned ntests = 0;
    unsigned nsuccess = 0;
@@ -1172,6 +1209,7 @@ int main() {
    RUN_TEST(test_lbu);
    RUN_TEST(test_lh);
    RUN_TEST(test_lhu);
+   RUN_TEST(test_lw);
 
    printf("Tests done, results: %u/%u\n", nsuccess, ntests);
 }
@@ -1254,6 +1292,26 @@ struct dynarec_load_val dynarec_callback_lh(struct dynarec_state *s,
    r.counter = counter;
    /* High bits should be ignored */
    r.value = val | 0xffff0000;
+
+   return r;
+}
+
+struct dynarec_load_val dynarec_callback_lw(struct dynarec_state *s,
+                                            uint32_t addr,
+                                            int32_t counter) {
+   static uint32_t val = 0x80000000;
+   struct dynarec_load_val r;
+
+   if (addr == 0) {
+      val = 0x80000000;
+   } else {
+      val = val + 1;
+
+      DYNAREC_LOG("dynarec lw %08x @ %08x (%d)\n", val, addr, counter);
+   }
+
+   r.counter = counter;
+   r.value = val;
 
    return r;
 }

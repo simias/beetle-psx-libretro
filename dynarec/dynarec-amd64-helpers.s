@@ -142,14 +142,6 @@ dynabi_device_sb:
 
         ret
 
-.global dynabi_device_lw
-.type   dynabi_device_lw, function
-/* Called by the dynarec code when a LW instruction targets device
- * memory */
-dynabi_device_lw:
-        int $3
-
-
 .global dynabi_device_lb
 .type   dynabi_device_lb, function
 /* Called by the dynarec code when a LB instruction targets device
@@ -165,7 +157,7 @@ dynabi_device_lb:
         /* Move first return value to the counter */
         mov %eax, %ecx
 
-        /* Value is returned as high 32bits of %rax. Shift all the way
+        /* Value is returned as high 8bits of %rax. Shift all the way
 	to the left then use an arithmetic shift right to sign-extend */
         shl $24, %rax
         sar $56, %rax
@@ -186,7 +178,7 @@ dynabi_device_lbu:
         /* Move first return value to the counter */
         mov %eax, %ecx
 
-        /* Value is returned as high 32bits of %rax. */
+        /* Value is returned as high 8bits of %rax. */
         shr $32, %rax
         movzb %al, %eax
 
@@ -206,7 +198,7 @@ dynabi_device_lh:
         /* Move first return value to the counter */
         mov %eax, %ecx
 
-        /* Value is returned as high 32bits of %rax. Shift all the way
+        /* Value is returned as high 16bits of %rax. Shift all the way
 	to the left then use an arithmetic shift right to sign-extend */
         shl $16, %rax
         sar $48, %rax
@@ -227,9 +219,29 @@ dynabi_device_lhu:
         /* Move first return value to the counter */
         mov %eax, %ecx
 
-        /* Value is returned as high 32bits of %rax. */
+        /* Value is returned as high 16bits of %rax. */
         shr $32, %rax
         movzw %ax, %eax
+
+        ret
+
+.global dynabi_device_lw
+.type   dynabi_device_lw, function
+/* Called by the dynarec code when a LW instruction targets device
+ * memory */
+dynabi_device_lw:
+        /* Move target address to arg 1 */
+        mov %edx, %esi
+        /* Move counter to arg 2 */
+        mov %ecx, %edx
+
+        c_call dynarec_callback_lw
+
+        /* Move first return value to the counter */
+        mov %eax, %ecx
+
+        /* Value is returned as high 32bits of %rax. */
+        shr $32, %rax
 
         ret
 

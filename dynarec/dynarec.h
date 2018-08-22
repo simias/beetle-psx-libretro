@@ -303,7 +303,9 @@ extern struct dynarec_load_val dynarec_callback_lb(struct dynarec_state *s,
 extern struct dynarec_load_val dynarec_callback_lh(struct dynarec_state *s,
                                                    uint32_t addr,
                                                    int32_t counter);
-
+extern struct dynarec_load_val dynarec_callback_lw(struct dynarec_state *s,
+                                                   uint32_t addr,
+                                                   int32_t counter);
 
 #ifdef __cplusplus
 }
