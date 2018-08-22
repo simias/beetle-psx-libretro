@@ -146,6 +146,9 @@ static int run_test(const char *name, test_fn_t f) {
       state->regs[i] = (i << 24 | i << 16 | i << 8 | i);
    }
 
+   /* Reset callbacks */
+   dynarec_callback_lb(NULL, 0, 0);
+
    printf("[%s] running...\n", name);
 
    ret = f(state);
@@ -204,6 +207,14 @@ static int run_test(const char *name, test_fn_t f) {
          { .opcode = MIPS_OP_JAL,               \
            .target = (_target >> 2) }}
 
+#define LOAD_STORE(_op, _rv, _ra, _off)         \
+   (union mips_instruction){                    \
+      .load_store =                             \
+         { .opcode = (_op),                     \
+           .reg_s = (_ra),                      \
+           .reg_t = (_rv),                      \
+           .off = (_off) }}
+
 #define JR(_r)                                  \
    ALU_RR(MIPS_FN_JR, 0, (_r), 0)
 #define JALR(_rt, _r)                           \
@@ -246,6 +257,10 @@ static int run_test(const char *name, test_fn_t f) {
 #define LI(_rt, _i)                             \
    LUI((_rt), ((_i) >> 16)),                    \
    ORI((_rt), (_rt), (_i) & 0xffff)
+#define LB(_rv, _ra, _off)                      \
+   LOAD_STORE(MIPS_OP_LB, (_rv), (_ra), (_off))
+#define LBU(_rv, _ra, _off)                     \
+   LOAD_STORE(MIPS_OP_LBU, (_rv), (_ra), (_off))
 
 /*********
  * Tests *
@@ -959,6 +974,86 @@ static int test_jalr(struct dynarec_state *state) {
    return check_regs(state, expected, ARRAY_SIZE(expected));
 }
 
+static int test_lb(struct dynarec_state *state) {
+   union mips_instruction code[] = {
+      LI(PSX_REG_T0, 0xff000000),
+
+      LB(PSX_REG_S0, PSX_REG_R0, 2),
+      LB(PSX_REG_S1, PSX_REG_R0, 1),
+
+      LB(PSX_REG_S2, PSX_REG_T0, 0),
+      LB(PSX_REG_S2, PSX_REG_T0, 1),
+      LB(PSX_REG_S2, PSX_REG_T0, 2),
+      LB(PSX_REG_S3, PSX_REG_T0, 3),
+
+      LB(PSX_REG_T0, PSX_REG_T0, 0),
+
+      LBU(PSX_REG_S4, PSX_REG_R0, 2),
+      ORI(PSX_REG_S4, PSX_REG_R0, 0xffff),
+
+      BREAK(0x0ff0ff),
+   };
+   struct reg_val expected[] = {
+      { .r = PSX_REG_T0, .v = 0xffffff85 },
+      { .r = PSX_REG_S0, .v = 0x00000008 },
+      { .r = PSX_REG_S1, .v = 0xffffffff },
+      { .r = PSX_REG_S2, .v = 0xffffff83 },
+      { .r = PSX_REG_S3, .v = 0xffffff84 },
+      { .r = PSX_REG_S4, .v = 0xffff },
+   };
+   uint32_t ret;
+
+   printf("%08x\n", code[0].encoded);
+
+   load_code(state, code, ARRAY_SIZE(code), 0);
+
+   ret = dynarec_run(state, 0x1000);
+
+   TEST_EQ(ret >> 28, DYNAREC_EXIT_BREAK);
+   TEST_EQ(ret & 0xfffffff, 0x0ff0ff);
+
+   return check_regs(state, expected, ARRAY_SIZE(expected));
+}
+
+static int test_lbu(struct dynarec_state *state) {
+   union mips_instruction code[] = {
+      LI(PSX_REG_T0, 0xff000000),
+
+      LBU(PSX_REG_S0, PSX_REG_R0, 2),
+      LBU(PSX_REG_S1, PSX_REG_R0, 1),
+
+      LBU(PSX_REG_S2, PSX_REG_T0, 0),
+      LBU(PSX_REG_S2, PSX_REG_T0, 1),
+      LBU(PSX_REG_S2, PSX_REG_T0, 2),
+      LBU(PSX_REG_S3, PSX_REG_T0, 3),
+
+      LBU(PSX_REG_T0, PSX_REG_T0, 0),
+
+      LBU(PSX_REG_S4, PSX_REG_R0, 2),
+      ORI(PSX_REG_S4, PSX_REG_R0, 0xffff),
+
+      BREAK(0x0ff0ff),
+   };
+   struct reg_val expected[] = {
+      { .r = PSX_REG_T0, .v = 0x85 },
+      { .r = PSX_REG_S0, .v = 0x08 },
+      { .r = PSX_REG_S1, .v = 0xff },
+      { .r = PSX_REG_S2, .v = 0x83 },
+      { .r = PSX_REG_S3, .v = 0x84 },
+      { .r = PSX_REG_S4, .v = 0xffff },
+   };
+   uint32_t ret;
+
+   load_code(state, code, ARRAY_SIZE(code), 0);
+
+   ret = dynarec_run(state, 0x1000);
+
+   TEST_EQ(ret >> 28, DYNAREC_EXIT_BREAK);
+   TEST_EQ(ret & 0xfffffff, 0x0ff0ff);
+
+   return check_regs(state, expected, ARRAY_SIZE(expected));
+}
+
 int main() {
    unsigned ntests = 0;
    unsigned nsuccess = 0;
@@ -988,6 +1083,8 @@ int main() {
    RUN_TEST(test_jal);
    RUN_TEST(test_jr);
    RUN_TEST(test_jalr);
+   RUN_TEST(test_lb);
+   RUN_TEST(test_lbu);
 
    printf("Tests done, results: %u/%u\n", nsuccess, ntests);
 }
@@ -999,18 +1096,18 @@ int main() {
 /* Callback used by the dynarec to handle writes to "miscelanous" COP0
    registers (i.e. not SR nor CAUSE) */
 void dynarec_set_cop0_misc(struct dynarec_state *s,
-                                      uint32_t val,
-                                      uint32_t cop0_reg) {
+                           uint32_t val,
+                           uint32_t cop0_reg) {
    printf("dynarec cop0 %08x @ %d\n", val, cop0_reg);
 }
 
 /* Callbacks used by the dynarec to handle device memory access */
 int32_t dynarec_callback_sw(struct dynarec_state *s,
-                                       uint32_t val,
-                                       uint32_t addr,
-                                       int32_t counter) {
+                            uint32_t val,
+                            uint32_t addr,
+                            int32_t counter) {
 
-   printf("dynarec sw %08x @ %08x (%d)\n", val, addr, counter);
+   DYNAREC_LOG("dynarec sw %08x @ %08x (%d)\n", val, addr, counter);
 
    return 0;
 }
@@ -1019,7 +1116,7 @@ int32_t dynarec_callback_sh(struct dynarec_state *s,
                                        uint32_t val,
                                        uint32_t addr,
                                        int32_t counter) {
-   printf("dynarec sh %08x @ %08x (%d)\n", val, addr, counter);
+   DYNAREC_LOG("dynarec sh %08x @ %08x (%d)\n", val, addr, counter);
    return 0;
 }
 
@@ -1027,7 +1124,27 @@ int32_t dynarec_callback_sb(struct dynarec_state *s,
                                        uint32_t val,
                                        uint32_t addr,
                                        int32_t counter) {
-   printf("dynarec sb %08x @ %08x (%d)\n", val, addr, counter);
+   DYNAREC_LOG("dynarec sb %08x @ %08x (%d)\n", val, addr, counter);
 
    return 0;
+}
+
+struct dynarec_load_val dynarec_callback_lb(struct dynarec_state *s,
+                                            uint32_t addr,
+                                            int32_t counter) {
+   static uint32_t val = 0x80;
+   struct dynarec_load_val r;
+
+   if (addr == 0) {
+      val = 0x80;
+   } else {
+      val = (val + 1) % 0xff;
+
+      DYNAREC_LOG("dynarec lb %08x @ %08x (%d)\n", val, addr, counter);
+   }
+
+   r.counter = counter;
+   r.value = val;
+
+   return r;
 }

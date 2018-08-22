@@ -105,20 +105,6 @@ dynasm_execute:
         mov     A0_REG_OFFSET(%rdi), %r11d
 .endm
 
-.global dynabi_recompile
-.type   dynabi_recompile, function
-/* Called when a page needs to be recompiled. The target page index is
-   in %esi. */
-dynabi_recompile:
-	/* Push counter */
-        push %rcx
-
-        c_call dynarec_recompile
-
-        pop %rcx
-
-        ret
-
 .global dynabi_device_sw
 .type   dynabi_device_sw, function
 /* Called by the dynarec code when a SW instruction targets device
@@ -167,16 +153,44 @@ dynabi_device_lw:
 .global dynabi_device_lb
 .type   dynabi_device_lb, function
 /* Called by the dynarec code when a LB instruction targets device
- * memory */
+ * memory. %edx contains the target address. */
 dynabi_device_lb:
-        int $3
+        /* Move target address to arg 1 */
+        mov %edx, %esi
+        /* Move counter to arg 2 */
+        mov %ecx, %edx
+
+        c_call dynarec_callback_lb
+
+        /* Move first return value to the counter */
+        mov %eax, %ecx
+
+        /* Value is returned as high 32bits of %rax. Shift all the way
+	to the left then use an arithmetic shift right to sign-extend */
+        shl $24, %rax
+        sar $56, %rax
+
+        ret
 
 .global dynabi_device_lbu
 .type   dynabi_device_lbu, function
-/* Called by the dynarec code when a LBU instruction targets device
- * memory */
+/* Same as LB without sign extension */
 dynabi_device_lbu:
-        int $3
+        /* Move target address to arg 1 */
+        mov %edx, %esi
+        /* Move counter to arg 2 */
+        mov %ecx, %edx
+
+        c_call dynarec_callback_lb
+
+        /* Move first return value to the counter */
+        mov %eax, %ecx
+
+        /* Value is returned as high 32bits of %rax. */
+        shr $32, %rax
+        movzb %al, %eax
+
+        ret
 
 .global dynabi_exception
 .type   dynabi_exception, function

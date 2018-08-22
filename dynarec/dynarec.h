@@ -253,20 +253,54 @@ struct dynarec_state {
    struct rbtree blocks;
 };
 
-extern struct dynarec_state *dynarec_init(uint8_t *ram,
-                                          uint8_t *scratchpad,
-                                          const uint8_t *bios);
-extern struct dynarec_block *dynarec_find_block(struct dynarec_state *state,
-                                                uint32_t addr);
+struct dynarec_state *dynarec_init(uint8_t *ram,
+                                   uint8_t *scratchpad,
+                                   const uint8_t *bios);
+struct dynarec_block *dynarec_find_block(struct dynarec_state *state,
+                                         uint32_t addr);
 struct dynarec_block *dynarec_find_or_compile_block(struct dynarec_state *state,
                                                     uint32_t addr);
-extern void dynarec_delete(struct dynarec_state *state);
-extern void dynarec_set_next_event(struct dynarec_state *state,
-                                   int32_t cycles);
-extern void dynarec_set_pc(struct dynarec_state *state,
-                           uint32_t pc);
-extern uint32_t dynarec_run(struct dynarec_state *state,
-                            int32_t cycles_to_run);
+void dynarec_delete(struct dynarec_state *state);
+void dynarec_set_next_event(struct dynarec_state *state,
+                            int32_t cycles);
+void dynarec_set_pc(struct dynarec_state *state,
+                    uint32_t pc);
+uint32_t dynarec_run(struct dynarec_state *state,
+                     int32_t cycles_to_run);
+
+/******************************************************
+ * Callbacks that must be implemented by the emulator *
+ ******************************************************/
+
+struct dynarec_load_val {
+   int32_t counter;
+   uint32_t value;
+};
+
+/* Callback used by the dynarec to handle writes to "miscelanous" COP0
+   registers (i.e. not SR nor CAUSE) */
+extern void dynarec_set_cop0_misc(struct dynarec_state *s,
+                           uint32_t val,
+                           uint32_t cop0_reg);
+
+/* Callbacks used by the dynarec to handle device memory writes. Must
+   return the new value of the counter. */
+extern int32_t dynarec_callback_sw(struct dynarec_state *s,
+                                   uint32_t val,
+                                   uint32_t addr,
+                                   int32_t counter);
+extern int32_t dynarec_callback_sh(struct dynarec_state *s,
+                                   uint32_t val,
+                                   uint32_t addr,
+                                   int32_t counter);
+extern int32_t dynarec_callback_sb(struct dynarec_state *s,
+                                   uint32_t val,
+                                   uint32_t addr,
+                                   int32_t counter);
+extern struct dynarec_load_val dynarec_callback_lb(struct dynarec_state *s,
+                                                   uint32_t addr,
+                                                   int32_t counter);
+
 
 #ifdef __cplusplus
 }

@@ -1900,13 +1900,13 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
          /* We're accessing some device's memory, call the emulator
             code */
 
-         /* Make sure the value is in %rsi (arg1) */
-         if (value_r != REG_SI) {
-            MOV_R32_R32(value_r, REG_SI);
-         }
-
          switch (dir) {
          case DIR_STORE:
+            /* Make sure the value is in %rsi (arg1) */
+            if (value_r != REG_SI) {
+               MOV_R32_R32(value_r, REG_SI);
+            }
+
             switch (width) {
             case WIDTH_WORD:
                CALL(dynabi_device_sw);
@@ -1933,6 +1933,14 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
                break;
             default:
                UNIMPLEMENTED;
+            }
+            /* Value is returned in EAX */
+            if (value_r == REG_SI) {
+               if (reg_val != PSX_REG_R0) {
+                  MOVE_TO_BANKED(REG_AX, reg_val);
+               }
+            } else {
+               MOV_R32_R32(REG_AX, value_r);
             }
             break;
          }

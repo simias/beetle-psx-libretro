@@ -24,6 +24,8 @@
 #define MIPS_OP_JAL            0x03U
 #define MIPS_OP_ORI            0x0DU
 #define MIPS_OP_LUI            0x0FU
+#define MIPS_OP_LB             0x20U
+#define MIPS_OP_LBU            0x24U
 
 union mips_instruction {
    uint32_t encoded;
@@ -70,6 +72,12 @@ union mips_instruction {
       unsigned opcode: 6;
    } jump_i;
 
+   struct {
+      signed off: 16;
+      unsigned reg_t: 5;
+      unsigned reg_s: 5;
+      unsigned opcode: 6;
+   } load_store;
 };
 
 #endif /* __PSX_INSTRUCTION_H__ */

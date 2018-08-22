@@ -991,6 +991,22 @@ extern "C" int32_t dynarec_callback_sb(struct dynarec_state *s,
    return CPU->GetEventNT() - timestamp;
 }
 
+extern "C" struct dynarec_load_val dynarec_callback_lb(struct dynarec_state *s,
+                                                       uint32_t addr,
+                                                       int32_t counter) {
+   struct dynarec_load_val r;
+   int32_t timestamp = CPU->GetEventNT() - counter;
+
+   r.value = PSX_MemRead8(timestamp, addr);
+
+   DYNAREC_LOG("dynarec lb %08x @ %08x (%d)\n", r.value, addr, counter);
+
+   r.counter = CPU->GetEventNT() - timestamp;
+
+   return r;
+}
+
+
 #endif /* HAVE_DYNAREC */
 
 template<typename T, bool Access24> static INLINE uint32_t MemPeek(int32_t timestamp, uint32_t A)
