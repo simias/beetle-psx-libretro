@@ -332,13 +332,37 @@ static int test_nop(struct dynarec_state *state) {
 
 static int test_ori(struct dynarec_state *state) {
    union mips_instruction code[] = {
-      LUI(PSX_REG_T0, 0xabcd),
-      ORI(PSX_REG_T1, PSX_REG_T0, 0x1234),
+      LI(PSX_REG_T0, 6),
+      LI(PSX_REG_T1, 3),
+      LI(PSX_REG_T2, 0xfffff000),
+      LI(PSX_REG_T3, 0),
+
+      ORI(PSX_REG_R0, PSX_REG_T2, 0xabcd),
+      ORI(PSX_REG_R0, PSX_REG_R0, 0xabcd),
+      ORI(PSX_REG_S0, PSX_REG_R0, 0x1234),
+      ORI(PSX_REG_S1, PSX_REG_T0, 0xff00),
+      ORI(PSX_REG_V0, PSX_REG_T0, 0xabc0),
+      ORI(PSX_REG_V1, PSX_REG_T0, 0x3450),
+      ORI(PSX_REG_S2, PSX_REG_T0, 0),
+      ORI(PSX_REG_S3, PSX_REG_T0, 0xffff),
+      ORI(PSX_REG_T0, PSX_REG_T0, 0),
+      ORI(PSX_REG_T1, PSX_REG_T1, 0),
+      ORI(PSX_REG_T2, PSX_REG_T2, 0xffff),
+      ORI(PSX_REG_T3, PSX_REG_T3, 0x89ab),
+
       BREAK(0x0ff0ff),
    };
    struct reg_val expected[] = {
-      { .r = PSX_REG_T0, .v = 0xabcd0000 },
-      { .r = PSX_REG_T1, .v = 0xabcd1234 },
+      { .r = PSX_REG_S0, .v = 0x1234 },
+      { .r = PSX_REG_S1, .v = 0xff06 },
+      { .r = PSX_REG_V0, .v = 0xabc6 },
+      { .r = PSX_REG_V1, .v = 0x3456 },
+      { .r = PSX_REG_S2, .v = 6 },
+      { .r = PSX_REG_S3, .v = 0xffff },
+      { .r = PSX_REG_T0, .v = 6 },
+      { .r = PSX_REG_T1, .v = 3 },
+      { .r = PSX_REG_T2, .v = 0xffffffff },
+      { .r = PSX_REG_T3, .v = 0x89ab },
    };
    uint32_t ret;
 
@@ -355,6 +379,7 @@ static int test_ori(struct dynarec_state *state) {
 static int test_li(struct dynarec_state *state) {
    union mips_instruction code[] = {
       LI(PSX_REG_T0, 0x89abcdef),
+      LI(PSX_REG_R0, 0x89abcdef),
       BREAK(0x0ff0ff),
    };
    struct reg_val expected[] = {
@@ -375,6 +400,7 @@ static int test_li(struct dynarec_state *state) {
 static int test_r0(struct dynarec_state *state) {
    union mips_instruction code[] = {
       LI(PSX_REG_T0, 0x1),
+
       ADD(PSX_REG_T1, PSX_REG_R0, PSX_REG_R0),
       ADD(PSX_REG_R0, PSX_REG_T0, PSX_REG_T0),
       ADD(PSX_REG_T2, PSX_REG_R0, PSX_REG_R0),
@@ -405,6 +431,9 @@ static int test_r0(struct dynarec_state *state) {
 static int test_sll(struct dynarec_state *state) {
    union mips_instruction code[] = {
       LI(PSX_REG_T0, 0x89abcdef),
+
+      SLL(PSX_REG_R0, PSX_REG_R0, 4),
+      SLL(PSX_REG_R0, PSX_REG_T0, 3),
       SLL(PSX_REG_T1, PSX_REG_T0, 0),
       SLL(PSX_REG_V0, PSX_REG_T0, 8),
       SLL(PSX_REG_S0, PSX_REG_T0, 4),
@@ -438,6 +467,9 @@ static int test_sll(struct dynarec_state *state) {
 static int test_srl(struct dynarec_state *state) {
    union mips_instruction code[] = {
       LI(PSX_REG_T0, 0x89abcdef),
+
+      SRL(PSX_REG_R0, PSX_REG_R0, 4),
+      SRL(PSX_REG_R0, PSX_REG_T0, 3),
       SRL(PSX_REG_T1, PSX_REG_T0, 0),
       SRL(PSX_REG_V0, PSX_REG_T0, 8),
       SRL(PSX_REG_S0, PSX_REG_T0, 4),
@@ -471,6 +503,9 @@ static int test_srl(struct dynarec_state *state) {
 static int test_sra(struct dynarec_state *state) {
    union mips_instruction code[] = {
       LI(PSX_REG_T0, 0x89abcdef),
+
+      SRA(PSX_REG_R0, PSX_REG_R0, 4),
+      SRA(PSX_REG_R0, PSX_REG_T0, 3),
       SRA(PSX_REG_T1, PSX_REG_T0, 0),
       SRA(PSX_REG_V0, PSX_REG_T0, 8),
       SRA(PSX_REG_S0, PSX_REG_T0, 4),
@@ -509,6 +544,9 @@ static int test_addu(struct dynarec_state *state) {
    union mips_instruction code[] = {
       LI(PSX_REG_T0, 1),
       LI(PSX_REG_T1, 2),
+
+      ADDU(PSX_REG_R0, PSX_REG_R0, PSX_REG_T1),
+      ADDU(PSX_REG_R0, PSX_REG_T1, PSX_REG_T1),
       ADDU(PSX_REG_T3, PSX_REG_T0, PSX_REG_T1),
       ADDU(PSX_REG_T4, PSX_REG_T0, PSX_REG_T0),
       ADDU(PSX_REG_T5, PSX_REG_T1, PSX_REG_T1),
@@ -553,6 +591,9 @@ static int test_add_no_exception(struct dynarec_state *state) {
    union mips_instruction code[] = {
       LI(PSX_REG_T0, 1),
       LI(PSX_REG_T1, 2),
+
+      ADD(PSX_REG_R0, PSX_REG_R0, PSX_REG_T1),
+      ADD(PSX_REG_R0, PSX_REG_T1, PSX_REG_T1),
       ADD(PSX_REG_T3, PSX_REG_T0, PSX_REG_T1),
       ADD(PSX_REG_V0, PSX_REG_T0, PSX_REG_T0),
       ADD(PSX_REG_V0, PSX_REG_V0, PSX_REG_T1),
@@ -591,6 +632,9 @@ static int test_subu(struct dynarec_state *state) {
       LI(PSX_REG_T1, 2),
       LI(PSX_REG_T2, 10),
       LI(PSX_REG_T3, 0x80000000),
+
+      SUBU(PSX_REG_R0, PSX_REG_T2, PSX_REG_T2),
+      SUBU(PSX_REG_R0, PSX_REG_R0, PSX_REG_T2),
       SUBU(PSX_REG_V0, PSX_REG_T2, PSX_REG_T1),
       SUBU(PSX_REG_V1, PSX_REG_T0, PSX_REG_T1),
       SUBU(PSX_REG_AT, PSX_REG_V0, PSX_REG_T0),
@@ -632,6 +676,8 @@ static int test_and(struct dynarec_state *state) {
       LI(PSX_REG_T2, 0xffffffff),
       LI(PSX_REG_T3, 0),
 
+      AND(PSX_REG_R0, PSX_REG_T2, PSX_REG_T2),
+      AND(PSX_REG_R0, PSX_REG_T1, PSX_REG_T2),
       AND(PSX_REG_S0, PSX_REG_R0, PSX_REG_T2),
       AND(PSX_REG_S1, PSX_REG_T0, PSX_REG_T1),
       AND(PSX_REG_V0, PSX_REG_T0, PSX_REG_T1),
@@ -677,6 +723,8 @@ static int test_or(struct dynarec_state *state) {
       LI(PSX_REG_T2, 0xffffffff),
       LI(PSX_REG_T3, 0),
 
+      OR(PSX_REG_R0, PSX_REG_R0, PSX_REG_T2),
+      OR(PSX_REG_R0, PSX_REG_T2, PSX_REG_T2),
       OR(PSX_REG_S0, PSX_REG_R0, PSX_REG_T2),
       OR(PSX_REG_S1, PSX_REG_T0, PSX_REG_T1),
       OR(PSX_REG_V0, PSX_REG_T0, PSX_REG_T1),
