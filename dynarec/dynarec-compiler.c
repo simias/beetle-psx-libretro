@@ -11,9 +11,16 @@ static void emit_branch_or_jump(struct dynarec_compiler *compiler,
                                 enum PSX_REG reg_a,
                                 enum PSX_REG reg_b,
                                 enum DYNAREC_JUMP_COND cond) {
-   struct dynarec_block *b = dynarec_find_block(compiler->state, target);
+   struct dynarec_block *b;
    bool needs_patch;
    void *link;
+
+   if (target == compiler->block->tree_node.key) {
+      /* This is a jump back to ourselves */
+      b = compiler->block;
+   } else {
+      b = dynarec_find_block(compiler->state, target);
+   }
 
    if (b) {
       /* The target has already been recompiled, we can link it directly */
