@@ -483,7 +483,7 @@ static enum optype dynarec_instruction_registers(uint32_t instruction,
          type = OP_BRANCH_ALWAYS;
          break;
       case MIPS_FN_BREAK:
-         type = OP_BRANCH_ALWAYS;
+         type = OP_EXCEPTION;
          break;
       case MIPS_FN_MFHI:
          *reg_op0 = PSX_REG_HI;
@@ -547,8 +547,8 @@ static enum optype dynarec_instruction_registers(uint32_t instruction,
       type = OP_BRANCH_ALWAYS;
       *reg_target = PSX_REG_RA;
       break;
-   case 0x04: /* BEQ */
-   case 0x05: /* BNE */
+   case MIPS_OP_BEQ:
+   case MIPS_OP_BNE:
       *reg_op0 = reg_s;
       *reg_op1 = reg_t;
       type = OP_BRANCH_COND;
@@ -558,8 +558,8 @@ static enum optype dynarec_instruction_registers(uint32_t instruction,
       *reg_op0 = reg_s;
       type = OP_BRANCH_COND;
       break;
-   case 0x08: /* ADDI */
-   case 0x09: /* ADDIU */
+   case MIPS_OP_ADDI:
+   case MIPS_OP_ADDIU:
    case 0x0a: /* SLTI */
    case 0x0b: /* SLTIU */
    case 0x0c: /* ANDI */
@@ -882,6 +882,7 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
    const uint8_t           *block_max;
    const uint8_t           *cur;
    enum optype              optype = OP_SIMPLE;
+   bool                     eob;
 
    DYNAREC_LOG("Recompiling block starting at 0x%08x\n", addr);
 
@@ -917,7 +918,7 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
    compiler.pc = addr;
    compiler.spent_cycles = 0;
 
-   for (cur = block_start; cur < block_end; cur += 4, compiler.pc += 4) {
+   for (eob = false, cur = block_start; !eob && cur < block_end; cur += 4, compiler.pc += 4) {
       uint32_t instruction = load_le(cur);
 
       /* Various decodings of the fields, of course they won't all be
@@ -948,6 +949,13 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
       has_load_delay_slot = (optype == OP_LOAD);
       has_delay_slot = has_branch_delay_slot || has_load_delay_slot;
 
+      if ((optype == OP_BRANCH_ALWAYS) || (optype == OP_EXCEPTION)) {
+         /* We are certain that the execution won't continue after
+            this instruction (besides potentially the load delay slot
+            which is handled below) */
+         eob = true;
+      }
+
       if (has_delay_slot && (cur + 4) < block_max) {
          ds_instruction = load_le(cur + 4);
       } else {
@@ -970,6 +978,10 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
                                           &ds_target,
                                           &ds_op0,
                                           &ds_op1);
+
+         if ((ds_type == OP_BRANCH_ALWAYS) || (ds_type == OP_EXCEPTION)) {
+            eob = true;
+         }
 
          if (ds_target == reg_target) {
             /* The instruction in the delay slot overwrites the value,
@@ -1058,10 +1070,16 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
                                           &ds_op0,
                                           &ds_op1);
 
-         if (ds_type == OP_BRANCH_ALWAYS || ds_type == OP_BRANCH_COND) {
-            /* Nested branch delay slot. This would be a pain to
-               implement. Let's hope the average game doesn't require
-               something like that. */
+         if ((ds_type == OP_BRANCH_ALWAYS) || (ds_type == OP_EXCEPTION)) {
+            eob = true;
+         }
+
+         if (ds_type == OP_BRANCH_ALWAYS ||
+             ds_type == OP_BRANCH_COND ||
+             ds_type == OP_EXCEPTION) {
+            /* Nested branch delay slot or exception in delay
+               slot. This would be a pain to implement. Let's hope the
+               average game doesn't require something like that. */
             dynasm_emit_exception(&compiler, PSX_DYNAREC_UNIMPLEMENTED);
          } else if (ds_type == OP_LOAD) {
             /* Emitting this directly would be technically inaccurate
@@ -1090,7 +1108,7 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
 
             if (ds_target == reg_op1) {
                needs_dt = 1;
-               reg_op0 = PSX_REG_DT;
+               reg_op1 = PSX_REG_DT;
             }
 
             if (needs_dt) {
@@ -1130,13 +1148,6 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
          close(fd);
       }
 #endif
-
-      if ((optype == OP_BRANCH_ALWAYS) || (optype == OP_EXCEPTION)) {
-         /* We are certain that the execution won't continue after
-            this instruction (besides potentially the load delay slot
-            which has already been handled above) */
-         break;
-      }
    }
 
    /* We're done with this block */

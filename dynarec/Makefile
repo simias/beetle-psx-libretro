@@ -1,6 +1,6 @@
 NAME = dynarec-test
 
-CFLAGS = -Wall -g -MMD -MP -DDYNAREC_ARCH_AMD64 -Wno-unused-function
+CFLAGS = -Wall -g -MMD -MP -DDYNAREC_ARCH_AMD64 -Wno-unused-function -DDYNAREC_DEBUG
 
 AFLAGS = -Wall
 

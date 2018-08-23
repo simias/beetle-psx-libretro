@@ -21,8 +21,15 @@
 # define MIPS_FN_AND            0x24U
 # define MIPS_FN_OR             0x25U
 # define MIPS_FN_SLTU           0x2BU
+#define MIPS_OP_BXX            0x00U
 #define MIPS_OP_J              0x02U
 #define MIPS_OP_JAL            0x03U
+#define MIPS_OP_BEQ            0x04U
+#define MIPS_OP_BNE            0x05U
+#define MIPS_OP_BLEZ           0x06U
+#define MIPS_OP_BGTZ           0x07U
+#define MIPS_OP_ADDI           0x08U
+#define MIPS_OP_ADDIU          0x09U
 #define MIPS_OP_ORI            0x0DU
 #define MIPS_OP_LUI            0x0FU
 #define MIPS_OP_LB             0x20U
@@ -63,7 +70,7 @@ union mips_instruction {
       unsigned reg_t: 5;
       unsigned reg_s: 5;
       unsigned opcode: 6;
-   } alu_ri;
+   } fn_ri;
 
    struct {
       unsigned fn: 6;
