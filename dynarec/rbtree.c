@@ -2,60 +2,6 @@
 #include <assert.h>
 #include "rbtree.h"
 
-void rbt_init(struct rbtree *t) {
-   t->root = NULL;
-}
-
-static struct rbt_node *rbt_node_insert(struct rbt_node *p,
-                                        struct rbt_node *n) {
-
-   if (p->key == n->key) {
-      struct rbt_node *gp = p->parent;
-
-      /* We got a duplicate: replace and return the old value */
-      *n = *p;
-      if (gp) {
-         if (gp->left == p) {
-            gp->left = n;
-         } else {
-            gp->right = n;
-         }
-      }
-
-      if (n->left) {
-         n->left->parent = n;
-      }
-
-      if (n->right) {
-         n->right->parent = n;
-      }
-
-      p->parent = NULL;
-      p->left = NULL;
-      p->right = NULL;
-
-      return p;
-   }
-
-   if (p->key > n->key) {
-      if (p->left != NULL) {
-         return rbt_node_insert(p->left, n);
-      } else {
-         n->parent = p;
-         p->left = n;
-         return NULL;
-      }
-   } else {
-      if (p->right != NULL) {
-         return rbt_node_insert(p->right, n);
-      } else {
-         n->parent = p;
-         p->right = n;
-         return NULL;
-      }
-   }
-}
-
 static struct rbt_node *rbt_sibling(struct rbt_node *n) {
    struct rbt_node *p = n->parent;
 
@@ -150,7 +96,7 @@ static void rbt_rotate_right(struct rbt_node *n) {
 }
 
 /* Rebalance the tree. Returns the new root if it changed, otherwise NULL */
-static struct rbt_node *rbt_balance(struct rbt_node *n) {
+struct rbt_node *_rbt_balance(struct rbt_node *n) {
    struct rbt_node *p = n->parent;
 
    if (p == NULL) {
@@ -179,7 +125,7 @@ static struct rbt_node *rbt_balance(struct rbt_node *n) {
          /* In order to maintain the number of black nodes toward each
             leaf invariant we need to paint the GP RED and rebalance from there. */
          gp->color = RBT_RED;
-         return rbt_balance(gp);
+         return _rbt_balance(gp);
       } else {
          /* Parent is red, uncle is black. */
          /* First if the node is in the inside of the subtree starting
@@ -215,64 +161,6 @@ static struct rbt_node *rbt_balance(struct rbt_node *n) {
          }
       }
    }
-}
-
-struct rbt_node *rbt_insert(struct rbtree *t, struct rbt_node *n) {
-   struct rbt_node *ret;
-
-   n->left = NULL;
-   n->right = NULL;
-
-   if (t->root == NULL) {
-      /* First node, it's the root */
-      t->root = n;
-      n->parent = NULL;
-      n->left = NULL;
-      n->right = NULL;
-      n->color = RBT_BLACK;
-      return NULL;
-   }
-
-   n->color = RBT_RED;
-   ret = rbt_node_insert(t->root, n);
-
-   if (ret) {
-      if (ret == t->root) {
-         t->root = n;
-      }
-      /* We replaced an existing node, no balancing necessary. */
-      return ret;
-   } else {
-      /* We've inserted a new node, we may need to rebalance the
-         tree */
-      ret = rbt_balance(n);
-      if (ret) {
-         /* Root changed */
-         t->root = ret;
-      }
-
-      return NULL;
-   }
-}
-
-struct rbt_node *rbt_find(struct rbtree *t, uint32_t key) {
-   struct rbt_node *n = t->root;
-
-   while (n) {
-      if (n->key == key) {
-         /* Found */
-         return n;
-      }
-
-      if (n->key > key) {
-         n = n->left;
-      } else {
-         n = n->right;
-      }
-   }
-
-   /* Not found */
-   return NULL;
 }
 
 static void rbt_node_visit(struct rbt_node *n,

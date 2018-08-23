@@ -187,6 +187,17 @@ static uint32_t dynarec_mask_address(uint32_t addr) {
    return addr & dynarec_region_mask[addr >> 29];
 }
 
+static uint32_t dynarec_canonical_address(uint32_t addr) {
+   addr = dynarec_mask_address(addr);
+
+   /* RAM is mirrored 4 times */
+   if (addr < (PSX_RAM_SIZE * 4)) {
+      addr = addr % PSX_RAM_SIZE;
+   }
+
+   return addr;
+}
+
 /* Expected length of a cacheline in bytes. Must be a power of two
    otherwise alignment calculations */
 #define CACHE_LINE_SIZE  64U
@@ -197,6 +208,8 @@ struct dynarec_block {
    /* Entry in the Red Black tree. The start address of the block in
       PSX memory is the tree key */
    struct rbt_node tree_node;
+   /* Address of the first instruction of the block */
+   uint32_t base_address;
    /* Length of the block in bytes */
    unsigned block_len_bytes;
    /* Number of PSX instruction recompiled in this block */
@@ -211,6 +224,40 @@ static void *dynarec_block_code(struct dynarec_block *b) {
    /* Code follows the block directly */
    assert(b != NULL);
    return (void *)(b + 1);
+}
+
+static int dynarec_block_compare(const struct rbt_node *n,
+                                 const struct rbt_node *o) {
+   const struct dynarec_block *bn =
+      CONTAINER_OF(n, struct dynarec_block, tree_node);
+   const struct dynarec_block *bo =
+      CONTAINER_OF(o, struct dynarec_block, tree_node);
+
+   if (bn->base_address == bo->base_address) {
+      return 0;
+   } else if (bn->base_address > bo->base_address) {
+      return 1;
+   } else {
+      return -1;
+   }
+}
+
+static int dynarec_block_compare_key(const struct rbt_node *n,
+                                     const void *k) {
+   const struct dynarec_block *bn =
+      CONTAINER_OF(n, struct dynarec_block, tree_node);
+   uint32_t addr = (uintptr_t)k;
+
+   /* Unfortunately we don't support 16bit systems */
+   assert(sizeof(uintptr_t) >= sizeof(uint32_t));
+
+   if (bn->base_address == addr) {
+      return 0;
+   } else if (bn->base_address > addr) {
+      return 1;
+   } else {
+      return -1;
+   }
 }
 
 struct dynarec_state {
@@ -252,6 +299,13 @@ struct dynarec_state {
    /* Recompiled blocks stored by PSX start address */
    struct rbtree blocks;
 };
+
+static struct dynarec_block *dynarec_find_block(struct dynarec_state *state,
+                                                uint32_t addr) {
+   return dynarec_block_from_node(rbt_find(&state->blocks,
+                                           dynarec_block_compare_key,
+                                           (void *)(uintptr_t)addr));
+}
 
 struct dynarec_state *dynarec_init(uint8_t *ram,
                                    uint8_t *scratchpad,

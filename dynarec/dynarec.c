@@ -74,37 +74,19 @@ void dynarec_set_pc(struct dynarec_state *state, uint32_t pc) {
    state->pc = pc;
 }
 
-static uint32_t dynarec_canonical_address(uint32_t addr) {
-   addr = dynarec_mask_address(addr);
-
-   /* RAM is mirrored 4 times */
-   if (addr < (PSX_RAM_SIZE * 4)) {
-      addr = addr % PSX_RAM_SIZE;
-   }
-
-   return addr;
-}
-
-struct dynarec_block *dynarec_find_block(struct dynarec_state *state,
-                                         uint32_t addr) {
-   addr = dynarec_canonical_address(addr);
-
-   return dynarec_block_from_node(rbt_find(&state->blocks, addr));
-}
-
 struct dynarec_block *dynarec_find_or_compile_block(struct dynarec_state *state,
                                                     uint32_t addr) {
    struct dynarec_block *block;
 
    addr = dynarec_canonical_address(addr);
 
-   block = dynarec_block_from_node(rbt_find(&state->blocks, addr));
+   block = dynarec_find_block(state, addr);
 
    if (block == NULL) {
       /* Recompile */
       block = dynarec_recompile(state, addr);
       assert(block != NULL);
-      rbt_insert(&state->blocks, &block->tree_node);
+      rbt_insert(&state->blocks, &block->tree_node, dynarec_block_compare);
       DYNAREC_LOG("Number of blocks: %lu\n", rbt_size(&state->blocks));
    }
 

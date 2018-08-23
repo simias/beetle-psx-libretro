@@ -15,7 +15,9 @@ static void emit_branch_or_jump(struct dynarec_compiler *compiler,
    bool needs_patch;
    void *link;
 
-   if (target == compiler->block->tree_node.key) {
+   target = dynarec_canonical_address(target);
+
+   if (target == compiler->block->base_address) {
       /* This is a jump back to ourselves */
       b = compiler->block;
    } else {
@@ -902,7 +904,7 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
    assert(state->map_len - (state->free_map - state->map) > (1 * 1024 * 1024));
 
    block = (struct dynarec_block *)state->free_map;
-   block->tree_node.key = addr;
+   block->base_address = addr;
 
    compiler.state = state;
    compiler.block = block;
