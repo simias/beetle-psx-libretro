@@ -629,6 +629,8 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
    uint32_t imm_se = (int16_t)simm_se;
    uint8_t  shift = (instruction >> 6) & 0x1f;
 
+   DYNAREC_LOG("Emitting 0x%08x\n", instruction);
+
    switch (instruction >> 26) {
    case MIPS_OP_FN:
       switch (instruction & 0x3f) {
@@ -934,7 +936,7 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
       int has_load_delay_slot;
       int has_delay_slot;
 
-      DYNAREC_LOG("Compiling 0x%08x\n", instruction);
+      DYNAREC_LOG("Compiling 0x%08x @ 0x%08x\n", instruction, compiler.pc);
 
       compiler.spent_cycles += PSX_CYCLES_PER_INSTRUCTION;
 
@@ -1041,6 +1043,7 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
                /* Since we reordered we must jump ahead not to execute
                   the load delay instruction twice */
                cur += 4;
+               compiler.pc += 4;
                compiler.spent_cycles += PSX_CYCLES_PER_INSTRUCTION;
             }
          } else {
@@ -1124,14 +1127,13 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
                                   ds_target, ds_op0, ds_op1);
          compiler.pc -= 4;
 
-         /* Move ahead not to emit the same instruction twice if this
-            is a conditional branch */
-         cur += 4;
-         compiler.spent_cycles += PSX_CYCLES_PER_INSTRUCTION;
-
          /* Emit branch instruction */
          dynarec_emit_instruction(&compiler, instruction,
                                   reg_target, reg_op0, reg_op1);
+         /* Move ahead not to emit the same instruction twice */
+         cur += 4;
+         compiler.pc += 4;
+         compiler.spent_cycles += PSX_CYCLES_PER_INSTRUCTION;
       } else {
          /* Boring old instruction, no delay slot involved. */
          dynarec_emit_instruction(&compiler, instruction,

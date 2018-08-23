@@ -222,6 +222,8 @@ static int run_test(const char *name, test_fn_t f) {
    ALU_RR(MIPS_FN_JALR, (_rt), (_r), 0)
 #define BEQ(_ro1, _ro2, _off)                   \
    ALU_RI(MIPS_OP_BEQ, (_ro1), (_ro2), (_off) >> 2)
+#define BNE(_ro1, _ro2, _off)                   \
+   ALU_RI(MIPS_OP_BNE, (_ro1), (_ro2), (_off) >> 2)
 #define SLL(_rt, _ro, _s)                       \
    SHIFT_RI(MIPS_FN_SLL, (_rt), (_ro), (_s))
 #define SRL(_rt, _ro, _s)                       \
@@ -1085,16 +1087,16 @@ static int test_jalr(struct dynarec_state *state) {
 
 static int test_beq(struct dynarec_state *state) {
    union mips_instruction code[] = {
-      LI(PSX_REG_T0, 0), // 0
-      LI(PSX_REG_T1, 4), // 8
-      LI(PSX_REG_T2, 4), // 10
+      LI(PSX_REG_T0, 0),
+      LI(PSX_REG_T1, 4),
+      LI(PSX_REG_T2, 4),
 
-      BEQ(PSX_REG_T0, PSX_REG_R0, 8), // 18
-      NOP,                            // 1c
-      ORI(PSX_REG_T0, PSX_REG_R0, 0xbad), // 20
+      BEQ(PSX_REG_T0, PSX_REG_R0, 8),
+      NOP,
+      ORI(PSX_REG_T0, PSX_REG_R0, 0xbad),
 
-      ADDIU(PSX_REG_T0, PSX_REG_T0, 1), // 24
-      BEQ(PSX_REG_T1, PSX_REG_T2, -8), // 28
+      ADDIU(PSX_REG_T0, PSX_REG_T0, 1),
+      BEQ(PSX_REG_T1, PSX_REG_T2, -8),
       ADDIU(PSX_REG_T1, PSX_REG_T1, 0x10),
 
       LI(PSX_REG_V0, 0xabcdef),
@@ -1112,6 +1114,42 @@ static int test_beq(struct dynarec_state *state) {
       { .r = PSX_REG_T2, .v = 0x4 },
       { .r = PSX_REG_V0, .v = 0xabcdef },
       { .r = PSX_REG_V1, .v = 0xabce0f },
+   };
+   uint32_t ret;
+
+   load_code(state, code, ARRAY_SIZE(code), 0);
+
+   ret = dynarec_run(state, 0x1000);
+
+   TEST_EQ(ret >> 28, DYNAREC_EXIT_BREAK);
+   TEST_EQ(ret & 0xfffffff, 0x0ff0ff);
+
+   return check_regs(state, expected, ARRAY_SIZE(expected));
+}
+
+static int test_bne(struct dynarec_state *state) {
+   union mips_instruction code[] = {
+      LI(PSX_REG_T0, 0),
+      LI(PSX_REG_T1, 0),
+      LI(PSX_REG_T2, 4),
+      LI(PSX_REG_V0, 0),
+      LI(PSX_REG_V1, 0x10),
+
+      BNE(PSX_REG_T1, PSX_REG_T2, -4),
+      ADDIU(PSX_REG_T1, PSX_REG_T1, 1),
+
+      ADDIU(PSX_REG_T0, PSX_REG_T0, 0x10),
+      BNE(PSX_REG_V1, PSX_REG_V0, -8),
+      ADDIU(PSX_REG_V0, PSX_REG_V0, 1),
+
+      BREAK(0xff0ff),
+   };
+   struct reg_val expected[] = {
+      { .r = PSX_REG_T1, .v = 0x5 },
+      { .r = PSX_REG_T2, .v = 0x4 },
+      { .r = PSX_REG_V0, .v = 0x11 },
+      { .r = PSX_REG_V1, .v = 0x10 },
+      { .r = PSX_REG_T0, .v = 0x110 },
    };
    uint32_t ret;
 
@@ -1351,6 +1389,7 @@ int main() {
    RUN_TEST(test_jr);
    RUN_TEST(test_jalr);
    RUN_TEST(test_beq);
+   RUN_TEST(test_bne);
    RUN_TEST(test_lb);
    RUN_TEST(test_lbu);
    RUN_TEST(test_lh);
