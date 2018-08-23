@@ -1617,7 +1617,11 @@ extern void dynasm_emit_sltu(struct dynarec_compiler *compiler,
       /* Use SI as temporary */
       op0 = REG_SI;
 
-      MOVE_FROM_BANKED(reg_op0, REG_SI);
+      if (reg_op0 != PSX_REG_R0) {
+         MOVE_FROM_BANKED(reg_op0, REG_SI);
+      } else {
+         CLEAR_REG(REG_SI);
+      }
    }
 
    if (op1 < 0) {

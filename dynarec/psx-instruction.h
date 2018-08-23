@@ -20,6 +20,7 @@
 # define MIPS_FN_SUBU           0x23U
 # define MIPS_FN_AND            0x24U
 # define MIPS_FN_OR             0x25U
+# define MIPS_FN_SLTU           0x2BU
 #define MIPS_OP_J              0x02U
 #define MIPS_OP_JAL            0x03U
 #define MIPS_OP_ORI            0x0DU
