@@ -93,7 +93,7 @@ struct dynarec_block *dynarec_find_or_compile_block(struct dynarec_state *state,
    return block;
 }
 
-uint32_t dynarec_run(struct dynarec_state *state, int32_t cycles_to_run) {
+struct dynarec_ret dynarec_run(struct dynarec_state *state, int32_t cycles_to_run) {
    struct dynarec_block *block;
 
    block = dynarec_find_or_compile_block(state, state->pc);

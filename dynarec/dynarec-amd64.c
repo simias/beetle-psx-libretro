@@ -130,7 +130,10 @@ static int register_location(enum PSX_REG reg) {
 #define OP_IF_NOT_EQUAL     0x74
 #define OP_IF_EQUAL         0x75
 #define OP_IF_LESS_EQUAL    0x77
+
+/* Signed comparisons */
 #define OP_IF_GREATER_EQUAL 0x7c
+#define OP_IF_BELOW_EQUAL   0x7f
 
 #define IF_OVERFLOW      IF(OP_IF_OVERFLOW)
 #define IF_LESS_THAN     IF(OP_IF_LESS_THAN)
@@ -138,6 +141,7 @@ static int register_location(enum PSX_REG reg) {
 #define IF_EQUAL         IF(OP_IF_EQUAL)
 #define IF_LESS_EQUAL    IF(OP_IF_LESS_EQUAL)
 #define IF_GREATER_EQUAL IF(OP_IF_GREATER_EQUAL)
+#define IF_BELOW_EQUAL   IF(OP_IF_BELOW_EQUAL)
 
 /* 64bit "REX" prefix used to specify extended registers among other
    things. See the "Intel 64 and IA-32 Architecture Software
@@ -583,6 +587,7 @@ static void emit_setcc(struct dynarec_compiler *compiler,
 #define SUB_OP     0x28
 #define XOR_OP     0x30
 #define CMP_OP     0x38
+#define TEST_OP    0x85
 
 /* NEG %reg32 */
 static void emit_neg_r32(struct dynarec_compiler *compiler,
@@ -661,6 +666,7 @@ static void emit_alu_r32_r32(struct dynarec_compiler *compiler,
 #define SUB_R32_R32(_op0, _op1) emit_alu_r32_r32(compiler, SUB_OP, (_op0), (_op1))
 #define XOR_R32_R32(_op0, _op1) emit_alu_r32_r32(compiler, XOR_OP, (_op0), (_op1))
 #define CMP_R32_R32(_op0, _op1) emit_alu_r32_r32(compiler, CMP_OP, (_op0), (_op1))
+#define TEST_R32_R32(_op0, _op1) emit_alu_r32_r32(compiler, TEST_OP, (_op0), (_op1))
 
 static void emit_alu_off_pr64_rx(struct dynarec_compiler *compiler,
                                  uint8_t op,
@@ -1045,8 +1051,21 @@ void dynasm_emit_exit(struct dynarec_compiler *compiler,
    assert(code <= 0xf);
    assert(val <= 0xfffffff);
 
+   if (compiler->spent_cycles) {
+      SUB_U32_R32(compiler->spent_cycles, REG_CX);
+   }
+
    MOV_U32_R32((code << 28) | val, REG_AX);
+   MOV_U32_R32(compiler->pc, REG_DX);
    RET;
+}
+
+void dynasm_emit_block_prologue(struct dynarec_compiler *compiler) {
+   /* Check if counter is < 0 */
+   TEST_R32_R32(REG_CX, REG_CX);
+   IF_BELOW_EQUAL {
+      dynasm_emit_exit(compiler, DYNAREC_EXIT_COUTER, 0);
+   } ENDIF;
 }
 
 /************************

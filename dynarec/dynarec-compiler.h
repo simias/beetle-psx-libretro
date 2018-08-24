@@ -52,10 +52,10 @@ extern void *dynarec_recompile_and_patch(struct dynarec_state *state,
 
 /* These methods are provided by the various architecture-dependent
    backends */
-extern void dynasm_patch(struct dynarec_compiler *compiler, int32_t offset);
-extern uint32_t dynasm_execute(struct dynarec_state *state,
-                               dynarec_fn_t target,
-                               int32_t counter);
+extern void dynasm_emit_block_prologue(struct dynarec_compiler *compiler);
+extern struct dynarec_ret dynasm_execute(struct dynarec_state *state,
+                                         dynarec_fn_t target,
+                                         int32_t counter);
 extern void dynasm_emit_link_trampoline(struct dynarec_compiler *compiler);
 extern void dynasm_patch_link(struct dynarec_compiler *compiler,
                               void *link);

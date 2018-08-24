@@ -1,3 +1,6 @@
+/* offsetof(struct dynarec_state, pc) */
+.EQU PC_REG_OFFSET,    32
+
 /* offsetof(struct dynarec_state, regs) */
 .EQU STATE_REG_OFFSET, 0x40
 
@@ -65,6 +68,13 @@ dynasm_execute:
         mov     %r14d, SP_REG_OFFSET(%rdi)
         mov     %r15d, RA_REG_OFFSET(%rdi)
         mov     %ebx,  DT_REG_OFFSET(%rdi)
+
+        /* Move PC into dynarec_state */
+        mov     %edx,  PC_REG_OFFSET(%rdi)
+
+        /* Move counter to high 32bits of %rax */
+        shl     $32, %rcx
+        or      %rcx, %rax
 
         /* Pop the preserved registers */
         pop     %r12

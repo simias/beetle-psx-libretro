@@ -2665,8 +2665,21 @@ pscpu_timestamp_t PS_CPU::RunDynarec(int32_t timestamp)
 
    do {
       int32_t cycles_to_run = next_event_ts - timestamp;
+      int32_t cycles_run;
+      struct dynarec_ret ret;
 
-      dynarec_run(dynarec_state, cycles_to_run);
+      assert(cycles_to_run > 0);
+
+      ret = dynarec_run(dynarec_state, cycles_to_run);
+
+      assert(ret.val.code == 0);
+
+      cycles_run = cycles_to_run - ret.counter;
+
+      assert(cycles_run >= 0);
+
+      timestamp += cycles_run;
+
    } while(MDFN_LIKELY(PSX_EventHandler(timestamp)));
 
    ACTIVE_TO_BACKING;

@@ -920,6 +920,8 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
    compiler.pc = addr;
    compiler.spent_cycles = 0;
 
+   dynasm_emit_block_prologue(&compiler);
+
    for (eob = false, cur = block_start; !eob && cur < block_end; cur += 4, compiler.pc += 4) {
       uint32_t instruction = load_le(cur);
 

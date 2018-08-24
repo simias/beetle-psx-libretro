@@ -28,10 +28,13 @@ extern "C" {
  * the EXIT code. The meaning of the remaining 28 bits is
  * code-dependent.
  */
-
-/* A BREAK instruction was encountered while DYNAREC_OPT_EXIT_ON_BREAK
-   was set. The low 20 bits contain the break code. */
-#define DYNAREC_EXIT_BREAK         0xEU
+enum dynarec_exit {
+   /* Counter exhausted */
+   DYNAREC_EXIT_COUTER = 0,
+   /* A BREAK instruction was encountered while DYNAREC_OPT_EXIT_ON_BREAK
+      was set. The low 20 bits contain the break code. */
+   DYNAREC_EXIT_BREAK = 0xe,
+};
 
 /* PSX RAM size in bytes: 2MB */
 #define PSX_RAM_SIZE               0x200000U
@@ -261,11 +264,11 @@ static int dynarec_block_compare_key(const struct rbt_node *n,
 }
 
 struct dynarec_state {
-   /* Current value of the PC */
-   uint32_t pc;
    /* Region mask, it's used heavily in the dynarec'd code so it's
       convenient to have it accessible in this struct. */
    uint32_t region_mask[8];
+   /* Current value of the PC */
+   uint32_t pc;
    /* Pointer to the PSX RAM */
    uint8_t *ram;
    /* Pointer to the PSX scratchpad */
@@ -319,8 +322,17 @@ void dynarec_set_next_event(struct dynarec_state *state,
                             int32_t cycles);
 void dynarec_set_pc(struct dynarec_state *state,
                     uint32_t pc);
-uint32_t dynarec_run(struct dynarec_state *state,
-                     int32_t cycles_to_run);
+
+struct dynarec_ret {
+   struct {
+      unsigned param : 28;
+      unsigned code : 4;
+   } val;
+   int32_t counter;
+};
+
+struct dynarec_ret dynarec_run(struct dynarec_state *state,
+                               int32_t cycles_to_run);
 
 /******************************************************
  * Callbacks that must be implemented by the emulator *
