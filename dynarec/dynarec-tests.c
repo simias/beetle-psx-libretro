@@ -260,6 +260,8 @@ static int run_test(const char *name, test_fn_t f) {
    ALU_RI(MIPS_OP_ADDIU, (_rt), (_ro), (_i))
 #define ORI(_rt, _ro, _i)                       \
    ALU_RI(MIPS_OP_ORI, (_rt), (_ro), (_i))
+#define ANDI(_rt, _ro, _i)                      \
+   ALU_RI(MIPS_OP_ANDI, (_rt), (_ro), (_i))
 #define LUI(_rt, _i)                            \
    ALU_RI(MIPS_OP_LUI, (_rt), PSX_REG_R0, (_i))
 /* Dumb 2-instruction Load Immediate implementation. For simplicity
@@ -406,6 +408,54 @@ static int test_ori(struct dynarec_state *state) {
       { .r = PSX_REG_T1, .v = 3 },
       { .r = PSX_REG_T2, .v = 0xffffffff },
       { .r = PSX_REG_T3, .v = 0x89ab },
+   };
+   uint32_t end_pc = 0x50;
+   struct dynarec_ret ret;
+
+   load_code(state, code, ARRAY_SIZE(code), 0);
+
+   ret = dynarec_run(state, 0x1000);
+
+   TEST_EQ(state->pc, end_pc);
+   TEST_EQ(ret.val.code, DYNAREC_EXIT_BREAK);
+   TEST_EQ(ret.val.param, 0x0ff0ff);
+
+   return check_regs(state, expected, ARRAY_SIZE(expected));
+}
+
+static int test_andi(struct dynarec_state *state) {
+   union mips_instruction code[] = {
+      LI(PSX_REG_T0, 0x6666666),
+      LI(PSX_REG_T1, 3),
+      LI(PSX_REG_T2, 0xfffff000),
+      LI(PSX_REG_T3, 0xabcd0000),
+
+      ANDI(PSX_REG_R0, PSX_REG_T2, 0xabcd),
+      ANDI(PSX_REG_R0, PSX_REG_R0, 0xabcd),
+      ANDI(PSX_REG_S0, PSX_REG_R0, 0x1234),
+      ANDI(PSX_REG_S1, PSX_REG_T0, 0xff00),
+      ANDI(PSX_REG_V0, PSX_REG_T0, 0xabc0),
+      ANDI(PSX_REG_V1, PSX_REG_T0, 0x3450),
+      ANDI(PSX_REG_S2, PSX_REG_T0, 0),
+      ANDI(PSX_REG_S3, PSX_REG_T0, 0xffff),
+      ANDI(PSX_REG_T0, PSX_REG_T0, 0),
+      ANDI(PSX_REG_T1, PSX_REG_T1, 0),
+      ANDI(PSX_REG_T2, PSX_REG_T2, 0xffff),
+      ANDI(PSX_REG_T3, PSX_REG_T3, 0x89ab),
+
+      BREAK(0x0ff0ff),
+   };
+   struct reg_val expected[] = {
+      { .r = PSX_REG_S0, .v = 0 },
+      { .r = PSX_REG_S1, .v = 0x6600 },
+      { .r = PSX_REG_V0, .v = 0x2240 },
+      { .r = PSX_REG_V1, .v = 0x2440 },
+      { .r = PSX_REG_S2, .v = 0 },
+      { .r = PSX_REG_S3, .v = 0x6666 },
+      { .r = PSX_REG_T0, .v = 0 },
+      { .r = PSX_REG_T1, .v = 0 },
+      { .r = PSX_REG_T2, .v = 0xf000 },
+      { .r = PSX_REG_T3, .v = 0 },
    };
    uint32_t end_pc = 0x50;
    struct dynarec_ret ret;
@@ -1457,6 +1507,7 @@ int main() {
    RUN_TEST(test_lui);
    RUN_TEST(test_counter);
    RUN_TEST(test_ori);
+   RUN_TEST(test_andi);
    RUN_TEST(test_li);
    RUN_TEST(test_r0);
    RUN_TEST(test_sll);

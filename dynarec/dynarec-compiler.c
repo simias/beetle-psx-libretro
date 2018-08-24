@@ -246,6 +246,7 @@ static void emit_andi(struct dynarec_compiler *compiler,
 
    if (imm == 0 || reg_source == 0) {
       dynasm_emit_li(compiler, reg_target, 0);
+      return;
    }
 
    dynasm_emit_andi(compiler, reg_target, reg_source, imm);
@@ -553,8 +554,8 @@ static enum optype dynarec_instruction_registers(uint32_t instruction,
       *reg_op1 = reg_t;
       type = OP_BRANCH_COND;
       break;
-   case 0x06: /* BLEZ */
-   case 0x07: /* BGTZ */
+   case MIPS_OP_BLEZ:
+   case MIPS_OP_BGTZ:
       *reg_op0 = reg_s;
       type = OP_BRANCH_COND;
       break;
@@ -562,8 +563,8 @@ static enum optype dynarec_instruction_registers(uint32_t instruction,
    case MIPS_OP_ADDIU:
    case 0x0a: /* SLTI */
    case 0x0b: /* SLTIU */
-   case 0x0c: /* ANDI */
-   case 0x0d: /* ORI */
+   case MIPS_OP_ANDI:
+   case MIPS_OP_ORI:
       *reg_target = reg_t;
       *reg_op0    = reg_s;
       break;
@@ -757,22 +758,22 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
    case MIPS_OP_JAL:
       emit_jal(compiler, instruction);
       break;
-   case 0x04: /* BEQ */
+   case MIPS_OP_BEQ:
       emit_beq(compiler, simm_se, reg_op0, reg_op1);
       break;
-   case 0x05: /* BNE */
+   case MIPS_OP_BNE:
       emit_bne(compiler, simm_se, reg_op0, reg_op1);
       break;
-   case 0x06: /* BLEZ */
+   case MIPS_OP_BLEZ:
       emit_blez(compiler, instruction);
       break;
-   case 0x07: /* BGTZ */
+   case MIPS_OP_BGTZ:
       emit_bgtz(compiler, instruction);
       break;
-   case 0x08: /* ADDI */
+   case MIPS_OP_ADDI:
       emit_addi(compiler, reg_target, reg_op0, imm_se);
       break;
-   case 0x09: /* ADDIU */
+   case MIPS_OP_ADDIU:
       emit_addiu(compiler, reg_target, reg_op0, imm_se);
       break;
    case 0x0a: /* SLTI */
@@ -797,10 +798,10 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
 
       dynasm_emit_sltiu(compiler, reg_target, reg_op0, imm_se);
       break;
-   case 0x0c: /* ANDI */
+   case MIPS_OP_ANDI:
       emit_andi(compiler, reg_target, reg_op0, imm);
       break;
-   case 0x0d: /* ORI */
+   case MIPS_OP_ORI:
       emit_ori(compiler, reg_target, reg_op0, imm);
       break;
    case MIPS_OP_LUI:
@@ -922,7 +923,9 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
 
    dynasm_emit_block_prologue(&compiler);
 
-   for (eob = false, cur = block_start; !eob && cur < block_end; cur += 4, compiler.pc += 4) {
+   for (eob = false, cur = block_start;
+        !eob && cur < block_end;
+        cur += 4, compiler.pc += 4) {
       uint32_t instruction = load_le(cur);
 
       /* Various decodings of the fields, of course they won't all be
@@ -1183,7 +1186,8 @@ void *dynarec_recompile_and_patch(struct dynarec_state *state,
    struct dynarec_block *b;
    void *link;
 
-   DYNAREC_LOG("dynarec_recompile_and_patch(%08x, %08x)\n", target, patch_offset);
+   DYNAREC_LOG("dynarec_recompile_and_patch(%08x, %08x)\n",
+               target, patch_offset);
 
    b = dynarec_find_or_compile_block(state, target);
 
