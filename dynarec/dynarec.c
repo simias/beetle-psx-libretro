@@ -95,12 +95,21 @@ struct dynarec_block *dynarec_find_or_compile_block(struct dynarec_state *state,
 
 struct dynarec_ret dynarec_run(struct dynarec_state *state, int32_t cycles_to_run) {
    struct dynarec_block *block;
+   struct dynarec_ret ret;
 
    block = dynarec_find_or_compile_block(state, state->pc);
 
    dynarec_fn_t f = dynarec_block_code(block);
 
-   return dynasm_execute(state, f, cycles_to_run);
+   ret = dynasm_execute(state, f, cycles_to_run);
+
+   if (ret.val.code == DYNAREC_EXIT_UNIMPLEMENTED) {
+      printf("Dynarec encountered unimplemented construct no line %u\n",
+             ret.val.param);
+      abort();
+   }
+
+   return ret;
 }
 
 /* Helper functions called by the recompiled code */

@@ -163,15 +163,15 @@ static int run_test(const char *name, test_fn_t f) {
 /***************************
  * Pseudo-assembler macros *
  ***************************/
-#define ALU_RI(_op, _rt, _ro, _i)               \
+#define FN_RI(_op, _rt, _ro, _i)                \
    (union mips_instruction){                    \
-      .fn_ri =                                 \
+      .fn_ri =                                  \
          { .opcode = (_op),                     \
            .reg_t = (_rt),                      \
            .reg_s = (_ro),                      \
            .imm = (_i) }}
 
-#define ALU_RR(_fn, _rt, _ro1, _ro2)            \
+#define FN_RR(_fn, _rt, _ro1, _ro2)             \
    (union mips_instruction){                    \
       .fn_rr =                                  \
          { .opcode = MIPS_OP_FN,                \
@@ -217,13 +217,15 @@ static int run_test(const char *name, test_fn_t f) {
            .off = (_off) }}
 
 #define JR(_r)                                  \
-   ALU_RR(MIPS_FN_JR, 0, (_r), 0)
+   FN_RR(MIPS_FN_JR, 0, (_r), 0)
 #define JALR(_rt, _r)                           \
-   ALU_RR(MIPS_FN_JALR, (_rt), (_r), 0)
+   FN_RR(MIPS_FN_JALR, (_rt), (_r), 0)
 #define BEQ(_ro1, _ro2, _off)                   \
-   ALU_RI(MIPS_OP_BEQ, (_ro1), (_ro2), (_off) >> 2)
+   FN_RI(MIPS_OP_BEQ, (_ro1), (_ro2), (_off) >> 2)
 #define BNE(_ro1, _ro2, _off)                   \
-   ALU_RI(MIPS_OP_BNE, (_ro1), (_ro2), (_off) >> 2)
+   FN_RI(MIPS_OP_BNE, (_ro1), (_ro2), (_off) >> 2)
+#define BLEZ(_r, _off)                          \
+   FN_RI(MIPS_OP_BLEZ, 0, (_r), (_off) >> 2)
 #define SLL(_rt, _ro, _s)                       \
    SHIFT_RI(MIPS_FN_SLL, (_rt), (_ro), (_s))
 #define SRL(_rt, _ro, _s)                       \
@@ -233,37 +235,37 @@ static int run_test(const char *name, test_fn_t f) {
 #define NOP                                     \
    SLL(PSX_REG_R0, PSX_REG_R0, 0)
 #define MFHI(_rt)                               \
-   ALU_RR(MIPS_FN_MFHI, (_rt), 0, 0)
+   FN_RR(MIPS_FN_MFHI, (_rt), 0, 0)
 #define MTHI(_rs)                               \
-   ALU_RR(MIPS_FN_MTHI, 0, (_rs), 0)
+   FN_RR(MIPS_FN_MTHI, 0, (_rs), 0)
 #define MFLO(_rt)                               \
-   ALU_RR(MIPS_FN_MFLO, (_rt), 0, 0)
+   FN_RR(MIPS_FN_MFLO, (_rt), 0, 0)
 #define MTLO(_rs)                               \
-   ALU_RR(MIPS_FN_MTLO, 0, (_rs), 0)
+   FN_RR(MIPS_FN_MTLO, 0, (_rs), 0)
 #define MULTU(_ro1, _ro2)                       \
-   ALU_RR(MIPS_FN_MULTU, 0, (_ro1), (_ro2))
+   FN_RR(MIPS_FN_MULTU, 0, (_ro1), (_ro2))
 #define ADD(_rt, _ro1, _ro2)                    \
-   ALU_RR(MIPS_FN_ADD, (_rt), (_ro1), (_ro2))
+   FN_RR(MIPS_FN_ADD, (_rt), (_ro1), (_ro2))
 #define ADDU(_rt, _ro1, _ro2)                   \
-   ALU_RR(MIPS_FN_ADDU, (_rt), (_ro1), (_ro2))
+   FN_RR(MIPS_FN_ADDU, (_rt), (_ro1), (_ro2))
 #define SUBU(_rt, _ro1, _ro2)                   \
-   ALU_RR(MIPS_FN_SUBU, (_rt), (_ro1), (_ro2))
+   FN_RR(MIPS_FN_SUBU, (_rt), (_ro1), (_ro2))
 #define AND(_rt, _ro1, _ro2)                    \
-   ALU_RR(MIPS_FN_AND, (_rt), (_ro1), (_ro2))
+   FN_RR(MIPS_FN_AND, (_rt), (_ro1), (_ro2))
 #define OR(_rt, _ro1, _ro2)                     \
-   ALU_RR(MIPS_FN_OR, (_rt), (_ro1), (_ro2))
+   FN_RR(MIPS_FN_OR, (_rt), (_ro1), (_ro2))
 #define SLTU(_rt, _ro1, _ro2)                   \
-   ALU_RR(MIPS_FN_SLTU, (_rt), (_ro1), (_ro2))
+   FN_RR(MIPS_FN_SLTU, (_rt), (_ro1), (_ro2))
 #define ADDI(_rt, _ro, _i)                      \
-   ALU_RI(MIPS_OP_ADDI, (_rt), (_ro), (_i))
+   FN_RI(MIPS_OP_ADDI, (_rt), (_ro), (_i))
 #define ADDIU(_rt, _ro, _i)                     \
-   ALU_RI(MIPS_OP_ADDIU, (_rt), (_ro), (_i))
+   FN_RI(MIPS_OP_ADDIU, (_rt), (_ro), (_i))
 #define ORI(_rt, _ro, _i)                       \
-   ALU_RI(MIPS_OP_ORI, (_rt), (_ro), (_i))
+   FN_RI(MIPS_OP_ORI, (_rt), (_ro), (_i))
 #define ANDI(_rt, _ro, _i)                      \
-   ALU_RI(MIPS_OP_ANDI, (_rt), (_ro), (_i))
+   FN_RI(MIPS_OP_ANDI, (_rt), (_ro), (_i))
 #define LUI(_rt, _i)                            \
-   ALU_RI(MIPS_OP_LUI, (_rt), PSX_REG_R0, (_i))
+   FN_RI(MIPS_OP_LUI, (_rt), PSX_REG_R0, (_i))
 /* Dumb 2-instruction Load Immediate implementation. For simplicity
    doesn't attempt to reduce to a single instruction if the immediate
    fits 16 bits. */

@@ -1046,7 +1046,7 @@ void dynasm_emit_exception(struct dynarec_compiler *compiler,
 }
 
 void dynasm_emit_exit(struct dynarec_compiler *compiler,
-                      unsigned code,
+                      enum dynarec_exit code,
                       unsigned val) {
    assert(code <= 0xf);
    assert(val <= 0xfffffff);

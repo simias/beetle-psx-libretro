@@ -151,14 +151,13 @@ static void emit_bne(struct dynarec_compiler *compiler,
 
 static void emit_blez(struct dynarec_compiler *compiler,
                       uint32_t instruction) {
-   (void)instruction;
-   dynasm_emit_exception(compiler, PSX_DYNAREC_UNIMPLEMENTED);
+   dynasm_emit_exit(compiler, DYNAREC_EXIT_UNIMPLEMENTED, __LINE__);
 }
 
 static void emit_bgtz(struct dynarec_compiler *compiler,
                       uint32_t instruction) {
    (void)instruction;
-   dynasm_emit_exception(compiler, PSX_DYNAREC_UNIMPLEMENTED);
+   dynasm_emit_exit(compiler, DYNAREC_EXIT_UNIMPLEMENTED, __LINE__);
 }
 
 typedef void (*shift_emit_fn_t)(struct dynarec_compiler *compiler,
@@ -428,7 +427,7 @@ static void emit_or(struct dynarec_compiler *compiler,
 static void emit_rfe(struct dynarec_compiler *compiler,
                      uint32_t instruction) {
    (void)instruction;
-   dynasm_emit_exception(compiler, PSX_DYNAREC_UNIMPLEMENTED);
+   dynasm_emit_exit(compiler, DYNAREC_EXIT_UNIMPLEMENTED, __LINE__);
 }
 
 enum optype {
@@ -1088,14 +1087,14 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
             /* Nested branch delay slot or exception in delay
                slot. This would be a pain to implement. Let's hope the
                average game doesn't require something like that. */
-            dynasm_emit_exception(&compiler, PSX_DYNAREC_UNIMPLEMENTED);
+            dynasm_emit_exit(&compiler, DYNAREC_EXIT_UNIMPLEMENTED, __LINE__);
          } else if (ds_type == OP_LOAD) {
             /* Emitting this directly would be technically inaccurate
                but probably fine the vast majority of the time
                (relying on load delay slot behaviour across a jump
                sounds nasty, but who knows). Remove after running more
                tests. */
-            dynasm_emit_exception(&compiler, PSX_DYNAREC_UNIMPLEMENTED);
+            dynasm_emit_exit(&compiler, DYNAREC_EXIT_UNIMPLEMENTED, __LINE__);
          }
 
          if (ds_target != PSX_REG_R0) {

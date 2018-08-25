@@ -31,6 +31,8 @@ extern "C" {
 enum dynarec_exit {
    /* Counter exhausted */
    DYNAREC_EXIT_COUTER = 0,
+   /* Unimplemented feature encountered. */
+   DYNAREC_EXIT_UNIMPLEMENTED = 0xd,
    /* A BREAK instruction was encountered while DYNAREC_OPT_EXIT_ON_BREAK
       was set. The low 20 bits contain the break code. */
    DYNAREC_EXIT_BREAK = 0xe,
@@ -173,8 +175,6 @@ enum PSX_CPU_EXCEPTION {
    PSX_COPROCESSOR_ERROR = 0xb,
    /* Arithmetic overflow */
    PSX_OVERFLOW = 0xc,
-   /* Fake exception for dynarec use */
-   PSX_DYNAREC_UNIMPLEMENTED = 0xdead,
 };
 
 static const uint32_t dynarec_region_mask[8] = {
