@@ -108,10 +108,45 @@ static int register_location(enum PSX_REG reg) {
       *_jump_patch = _jump_off;                                 \
    }} while (0)
 
-/* The meaning of the code is actually the opposite of the IF macro
- * (e.g. opcode 0x75 is "jump short if not equal") because the IF is
- * implemented as a jump over the body when the condition is *not*
- * fulfilled. So for instance if you have code like:
+/***************
+ * Comparisons *
+ ***************/
+/* ZF == 1 */
+#define COND_EQ             0x74
+/* ZF == 0 */
+#define COND_NE             0x75
+
+/************************
+ * Unsigned comparisons *
+ ************************/
+/* CF == 0 && ZF == 0 */
+#define COND_ABOVE          0x77
+/* CF == 0 */
+#define COND_ABOVE_EQUAL    0x73
+/* CF == 1 */
+#define COND_BELOW          0x72
+/* CF == 1 || ZF == 1 */
+#define COND_BELOW_EQUAL    0x76
+
+/************************
+ * Signed comparisons *
+ ************************/
+/* OF == 1 */
+#define COND_OVERFLOW       0x70
+/* OF == 0 */
+#define COND_NOVERFLOW      0x71
+/* ZF == 0 && SF == OF */
+#define COND_GREATER        0x7f
+/* SF == OF */
+#define COND_GREATER_EQUAL  0x7d
+/* SF != OF */
+#define COND_LESS           0x7c
+/* ZF == 1 || SF != OF */
+#define COND_LESS_EQUAL     0x7e
+
+/* We use the logically opposite condition since we want to jump over
+ * the IF body when the condition is *not* met, for instance if you
+ * have:
  *
  *   IF_EQUAL {
  *       do_conditional_stuff();
@@ -125,23 +160,31 @@ static int register_location(enum PSX_REG reg) {
  *   skip:
  *     call  do_more_stuff
  */
-#define OP_IF_OVERFLOW      0x71
-#define OP_IF_LESS_THAN     0x73
-#define OP_IF_NOT_EQUAL     0x74
-#define OP_IF_EQUAL         0x75
-#define OP_IF_LESS_EQUAL    0x77
+#define OP_IF_NOT_EQUAL     COND_EQ
+#define OP_IF_EQUAL         COND_NE
+
+#define IF_EQUAL            IF(OP_IF_EQUAL)
+#define IF_NOT_EQUAL        IF(OP_IF_NOT_EQUAL)
+
+/* Unsigned comparisons */
+#define OP_IF_BELOW         COND_ABOVE_EQUAL
+#define OP_IF_BELOW_EQUAL   COND_ABOVE
+
+#define IF_BELOW            IF(OP_IF_BELOW)
+#define IF_BELOW_EQUAL      IF(OP_IF_BELOW_EQUAL)
 
 /* Signed comparisons */
-#define OP_IF_GREATER_EQUAL 0x7c
-#define OP_IF_BELOW_EQUAL   0x7f
+#define OP_IF_OVERFLOW      COND_NOVERFLOW
+#define OP_IF_LESS          COND_GREATER_EQUAL
+#define OP_IF_LESS_EQUAL    COND_GREATER
+#define OP_IF_GREATER       COND_LESS_EQUAL
+#define OP_IF_GREATER_EQUAL COND_LESS
 
-#define IF_OVERFLOW      IF(OP_IF_OVERFLOW)
-#define IF_LESS_THAN     IF(OP_IF_LESS_THAN)
-#define IF_NOT_EQUAL     IF(OP_IF_NOT_EQUAL)
-#define IF_EQUAL         IF(OP_IF_EQUAL)
-#define IF_LESS_EQUAL    IF(OP_IF_LESS_EQUAL)
-#define IF_GREATER_EQUAL IF(OP_IF_GREATER_EQUAL)
-#define IF_BELOW_EQUAL   IF(OP_IF_BELOW_EQUAL)
+#define IF_OVERFLOW         IF(OP_IF_OVERFLOW)
+#define IF_LESS             IF(OP_IF_LESS)
+#define IF_LESS_EQUAL       IF(OP_IF_LESS_EQUAL)
+#define IF_GREATER          IF(OP_IF_GREATER)
+#define IF_GREATER_EQUAL    IF(OP_IF_GREATER_EQUAL)
 
 /* 64bit "REX" prefix used to specify extended registers among other
    things. See the "Intel 64 and IA-32 Architecture Software
@@ -1063,7 +1106,7 @@ void dynasm_emit_exit(struct dynarec_compiler *compiler,
 void dynasm_emit_block_prologue(struct dynarec_compiler *compiler) {
    /* Check if counter is < 0 */
    TEST_R32_R32(REG_CX, REG_CX);
-   IF_BELOW_EQUAL {
+   IF_LESS_EQUAL {
       dynasm_emit_exit(compiler, DYNAREC_EXIT_COUTER, 0);
    } ENDIF;
 }
@@ -1813,7 +1856,7 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
    /* Test if the address is in RAM */
    CMP_U32_R32(PSX_RAM_SIZE * 4, REG_DX);
 
-   IF_LESS_THAN {
+   IF_BELOW {
       /* We're targetting RAM */
 
       /* Mask the address in case it was in one of the mirrors */
@@ -1877,7 +1920,7 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
       SUB_U32_R32(PSX_SCRATCHPAD_BASE, REG_AX);
       CMP_U32_R32(PSX_SCRATCHPAD_SIZE, REG_AX);
 
-      IF_LESS_THAN {
+      IF_BELOW {
          /* We're targetting the scratchpad. This is the simplest
             case, no invalidation needed, we can store it directly in
             the scratchpad buffer */
@@ -2081,64 +2124,76 @@ void dynasm_emit_lw(struct dynarec_compiler *compiler,
 static uint8_t emit_branch_cond(struct dynarec_compiler *compiler,
                                 enum PSX_REG reg_a,
                                 enum PSX_REG reg_b,
-                                enum DYNAREC_JUMP_COND cond) {
+                                enum dynarec_jump_cond cond) {
    int a = register_location(reg_a);
    int b = register_location(reg_b);
    uint8_t op;
 
-   switch (cond) {
-   case DYNAREC_JUMP_EQ:
-      op = OP_IF_EQUAL;
-      break;
-   case DYNAREC_JUMP_NE:
-      op = OP_IF_NOT_EQUAL;
-      break;
-   case DYNAREC_JUMP_GE:
-      op = OP_IF_GREATER_EQUAL;
-      break;
-   case DYNAREC_JUMP_LT:
-      op = OP_IF_LESS_THAN;
-      break;
-   default:
-      UNIMPLEMENTED;
-   }
-
    if (reg_a == PSX_REG_R0 || reg_b == PSX_REG_R0) {
-      if (reg_b == PSX_REG_R0) {
-         /* The CMP opcode doesn't allow to put an immediate as 2nd
-            operand, swap them around and reverse the operation if
-            necessary */
-         reg_b = reg_a;
-         b = a;
-
-         /* Invert op */
+      if (reg_a == PSX_REG_R0) {
          switch (cond) {
-         case DYNAREC_JUMP_ALWAYS:
          case DYNAREC_JUMP_EQ:
+            op = OP_IF_EQUAL;
+            break;
          case DYNAREC_JUMP_NE:
-            /* Nothing to do */
+            op = OP_IF_NOT_EQUAL;
             break;
          case DYNAREC_JUMP_GE:
-            op = OP_IF_LESS_THAN;
-            break;
-         case DYNAREC_JUMP_LT:
             op = OP_IF_GREATER_EQUAL;
             break;
+         case DYNAREC_JUMP_LT:
+            op = OP_IF_LESS;
+            break;
          default:
-            printf("%d\n", cond);
+            UNIMPLEMENTED;
+         }
+
+         reg_a = reg_b;
+         a = b;
+      } else {
+         switch (cond) {
+         case DYNAREC_JUMP_EQ:
+            op = OP_IF_EQUAL;
+            break;
+         case DYNAREC_JUMP_NE:
+            op = OP_IF_NOT_EQUAL;
+            break;
+         case DYNAREC_JUMP_GE:
+            op = OP_IF_LESS_EQUAL;
+            break;
+         case DYNAREC_JUMP_LT:
+            op = OP_IF_GREATER;
+            break;
+         default:
             UNIMPLEMENTED;
          }
       }
 
-      if (b > 0) {
-         CMP_U32_R32(0, b);
+      if (a > 0) {
+         TEST_R32_R32(a, a);
       } else {
          CMP_U32_OFF_PR64(0,
-                          DYNAREC_STATE_REG_OFFSET(reg_b),
+                          DYNAREC_STATE_REG_OFFSET(reg_a),
                           STATE_REG);
       }
    } else {
       /* We're comparing two "real" registers */
+      switch (cond) {
+      case DYNAREC_JUMP_EQ:
+         op = OP_IF_EQUAL;
+         break;
+      case DYNAREC_JUMP_NE:
+         op = OP_IF_NOT_EQUAL;
+         break;
+      case DYNAREC_JUMP_GE:
+         op = OP_IF_GREATER_EQUAL;
+         break;
+      case DYNAREC_JUMP_LT:
+         op = OP_IF_LESS;
+         break;
+      default:
+         UNIMPLEMENTED;
+      }
 
       if (a > 0) {
          if (b > 0) {
@@ -2263,7 +2318,7 @@ extern void dynasm_emit_jump_imm_cond(struct dynarec_compiler *compiler,
                                       bool needs_patch,
                                       enum PSX_REG reg_a,
                                       enum PSX_REG reg_b,
-                                      enum DYNAREC_JUMP_COND cond) {
+                                      enum dynarec_jump_cond cond) {
    uint8_t op = emit_branch_cond(compiler, reg_a, reg_b, cond);
 
    IF(op) {

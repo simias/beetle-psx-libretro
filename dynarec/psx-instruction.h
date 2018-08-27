@@ -30,6 +30,8 @@
 #define MIPS_OP_BGTZ           0x07U
 #define MIPS_OP_ADDI           0x08U
 #define MIPS_OP_ADDIU          0x09U
+#define MIPS_OP_SLTI           0x0AU
+#define MIPS_OP_SLTIU          0x0BU
 #define MIPS_OP_ANDI           0x0CU
 #define MIPS_OP_ORI            0x0DU
 #define MIPS_OP_LUI            0x0FU

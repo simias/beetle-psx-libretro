@@ -7,7 +7,7 @@
 # include "dynarec-amd64.h"
 #endif
 
-enum DYNAREC_JUMP_COND {
+enum dynarec_jump_cond {
    /* Unconditional jump */
    DYNAREC_JUMP_ALWAYS = 0,
    /* Jump if registers aren't equal */
@@ -182,7 +182,7 @@ extern void dynasm_emit_jump_imm_cond(struct dynarec_compiler *compiler,
                                       bool needs_patch,
                                       enum PSX_REG reg_a,
                                       enum PSX_REG reg_b,
-                                      enum DYNAREC_JUMP_COND cond);
+                                      enum dynarec_jump_cond cond);
 extern void dynasm_emit_mfc0(struct dynarec_compiler *compiler,
                              enum PSX_REG reg_target,
                              enum PSX_COP0_REG reg_cop0);

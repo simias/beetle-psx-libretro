@@ -10,7 +10,7 @@ static void emit_branch_or_jump(struct dynarec_compiler *compiler,
                                 uint32_t target,
                                 enum PSX_REG reg_a,
                                 enum PSX_REG reg_b,
-                                enum DYNAREC_JUMP_COND cond) {
+                                enum dynarec_jump_cond cond) {
    struct dynarec_block *b;
    bool needs_patch;
    void *link;
@@ -91,7 +91,7 @@ static void emit_branch(struct dynarec_compiler *compiler,
                         int16_t offset,
                         enum PSX_REG reg_a,
                         enum PSX_REG reg_b,
-                        enum DYNAREC_JUMP_COND cond) {
+                        enum dynarec_jump_cond cond) {
    /* Offset is always in words (or instructions) */
    uint32_t off = ((int32_t)offset) << 2;
 
@@ -107,7 +107,7 @@ static void emit_bxx(struct dynarec_compiler *compiler,
                      enum PSX_REG reg_link,
                      enum PSX_REG reg_op,
                      bool is_bgez) {
-   enum DYNAREC_JUMP_COND cond;
+   enum dynarec_jump_cond cond;
 
    if (reg_link != PSX_REG_R0) {
       /* Store return address. This is done unconditionally even if
@@ -128,7 +128,7 @@ static void emit_beq(struct dynarec_compiler *compiler,
                      int16_t offset,
                      enum PSX_REG reg_a,
                      enum PSX_REG reg_b) {
-   enum DYNAREC_JUMP_COND cond = DYNAREC_JUMP_EQ;
+   enum dynarec_jump_cond cond = DYNAREC_JUMP_EQ;
 
    if (reg_a == reg_b) {
       cond = DYNAREC_JUMP_ALWAYS;
@@ -150,14 +150,32 @@ static void emit_bne(struct dynarec_compiler *compiler,
 }
 
 static void emit_blez(struct dynarec_compiler *compiler,
-                      uint32_t instruction) {
-   dynasm_emit_exit(compiler, DYNAREC_EXIT_UNIMPLEMENTED, __LINE__);
+                      int16_t offset,
+                      enum PSX_REG reg_op) {
+   enum dynarec_jump_cond cond;
+
+   if (reg_op == PSX_REG_R0) {
+      cond = DYNAREC_JUMP_ALWAYS;
+   } else {
+      cond = DYNAREC_JUMP_GE;
+   }
+
+   emit_branch(compiler, offset, reg_op, PSX_REG_R0, cond);
 }
 
 static void emit_bgtz(struct dynarec_compiler *compiler,
-                      uint32_t instruction) {
-   (void)instruction;
-   dynasm_emit_exit(compiler, DYNAREC_EXIT_UNIMPLEMENTED, __LINE__);
+                      int16_t offset,
+                      enum PSX_REG reg_op) {
+   enum dynarec_jump_cond cond;
+
+   if (reg_op == PSX_REG_R0) {
+      /* NOP */
+      return;
+   } else {
+      cond = DYNAREC_JUMP_LT;
+   }
+
+   emit_branch(compiler, offset, reg_op, PSX_REG_R0, cond);
 }
 
 typedef void (*shift_emit_fn_t)(struct dynarec_compiler *compiler,
@@ -560,8 +578,8 @@ static enum optype dynarec_instruction_registers(uint32_t instruction,
       break;
    case MIPS_OP_ADDI:
    case MIPS_OP_ADDIU:
-   case 0x0a: /* SLTI */
-   case 0x0b: /* SLTIU */
+   case MIPS_OP_SLTI:
+   case MIPS_OP_SLTIU:
    case MIPS_OP_ANDI:
    case MIPS_OP_ORI:
       *reg_target = reg_t;
@@ -764,10 +782,10 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
       emit_bne(compiler, simm_se, reg_op0, reg_op1);
       break;
    case MIPS_OP_BLEZ:
-      emit_blez(compiler, instruction);
+      emit_blez(compiler, simm_se, reg_op0);
       break;
    case MIPS_OP_BGTZ:
-      emit_bgtz(compiler, instruction);
+      emit_bgtz(compiler, simm_se, reg_op0);
       break;
    case MIPS_OP_ADDI:
       emit_addi(compiler, reg_target, reg_op0, imm_se);
@@ -851,14 +869,6 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
       break;
    case 0x2b: /* SW */
       dynasm_emit_sw(compiler, reg_op0, imm, reg_op1);
-      break;
-   case 0x18:
-   case 0x19:
-   case 0x1b:
-   case 0x1d:
-   case 0x1e:
-      /* Illegal */
-      dynasm_emit_exception(compiler, PSX_EXCEPTION_ILLEGAL_INSTRUCTION);
       break;
    default:
       printf("Dynarec encountered unsupported instruction %08x\n",
