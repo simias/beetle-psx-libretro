@@ -78,8 +78,6 @@ struct dynarec_block *dynarec_find_or_compile_block(struct dynarec_state *state,
                                                     uint32_t addr) {
    struct dynarec_block *block;
 
-   addr = dynarec_canonical_address(addr);
-
    block = dynarec_find_block(state, addr);
 
    if (block == NULL) {

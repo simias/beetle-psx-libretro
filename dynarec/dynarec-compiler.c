@@ -15,8 +15,6 @@ static void emit_branch_or_jump(struct dynarec_compiler *compiler,
    bool needs_patch;
    void *link;
 
-   target = dynarec_canonical_address(target);
-
    if (target == compiler->block->base_address) {
       /* This is a jump back to ourselves */
       b = compiler->block;
@@ -896,18 +894,22 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
    const uint8_t           *block_max;
    const uint8_t           *cur;
    enum optype              optype = OP_SIMPLE;
+   uint32_t                 canonical_addr;
    bool                     eob;
 
    DYNAREC_LOG("Recompiling block starting at 0x%08x\n", addr);
 
    assert((addr & 3) == 0);
 
-   if (addr < PSX_RAM_SIZE) {
-      block_start = state->ram + addr;
+   /* Some memory regions are aliased several time in the memory map */
+   canonical_addr = dynarec_canonical_address(addr);
+
+   if (canonical_addr < PSX_RAM_SIZE) {
+      block_start = state->ram + canonical_addr;
       block_max = state->ram + PSX_RAM_SIZE;
-   } else if (addr >= PSX_BIOS_BASE &&
-              addr < (PSX_BIOS_BASE + PSX_BIOS_SIZE)){
-      block_start = state->bios + (addr - PSX_BIOS_BASE);
+   } else if (canonical_addr >= PSX_BIOS_BASE &&
+              canonical_addr < (PSX_BIOS_BASE + PSX_BIOS_SIZE)){
+      block_start = state->bios + (canonical_addr - PSX_BIOS_BASE);
       block_max = state->bios + PSX_RAM_SIZE;
    } else {
       /* What are we trying to recompile here exactly ? */
