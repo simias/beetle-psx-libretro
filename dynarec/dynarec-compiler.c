@@ -209,9 +209,11 @@ static void emit_shift_imm(struct dynarec_compiler *compiler,
 static void emit_addi(struct dynarec_compiler *compiler,
                       enum PSX_REG reg_target,
                       enum PSX_REG reg_source,
-                      uint16_t imm) {
+                      uint32_t imm) {
    if (reg_source == 0) {
-      dynasm_emit_li(compiler, reg_target, imm);
+      if (reg_target != PSX_REG_R0) {
+         dynasm_emit_li(compiler, reg_target, imm);
+      }
       return;
    }
 
@@ -231,7 +233,7 @@ static void emit_addi(struct dynarec_compiler *compiler,
 static void emit_addiu(struct dynarec_compiler *compiler,
                      enum PSX_REG reg_target,
                      enum PSX_REG reg_source,
-                     uint16_t imm) {
+                     uint32_t imm) {
    if (reg_target == 0) {
       /* NOP */
       return;
