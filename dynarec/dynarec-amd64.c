@@ -274,6 +274,10 @@ static void emit_op_osibt(struct dynarec_compiler *compiler,
                           enum X86_REG target) {
    uint8_t s;
 
+   /* There are some shenanigans regarding rsp encoding that I don't
+      fully understand, for now let's assume that it never happens. */
+   assert(index != REG_SP);
+
    emit_rex_prefix(compiler, base, target, index);
 
    *(compiler->map++) = op;
@@ -364,6 +368,10 @@ static void emit_mov_u32_off_pr64(struct dynarec_compiler *compiler,
                                   uint32_t val,
                                   uint32_t off,
                                   enum X86_REG reg) {
+   /* You need a slightly different encoding if r12 is the base
+      regiser. */
+   bool base_is_r12 = (reg == REG_R12);
+
    emit_rex_prefix(compiler, reg, 0, 0);
 
    *(compiler->map++) = 0xc7;
@@ -371,9 +379,15 @@ static void emit_mov_u32_off_pr64(struct dynarec_compiler *compiler,
    /* We can use a denser encoding for small offsets */
    if (is_imms8(off)) {
       *(compiler->map++) = 0x40 | (reg & 7);
+      if (base_is_r12) {
+         *(compiler->map++) = 0x24;
+      }
       emit_imms8(compiler, off);
    } else {
       *(compiler->map++) = 0x80 | (reg & 7);
+      if (base_is_r12) {
+         *(compiler->map++) = 0x24;
+      }
       emit_imm32(compiler, off);
    }
    emit_imm32(compiler, val);
@@ -399,6 +413,10 @@ static void emit_mop_off_pr64_r32(struct dynarec_compiler *compiler,
                                   uint32_t off,
                                   enum X86_REG base,
                                   enum X86_REG target) {
+   /* You need a slightly different encoding if r12 is the base
+      regiser. */
+   bool base_is_r12 = (base == REG_R12);
+
    emit_rex_prefix(compiler, base, target, 0);
    target &= 7;
    base   &= 7;
@@ -407,9 +425,15 @@ static void emit_mop_off_pr64_r32(struct dynarec_compiler *compiler,
 
    if (is_imms8(off)) {
       *(compiler->map++) = 0x40 | base | (target << 3);
+      if (base_is_r12) {
+         *(compiler->map++) = 0x24;
+      }
       emit_imms8(compiler, off);
    } else {
       *(compiler->map++) = 0x80 | base | (target << 3);
+      if (base_is_r12) {
+         *(compiler->map++) = 0x24;
+      }
       emit_imm32(compiler, off);
    }
 }
@@ -422,6 +446,10 @@ static void emit_mop_r32_off_pr64(struct dynarec_compiler *compiler,
                                   enum X86_REG source,
                                   uint32_t off,
                                   enum X86_REG base) {
+   /* You need a slightly different encoding if r12 is the base
+      regiser. */
+   bool base_is_r12 = (base == REG_R12);
+
    emit_rex_prefix(compiler, base, source, 0);
    source &= 7;
    base   &= 7;
@@ -430,9 +458,15 @@ static void emit_mop_r32_off_pr64(struct dynarec_compiler *compiler,
 
    if (is_imms8(off)) {
       *(compiler->map++) = 0x40 | base | (source << 3);
+      if (base_is_r12) {
+         *(compiler->map++) = 0x24;
+      }
       emit_imms8(compiler, off);
    } else {
       *(compiler->map++) = 0x80 | base | (source << 3);
+      if (base_is_r12) {
+         *(compiler->map++) = 0x24;
+      }
       emit_imm32(compiler, off);
    }
 }
