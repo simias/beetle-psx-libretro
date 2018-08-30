@@ -256,14 +256,19 @@ ifneq ($(HAVE_GRIFFIN), 1)
    endif
 
    ifeq ($(HAVE_DYNAREC), 1)
-      FLAGS += -DHAVE_DYNAREC -DDYNAREC_ARCH_$(DYNAREC_ARCH) -DDYNAREC_DEBUG
-
+      FLAGS += -DHAVE_DYNAREC -DDYNAREC_ARCH_$(DYNAREC_ARCH)
       EXTRA_INCLUDES += -I$(CORE_DIR)/dynarec
 
       SOURCES_C += \
                 $(DYNAREC_DIR)/dynarec.c \
                 $(DYNAREC_DIR)/dynarec-compiler.c \
                 $(DYNAREC_DIR)/rbtree.c
+
+      ifeq ($(DEBUG), 1)
+          SOURCES_C += $(DYNAREC_DIR)/dynarec-jit-debugger.c
+          FLAGS += -DDYNAREC_LOG_DEBUG -DDYNAREC_JIT_DEBUGGER
+          AFLAGS += --gstabs
+      endif
 
       ifeq ($(DYNAREC_ARCH), AMD64)
          SOURCES_C   += $(DYNAREC_DIR)/dynarec-amd64.c

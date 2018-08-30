@@ -562,6 +562,9 @@ endif
 %.o: %.c
 	$(CC) -c $(OBJOUT)$@ $< $(CFLAGS)
 
+%.o: %.s
+	$(AS) -c $(OBJOUT)$@ $< $(AFLAGS)
+
 clean:
 	rm -f $(TARGET) $(OBJECTS) $(DEPS)
 

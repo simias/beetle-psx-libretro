@@ -190,7 +190,7 @@ dynabi_device_lbu:
 
         /* Value is returned as high 8bits of %rax. */
         shr $32, %rax
-        movzb %al, %eax
+        movzbl %al, %eax
 
         ret
 
@@ -231,7 +231,7 @@ dynabi_device_lhu:
 
         /* Value is returned as high 16bits of %rax. */
         shr $32, %rax
-        movzw %ax, %eax
+        movzwl %ax, %eax
 
         ret
 

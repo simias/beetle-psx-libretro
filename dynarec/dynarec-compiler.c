@@ -4,6 +4,7 @@
 #include <fcntl.h>
 
 #include "dynarec-compiler.h"
+#include "dynarec-jit-debugger.h"
 #include "psx-instruction.h"
 
 static void emit_branch_or_jump(struct dynarec_compiler *compiler,
@@ -914,6 +915,7 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
    } else {
       /* What are we trying to recompile here exactly ? */
       assert("Recompiling unknown address" == NULL);
+      return NULL;
    }
 
    if ((block_max - block_start) > DYNAREC_MAX_BLOCK_SIZE) {
@@ -1178,6 +1180,11 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
    }
 
    block->block_len_bytes = compiler.map - (uint8_t *)compiler.block;
+
+   dyndebug_add_block(dynarec_block_code(block),
+                      block->block_len_bytes,
+                      block->base_address);
+
    block->block_len_bytes = dynarec_align(block->block_len_bytes,
                                           CACHE_LINE_SIZE);
    block->psx_instructions = (compiler.pc - addr) / 4;

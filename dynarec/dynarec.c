@@ -5,11 +5,14 @@
 
 #include "dynarec.h"
 #include "dynarec-compiler.h"
+#include "dynarec-jit-debugger.h"
 
 struct dynarec_state *dynarec_init(uint8_t *ram,
                                    uint8_t *scratchpad,
                                    const uint8_t *bios) {
    struct dynarec_state *state;
+
+   dyndebug_deregister_all();
 
    state = calloc(1, sizeof(*state));
    if (state == NULL) {
@@ -65,6 +68,8 @@ struct dynarec_state *dynarec_init(uint8_t *ram,
 }
 
 void dynarec_delete(struct dynarec_state *state) {
+   dyndebug_deregister_all();
+
    munmap(state->map, state->map_len);
    free(state->dummy_ram);
    free(state);

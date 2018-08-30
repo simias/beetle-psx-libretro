@@ -73,7 +73,7 @@ enum dynarec_exit {
    ((type *)((char *)ptr - offsetof(type, member)))
 #endif
 
-#ifdef DYNAREC_DEBUG
+#ifdef DYNAREC_LOG_DEBUG
 #define DYNAREC_LOG(...)     \
    fprintf(stderr, "[DYNAREC]: " __VA_ARGS__)
 #else

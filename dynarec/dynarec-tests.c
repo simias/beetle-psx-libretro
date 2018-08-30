@@ -154,6 +154,8 @@ static int run_test(const char *name, test_fn_t f) {
 
    ret = f(state);
 
+   dynarec_delete(state);
+
    printf((ret == 0) ? "[%s] success\n" : "[%s] failure\n",
           name);
 
