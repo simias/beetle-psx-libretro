@@ -2030,6 +2030,11 @@ int main() {
    RUN_TEST(test_lw);
 
    printf("Tests done, results: %u/%u\n", nsuccess, ntests);
+
+   if (nsuccess != ntests) {
+      return EXIT_FAILURE;
+   }
+   return EXIT_SUCCESS;
 }
 
 /****************************
