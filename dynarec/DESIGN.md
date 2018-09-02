@@ -1,4 +1,4 @@
-# Emulated vs. native instructions
+# Forewords
 
 In this document "native" describes the code that runs natively on
 the host controller (an x86 PC, an ARM CPU, etc...). "Emulated"
@@ -6,114 +6,112 @@ instructions are the original MIPS instructions that the PSX uses
 and are either interpreted or dynamically recompiled in the
 emulator.
 
-# Recompilation pages and invalidation
+All assembly listings assume `.noreorder`, that is the order of the
+ASM instructions is the order of the resulting machine code, the
+assembler doesn't shuffle code around.
 
-A difficulty in the dynarec architecture is to handle invalidations
-properly. If the emulated program writes to a memory location that
-we've recompiled it's important that we invalidate the cached dynarec
-version so that we do not risk running an outdated version of the
-program if the execution flow goes to the modified instructions.
+# Overview of the recompilation process
 
-Doing this at the instruction level is rather complicated. A single
-recompiled instruction will end up with multiple native
-instructions. Depending on how complex the instruction is to emulate
-we might need a variable amount of native instruction to implement
-different opcodes. Handling of branch delays
+The recompiler works by recompiling "blocks" of instructions which is
+a contiguous block of emulated instructions. Simply put it goes like
+this:
 
-To work around these issues invalidation and recompilation are not
-handled at the instruction level but rather at a "page" level. A page
-is recompiled all at once and invalidated all at once. Since you know
-this you can micro-optimize all the code within each page (local loops
-etc...)  but you need to be careful about code that crosses page
-boundaries:
+* The emulator wants to run emulated code at a given address
 
-* You need to check that the target page is valid
-* Otherwise you need to trigger the recompiler to compile it
-* Then you need to lookup the address of the target instruction and
-  jump to it.
+For instance when the console start the BIOS starts running at
+`0xbfc00000`
 
-When we statically know the address of the target we could "patch it"
-directly as long as we're sure that it won't be invalidated. This
-would be viable in "lazy invalidate" mode where all the pages are
-invalidated at the same time.
+* The dynarec looks up into its cache of blocks, looking for a block
+  starting at the given address
 
-# Handling of regions
+Blocks are *always* executed from the start. For instance if the
+emulator wants to run code at address `0x104` and the dynarec has a
+block starting at address `0x100` and containing the instructions up
+to `0x110` in its cache it won't be used and a new block will be
+compiled. That means that the same emulated instruction can be
+recompiled in several overlapping blocks.
 
-The PlayStation memory map is divided in multiple regions:
+This might seem counterintuitive and sub-optimal but opting for
+non-overlapping blocks severely limits how much you can optimize the
+recompiled native code since you can never be sure where the control
+is going to jump. In the example above if you decided to re-use your
+block at address `0x100` to run code at address `0x104` it means that
+you'll have to jump over the beginning of the block and start
+somewhere in the middle of the block code. It means that the
+recompiled code needs to be designed to allow this, it means that you
+can't easily reorder or fold instructions etc... It ends up being very
+limiting. If you look back in the git history of this dynarec you'll
+see that it started that way and I ended up switching to overlapping
+blocks because it was just too frustrating to work with.
 
-* `0x00000000 - 0x7fffffff`: KUSEG (cached)
-* `0x80000000 - 0x9fffffff`: KSEG0 (cached)
-* `0xa0000000 - 0xbfffffff`: KSEG1 (not-cached)
-* `0xc0000000 - 0xffffffff`: KSEG2 (device-only)
+* If no block starting at the given address is found a new block is
+  recompiled
 
-Out of these we don't have to worry too much about KSEG2 because it
-only contains a few registers for cache control and other low level
-configuration.
+The recompiler starts at the given address and generates native code
+until it either ends up at an unconditional branch (J, JAL, B, etc...)
+or a block size limit is reached
+(`DYNAREC_MAX_BLOCK_INSTRUCTIONS`). Unconditional branches necessarily
+end a block prematurely because they *always* lead to the execution of
+a different block (or potentially re-run the current block if it jumps
+to the start). Therefore it's useless to continue recompiling after
+them since that code in unreachable directly from this block.
 
-KUSEG, KSEG0 and KSEG1 are a bit more tricky however: they contain the
-same mappings (except from the scratchpad missing from KSEG1). So for
-instance you can access the first byte of RAM at address 0x00000000
-(through KUSEG) or at address 0x800000000 (through KSEG0) or even at
-address 0xa00000000 (through KSEG1).
+If no unconditional branch is encountered after
+`DYNAREC_MAX_BLOCK_INSTRUCTIONS` instructions have been recompiled the
+block is ended and an artificial jump to the next unrecompiled address
+is inserted at the end of the block. Therefore if it's reached it'll
+automatically jump to the next block, causing it to be recomplied if
+necessary.
 
-The only difference is for code execution: KUSEG and KSEG0 go through
-the instruction cache, KSEG1 bypasses it. The data cache is used as
-"scratchpad" memory and we can therefore safely ignore it, it's never
-used as a "true" cache.
+* Once the block is found in the cache or recompiled, the dynarec
+  jumps into the recompiled block, passing the number of emulated CPU
+  cycles to run for as parameter
 
-## Region handling in data access
+* The recompiled code runs, potentially calling the dynarec to
+  recompile emulated code when necessary until the cycle counter has
+  elapsed
 
-For recompiling data access (LW/SW and friends) we want to get rid of
-the region offset to get an "absolute" address to ease range
-matching. For instance to handle a RAM access if we don't mask the
-region offset we have to compare the address against three different
-memory ranges (through KUSEG, KSEG0 and KSEG1). This is clearly
-sub-optimal.
+I'll describe the cycle counting mechanism later in this document.
 
-Instead I use the `region_mask` look-up table to mask the address and
-remove the region bits:
+* Recompiled code might have to call emulator code to handle certain
+  instructions, for instance reading device memory (say, reading
+  controller state, writing commands to the GPU or setting a timer).
 
-```C
-static const uint32_t region_mask[8] = {
-   0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, /* KUSEG: 2048MB */
-   0x7fffffff,                                     /* KSEG0:  512MB */
-   0x1fffffff,                                     /* KSEG1:  512MB */
-   0xffffffff, 0xffffffff,                         /* KSEG2: 1024MB */
-};
+This is done by calling C callbacks implemented by the emulator. When
+these callbacks return the recompiled code keeps running.
 
-/* Mask "addr" to remove the region bits and return a "canonical"
-   address. */
-static uint32_t dynarec_mask_address(uint32_t addr) {
-   return addr & region_mask[addr >> 29];
-}
+* When the cycle counter is below or equal to zero the control is
+  returned to the emulator
+
+The emulator can then update the device state, trigger interruptions
+etc... Then call the dynarec once again to continue running the game
+code.
+
+# Recompilation implementation details
+
+## Branch delay slot
+
+One quirck of the MIPS processor used in the PSX is that the
+instruction immediately after a branch instruction is always included,
+even if the branch is taken.
+
+For instance if you consider the following sequence:
+
+```asm
+    j       some_func
+    mov     a0, t0
 ```
 
-One that's done we can just test one range per device.
+The `j` istruction unconditionally jump to `some_func` so you'd expect
+the following `mov` not to be executed. However due to branch delay
+the `mov` is actually run before the jump takes effect.
 
-## Region handling during execution
+When recompiling the code it's therefore important to swap these
+instructions around: we run the instruction in the delay slot and only
+then we jump to the next block. So in this case we'd recompile the
+`mov` before the `j`.
 
-That's a bit more tricky. As a first approach I ignore it and just
-pretend I run through KUSEG all the time (I mask the PC to remove the
-region information). Since the only difference is whether or not the
-instruction cache is used (and it's not emulated in the dynarec yet)
-it probably doesn't matter much, however if the game does something
-"weird" like using the address of the current instruction to compute
-an address to KSEG2 then it'll fail. I'm not sure why any game would
-do that (but rule #1 of emulation is that if it's possible then you
-can be sure some obscure game relies on it). Beyond that I can't
-really imagine a situation where that would break but I guess we'll
-see in practice.
-
-If we want to actually emulate regions more accurately during
-execution (might be necessary if we ever implement the icache) the
-simplest solution would be simply to recompile independantly each
-region (in the same way that we recompile the BIOS and RAM
-independantly at the moment). That would increase RAM usage and make
-page lookups slightly more expensive.
-
-# Branch delay slot
-
-## Register hazards
+### Register hazards
 
 Consider the following branch and delay slot:
 
@@ -139,9 +137,39 @@ like that instead:
 That is, we use an additional temporary register to hold the
 problematic variable. For this reason an additional "fake" PSX
 register is added to dynarec, `PSX_REG_DT`, which is used to recompile
-these instructions.
+these instruction sequences.
 
-# Load delay slots
+## Load delay slots
+
+The PSX MIPS CPU has an other type of delay slots: load delay
+slots. Those are for load instructions and work a differently from
+branch delays. Load delay slots mean that when loading data from
+memory into a register the load only takes effect *after* the next
+instruction.
+
+For instance:
+```asm
+   ; Initialize s0 to 1
+   li       s0, 1
+
+   ; Load a value from memory to s0
+   lw       s0, <some_memory_location>
+
+   ; Load delay slot
+   mov      v0, s0
+
+   mov      v1, s0
+```
+
+If you look at the two `mov`s at the end it seems that both `v0` and
+`v1` are loaded with the same value of `s0`, however the first `mov`
+is the in the load delay slot of the previous `lw`. As such in the
+first `mov` the load has not taken effect yet and `s0` still has its
+old value of 1. That means that after running this code `v1` will
+contain 1 while `v0` and `s0` will both contain whatever value was at
+`<some_memory_location>`.
+
+### Load and branch delay slots
 
 Load delay slots seem relatively straightforward to implement at first
 but they compound poorly with branch delay slots. Consider the
@@ -152,6 +180,22 @@ lw    ra, 20(sp)
 jr    ra
 addi  sp, sp, 20
 ```
+
+# Debugger support
+
+In order to help debugging the generated code the dynarec has limited
+support for GDB JIT integration. In order to enable it you much define
+`DYNAREC_JIT_DEBUGGER` and add `dynarec-jit-debugger.c` to the list of
+compiled files. Check the `Makefile` for an example.
+
+When JIT integration is enabled the recompiler will register every
+compiled block with GDB giving it a name of the form
+`block_0x<start_address>` where `start_address` is the address of the
+begining of the block in PSX memory.
+
+For instance the first recompiled block of the BIOS will be named
+`block_0xbfc00000`. You can use this information to make sense of
+backtrace or add breakpoints on certain blocks.
 
 # To-do list
 ## Allow executing out of parport extension
@@ -166,16 +210,6 @@ I expect that SP-relative loads and store are targetting the stack in
 RAM, we might be able to assume that and remove all the memory mapping
 checks from these. Since pushing and popping data from stack is pretty
 common it might be worth to add an option for that.
-
-## Lazy invalidate mode
-
-Assume that memory writes don't modify code and assume that if they do
-the game/BIOS will flush the icache before attempting to execute
-it. This way we don't invalidate for every single write and instead
-invalidate everything at once when we detect that a cache flush is in
-progress. It will make cache flushes very expensive (everything will
-have to be recompiled) but I expect they're probably rare enough that
-it might be worth it.
 
 ## No-alignment check mode
 
