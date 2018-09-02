@@ -1109,18 +1109,19 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
                average game doesn't require something like that. */
             dynasm_emit_exit(&compiler, DYNAREC_EXIT_UNIMPLEMENTED, __LINE__);
          } else if (ds_type == OP_LOAD) {
-            /* Emitting this directly would be technically inaccurate
-               but probably fine the vast majority of the time
-               (relying on load delay slot behaviour across a jump
-               sounds nasty, but who knows). Remove after running more
-               tests. */
+            /* Emitting this directly is technically inaccurate but
+               probably fine the vast majority of the time (relying on
+               load delay slot behaviour across a jump sounds nasty,
+               but who knows).  */
+#if 0
             dynasm_emit_exit(&compiler, DYNAREC_EXIT_UNIMPLEMENTED, __LINE__);
+#endif
          }
 
          if (ds_target != PSX_REG_R0) {
             /* Check for data hazard */
             if (ds_target == reg_target) {
-               /* Not sure what happes if the jump and delay slot
+               /* Not sure what happens if the jump and delay slot
                   write to the same register. If the jump wins then we
                   have nothing to do, if it's the instruction we just
                   need to replace the jump with the equivalent
