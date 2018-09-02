@@ -183,6 +183,8 @@ addi  sp, sp, 20
 
 # Debugger support
 
+## DYNAREC_JIT_DEBUGGER
+
 In order to help debugging the generated code the dynarec has limited
 support for GDB JIT integration. In order to enable it you much define
 `DYNAREC_JIT_DEBUGGER` and add `dynarec-jit-debugger.c` to the list of
@@ -196,6 +198,12 @@ begining of the block in PSX memory.
 For instance the first recompiled block of the BIOS will be named
 `block_0xbfc00000`. You can use this information to make sense of
 backtrace or add breakpoints on certain blocks.
+
+## DYNAREC_NO_PATCH
+
+When this symbol is defined blocks are never linked directly to each
+other, jumps always go through `dynarec_recompile_and_patch`. This is
+useful if one wants to easily see the block call sequence.
 
 # To-do list
 ## Allow executing out of parport extension

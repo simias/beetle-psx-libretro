@@ -20,7 +20,7 @@ CFLAGS += -g -DDEBUG -DDYNAREC_JIT_DEBUGGER
 AFLAGS += --gstabs
 SRC += dynarec-jit-debugger.c
 else ifeq ($(DEBUG),2)
-CFLAGS += -g -DDEBUG -DDYNAREC_JIT_DEBUGGER -DDYNAREC_LOG_DEBUG
+CFLAGS += -g -DDEBUG -DDYNAREC_JIT_DEBUGGER -DDYNAREC_LOG_DEBUG -DDYNAREC_NO_PATCH
 AFLAGS += --gstabs
 SRC += dynarec-jit-debugger.c
 else

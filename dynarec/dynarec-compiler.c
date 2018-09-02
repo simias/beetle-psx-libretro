@@ -23,6 +23,10 @@ static void emit_branch_or_jump(struct dynarec_compiler *compiler,
       b = dynarec_find_block(compiler->state, target);
    }
 
+#ifdef DYNAREC_NO_PATCH
+   b = NULL;
+#endif
+
    if (b) {
       /* The target has already been recompiled, we can link it directly */
       needs_patch = false;
@@ -1206,12 +1210,16 @@ void *dynarec_recompile_and_patch(struct dynarec_state *state,
    struct dynarec_block *b;
    void *link;
 
-   DYNAREC_LOG("dynarec_recompile_and_patch(%08x, %08x)\n",
+   DYNAREC_LOG("dynarec_recompile_and_patch(0x%08x, 0x%08x)\n",
                target, patch_offset);
 
    b = dynarec_find_or_compile_block(state, target);
 
    link = dynarec_block_code(b);
+
+#ifdef DYNAREC_NO_PATCH
+   patch_offset = NULL;
+#endif
 
    if (patch_offset != 0) {
       /* Patch the caller */

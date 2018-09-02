@@ -100,6 +100,8 @@ struct dynarec_ret dynarec_run(struct dynarec_state *state, int32_t cycles_to_ru
    struct dynarec_block *block;
    struct dynarec_ret ret;
 
+   DYNAREC_LOG("dynarec_run(0x%08x, 0x%08x)\n", state->pc);
+
    block = dynarec_find_or_compile_block(state, state->pc);
 
    dynarec_fn_t f = dynarec_block_code(block);

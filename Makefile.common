@@ -266,7 +266,7 @@ ifneq ($(HAVE_GRIFFIN), 1)
 
       ifeq ($(DEBUG), 1)
           SOURCES_C += $(DYNAREC_DIR)/dynarec-jit-debugger.c
-          FLAGS += -DDYNAREC_LOG_DEBUG -DDYNAREC_JIT_DEBUGGER
+          FLAGS += -DDYNAREC_LOG_DEBUG -DDYNAREC_JIT_DEBUGGER -DDYNAREC_NO_PATCH
           AFLAGS += --gstabs
       endif
 
