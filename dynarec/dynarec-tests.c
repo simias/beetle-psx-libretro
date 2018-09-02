@@ -248,6 +248,8 @@ static int run_test(const char *name, test_fn_t f) {
    FN_RR(MIPS_FN_MTLO, 0, (_rs), 0)
 #define MULTU(_ro1, _ro2)                       \
    FN_RR(MIPS_FN_MULTU, 0, (_ro1), (_ro2))
+#define DIV(_ro1, _ro2)                         \
+   FN_RR(MIPS_FN_DIV, 0, (_ro1), (_ro2))
 #define ADD(_rt, _ro1, _ro2)                    \
    FN_RR(MIPS_FN_ADD, (_rt), (_ro1), (_ro2))
 #define ADDU(_rt, _ro1, _ro2)                   \
@@ -1241,6 +1243,93 @@ static int test_multu(struct dynarec_state *state) {
    return check_regs(state, expected, ARRAY_SIZE(expected));
 }
 
+static int test_div(struct dynarec_state *state) {
+   union mips_instruction code[] = {
+      LI(PSX_REG_T0, 5000),
+      LI(PSX_REG_T1, 0),
+      LI(PSX_REG_T2, 7),
+      LI(PSX_REG_T3, -7),
+      LI(PSX_REG_T4, 0x80000000),
+      LI(PSX_REG_T5, -1),
+
+      DIV(PSX_REG_R0, PSX_REG_R0),
+      MFHI(PSX_REG_S0),
+      MFLO(PSX_REG_S1),
+
+      DIV(PSX_REG_R0, PSX_REG_T1),
+      MFHI(PSX_REG_S2),
+      MFLO(PSX_REG_S3),
+
+      DIV(PSX_REG_R0, PSX_REG_T2),
+      MFHI(PSX_REG_S4),
+      MFLO(PSX_REG_S5),
+
+      DIV(PSX_REG_T2, PSX_REG_R0),
+      MFHI(PSX_REG_S6),
+      MFLO(PSX_REG_S7),
+
+      DIV(PSX_REG_T3, PSX_REG_R0),
+      MFHI(PSX_REG_A0),
+      MFLO(PSX_REG_A1),
+
+      DIV(PSX_REG_T0, PSX_REG_T2),
+      MFHI(PSX_REG_A2),
+      MFLO(PSX_REG_A3),
+
+      DIV(PSX_REG_T0, PSX_REG_T3),
+      MFHI(PSX_REG_V0),
+      MFLO(PSX_REG_V1),
+
+      DIV(PSX_REG_T4, PSX_REG_T5),
+
+      BREAK(0x0ff0ff),
+   };
+   struct reg_val expected[] = {
+      { .r = PSX_REG_T0, .v = 5000 },
+      { .r = PSX_REG_T1, .v = 0 },
+      { .r = PSX_REG_T2, .v = 7 },
+      { .r = PSX_REG_T3, .v = -7 },
+      { .r = PSX_REG_T4, .v = 0x80000000 },
+      { .r = PSX_REG_T5, .v = -1 },
+
+      { .r = PSX_REG_S0, .v = 0 },
+      { .r = PSX_REG_S1, .v = 0xffffffff },
+
+      { .r = PSX_REG_S2, .v = 0 },
+      { .r = PSX_REG_S3, .v = 0xffffffff },
+
+      { .r = PSX_REG_S4, .v = 0 },
+      { .r = PSX_REG_S5, .v = 0 },
+
+      { .r = PSX_REG_S6, .v = 7 },
+      { .r = PSX_REG_S7, .v = 0xffffffff },
+
+      { .r = PSX_REG_A0, .v = -7 },
+      { .r = PSX_REG_A1, .v = 1 },
+
+      { .r = PSX_REG_A2, .v = 2 },
+      { .r = PSX_REG_A3, .v = 714 },
+
+      { .r = PSX_REG_V0, .v = 2 },
+      { .r = PSX_REG_V1, .v = -714 },
+
+      { .r = PSX_REG_HI, .v = 0 },
+      { .r = PSX_REG_LO, .v = 0x80000000 },
+   };
+   uint32_t end_pc = 0x54;
+   struct dynarec_ret ret;
+
+   load_code(state, code, ARRAY_SIZE(code), 0);
+
+   ret = dynarec_run(state, 0x1000);
+
+   //TEST_EQ(state->pc, end_pc);
+   TEST_EQ(ret.val.code, DYNAREC_EXIT_BREAK);
+   TEST_EQ(ret.val.param, 0x0ff0ff);
+
+   return check_regs(state, expected, ARRAY_SIZE(expected));
+}
+
 static int test_j(struct dynarec_state *state) {
    union mips_instruction code[] = {
       LI(PSX_REG_T0, 0),
@@ -1835,6 +1924,7 @@ int main() {
    RUN_TEST(test_sltiu);
    RUN_TEST(test_hi_lo);
    RUN_TEST(test_multu);
+   RUN_TEST(test_div);
    RUN_TEST(test_j);
    RUN_TEST(test_jal);
    RUN_TEST(test_jr);

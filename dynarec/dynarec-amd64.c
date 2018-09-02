@@ -1021,6 +1021,19 @@ static void emit_shift_u8_off_pr64(struct dynarec_compiler *compiler,
 #define SAR_U8_OFF_PR64(_u, _o, _r) \
    emit_shift_u8_off_pr64(compiler, SAR_OP, (_u), (_o), (_r))
 
+#define CDQ (*(compiler->map++) = 0x99)
+
+static void emit_idiv_r32(struct dynarec_compiler *compiler,
+                          enum X86_REG d) {
+   emit_rex_prefix(compiler, d, 0, 0);
+
+   d &= 7;
+
+   *(compiler->map++) = 0xf7;
+   *(compiler->map++) = 0xf8 | d;
+}
+#define IDIV_R32(_d) emit_idiv_r32(compiler, (_d))
+
 static void emit_imul_r64_r64(struct dynarec_compiler *compiler,
                               enum X86_REG op,
                               enum X86_REG target) {
@@ -1311,6 +1324,80 @@ extern void dynasm_emit_multu(struct dynarec_compiler *compiler,
    MOVE_TO_BANKED(REG_AX, PSX_REG_LO);
    SHR_U8_R64(32, REG_AX);
    MOVE_TO_BANKED(REG_AX, PSX_REG_HI);
+}
+
+extern void dynasm_emit_div(struct dynarec_compiler *compiler,
+                            enum PSX_REG reg_n,
+                            enum PSX_REG reg_d) {
+   int n = register_location(reg_n);
+   int d = register_location(reg_d);
+
+   if (n < 0) {
+      n = REG_AX;
+      if (reg_n == PSX_REG_R0) {
+         CLEAR_REG(n);
+      } else {
+         MOVE_FROM_BANKED(reg_n, n);
+      }
+   } else {
+      /* IDIV uses EDX:EAX */
+      MOV_R32_R32(n, REG_AX);
+      n = REG_AX;
+   }
+
+   if (d < 0) {
+      d = REG_SI;
+      if (reg_d == PSX_REG_R0) {
+         CLEAR_REG(d);
+      } else {
+         MOVE_FROM_BANKED(reg_d, d);
+      }
+   }
+
+   TEST_R32_R32(d, d);
+
+   IF_EQUAL {
+      /* n / 0 */
+      MOVE_TO_BANKED(n, PSX_REG_HI);
+
+      TEST_R32_R32(n, n);
+      IF_GREATER_EQUAL {
+         dynasm_emit_li(compiler, PSX_REG_LO, 0xffffffff);
+      } ELSE {
+         dynasm_emit_li(compiler, PSX_REG_LO, 1);
+      } ENDIF;
+   } ELSE {
+      uint8_t *jump_done;
+      uint32_t *jump_off;
+
+      CMP_U32_R32(0x80000000, n);
+      IF_EQUAL {
+            CMP_U32_R32(0xffffffff, d);
+         IF_EQUAL {
+            /* 0x80000000 / -1 */
+            dynasm_emit_li(compiler, PSX_REG_HI, 0);
+            MOVE_TO_BANKED(n, PSX_REG_LO);
+            /* JMP over the general purpose DIV implementation */
+            *(compiler->map++) = 0xeb;
+            jump_done = compiler->map++;
+         } ENDIF;
+      } ENDIF;
+
+      /* Sign extend EAX into EDX */
+      CDQ;
+
+      /* Divide EDX:EAX by d */
+      IDIV_R32(d);
+
+      /* Quotient in EAX */
+      MOVE_TO_BANKED(REG_AX, PSX_REG_LO);
+
+      /* Remainder in EDX */
+      MOVE_TO_BANKED(REG_DX, PSX_REG_HI);
+
+      jump_off = (compiler->map - jump_done) - 1;
+      *jump_done = jump_off;
+   } ENDIF;
 }
 
 void dynasm_emit_li(struct dynarec_compiler *compiler,
