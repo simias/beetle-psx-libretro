@@ -67,6 +67,11 @@ static int register_location(enum PSX_REG reg) {
       abort();                                                  \
    } while (0)
 
+/* Insert an `int $3` for debugging */
+#define TRAP do {                               \
+      *((compiler)->map++) = 0xcc;              \
+   } while (0)
+
 /*******************************************
  * Helper "assembler" functions and macros *
  *******************************************/
@@ -368,24 +373,22 @@ static void emit_mov_u32_off_pr64(struct dynarec_compiler *compiler,
                                   uint32_t val,
                                   uint32_t off,
                                   enum X86_REG reg) {
-   /* You need a slightly different encoding if r12 is the base
-      regiser. */
-   bool base_is_r12 = (reg == REG_R12);
-
    emit_rex_prefix(compiler, reg, 0, 0);
+
+   reg &= 7;
 
    *(compiler->map++) = 0xc7;
 
    /* We can use a denser encoding for small offsets */
    if (is_imms8(off)) {
-      *(compiler->map++) = 0x40 | (reg & 7);
-      if (base_is_r12) {
+      *(compiler->map++) = 0x40 | reg;
+      if (reg == REG_SP) {
          *(compiler->map++) = 0x24;
       }
       emit_imms8(compiler, off);
    } else {
-      *(compiler->map++) = 0x80 | (reg & 7);
-      if (base_is_r12) {
+      *(compiler->map++) = 0x80 | reg;
+      if (reg == REG_SP) {
          *(compiler->map++) = 0x24;
       }
       emit_imm32(compiler, off);
@@ -413,10 +416,6 @@ static void emit_mop_off_pr64_r32(struct dynarec_compiler *compiler,
                                   uint32_t off,
                                   enum X86_REG base,
                                   enum X86_REG target) {
-   /* You need a slightly different encoding if r12 is the base
-      regiser. */
-   bool base_is_r12 = (base == REG_R12);
-
    emit_rex_prefix(compiler, base, target, 0);
    target &= 7;
    base   &= 7;
@@ -425,13 +424,13 @@ static void emit_mop_off_pr64_r32(struct dynarec_compiler *compiler,
 
    if (is_imms8(off)) {
       *(compiler->map++) = 0x40 | base | (target << 3);
-      if (base_is_r12) {
+      if (base == REG_SP) {
          *(compiler->map++) = 0x24;
       }
       emit_imms8(compiler, off);
    } else {
       *(compiler->map++) = 0x80 | base | (target << 3);
-      if (base_is_r12) {
+      if (base == REG_SP) {
          *(compiler->map++) = 0x24;
       }
       emit_imm32(compiler, off);
@@ -446,10 +445,6 @@ static void emit_mop_r32_off_pr64(struct dynarec_compiler *compiler,
                                   enum X86_REG source,
                                   uint32_t off,
                                   enum X86_REG base) {
-   /* You need a slightly different encoding if r12 is the base
-      regiser. */
-   bool base_is_r12 = (base == REG_R12);
-
    emit_rex_prefix(compiler, base, source, 0);
    source &= 7;
    base   &= 7;
@@ -458,13 +453,13 @@ static void emit_mop_r32_off_pr64(struct dynarec_compiler *compiler,
 
    if (is_imms8(off)) {
       *(compiler->map++) = 0x40 | base | (source << 3);
-      if (base_is_r12) {
+      if (base == REG_SP) {
          *(compiler->map++) = 0x24;
       }
       emit_imms8(compiler, off);
    } else {
       *(compiler->map++) = 0x80 | base | (source << 3);
-      if (base_is_r12) {
+      if (base == REG_SP) {
          *(compiler->map++) = 0x24;
       }
       emit_imm32(compiler, off);
@@ -521,8 +516,15 @@ static void emit_mov_r32_pr64(struct dynarec_compiler *compiler,
                               enum X86_REG target) {
 
    emit_rex_prefix(compiler, target, val, 0);
+   target &= 7;
+   val &= 7;
+
    *(compiler->map++) = 0x89;
-   *(compiler->map++) = (target & 7) | ((val & 7) << 3);
+   *(compiler->map++) = target | (val << 3);
+
+   if (target == REG_SP) {
+      *(compiler->map++) = 0x24;
+   }
 }
 #define MOV_R32_PR64(_v, _t) emit_mov_r32_pr64(compiler, (_v), (_t))
 
@@ -546,8 +548,21 @@ static void emit_mov_r8_pr64(struct dynarec_compiler *compiler,
                               enum X86_REG target) {
 
    emit_rex_prefix(compiler, target, val, 0);
+
+   if (val < REG_R8 && target < REG_R8 && val > 3) {
+      /* Why are we using this garbage instruction set again? */
+      *(compiler->map++) = 0x40;
+   }
+
+   target &= 7;
+   val &= 7;
+
    *(compiler->map++) = 0x88;
-   *(compiler->map++) = (target & 7) | ((val & 7) << 3);
+   *(compiler->map++) = target | (val << 3);
+
+   if (target == REG_SP) {
+      *(compiler->map++) = 0x24;
+   }
 }
 #define MOV_R8_PR64(_v, _t) emit_mov_r8_pr64(compiler, (_v), (_t))
 
@@ -567,9 +582,16 @@ static void emit_movzbl_pr64_r32(struct dynarec_compiler *compiler,
                                  enum X86_REG addr,
                                  enum X86_REG target) {
    emit_rex_prefix(compiler, addr, target, 0);
+   addr &= 7;
+   target &= 7;
+
    *(compiler->map++) = 0x0f;
    *(compiler->map++) = 0xb6;
-   *(compiler->map++) = (addr & 7) | ((target & 7) << 3);
+   *(compiler->map++) = addr | (target << 3);
+
+   if (target == REG_SP) {
+      *(compiler->map++) = 0x24;
+   }
 }
 #define MOVZBL_PR64_R32(_a, _t) emit_movzbl_pr64_r32(compiler, (_a), (_t))
 
@@ -578,9 +600,16 @@ static void emit_movsbl_pr64_r32(struct dynarec_compiler *compiler,
                                  enum X86_REG addr,
                                  enum X86_REG target) {
    emit_rex_prefix(compiler, addr, target, 0);
+   addr &= 7;
+   target &= 7;
+
    *(compiler->map++) = 0x0f;
    *(compiler->map++) = 0xbe;
-   *(compiler->map++) = (addr & 7) | ((target & 7) << 3);
+   *(compiler->map++) = addr | (target << 3);
+
+   if (target == REG_SP) {
+      *(compiler->map++) = 0x24;
+   }
 }
 #define MOVSBL_PR64_R32(_a, _t) emit_movsbl_pr64_r32(compiler, (_a), (_t))
 
@@ -589,9 +618,16 @@ static void emit_movzwl_pr64_r32(struct dynarec_compiler *compiler,
                                  enum X86_REG addr,
                                  enum X86_REG target) {
    emit_rex_prefix(compiler, addr, target, 0);
+   addr &= 7;
+   target &= 7;
+
    *(compiler->map++) = 0x0f;
    *(compiler->map++) = 0xb7;
-   *(compiler->map++) = (addr & 7) | ((target & 7) << 3);
+   *(compiler->map++) = addr | (target << 3);
+
+   if (target == REG_SP) {
+      *(compiler->map++) = 0x24;
+   }
 }
 #define MOVZWL_PR64_R32(_a, _t) emit_movzwl_pr64_r32(compiler, (_a), (_t))
 
@@ -600,12 +636,18 @@ static void emit_movswl_pr64_r32(struct dynarec_compiler *compiler,
                                  enum X86_REG addr,
                                  enum X86_REG target) {
    emit_rex_prefix(compiler, addr, target, 0);
+   addr &= 7;
+   target &= 7;
+
    *(compiler->map++) = 0x0f;
    *(compiler->map++) = 0xbf;
-   *(compiler->map++) = (addr & 7) | ((target & 7) << 3);
+   *(compiler->map++) = addr | (target << 3);
+
+   if (target == REG_SP) {
+      *(compiler->map++) = 0x24;
+   }
 }
 #define MOVSWL_PR64_R32(_a, _t) emit_movswl_pr64_r32(compiler, (_a), (_t))
-
 
 /* MOV $imm8, off(%base64, %index64, $scale) */
 static void emit_mov_u8_off_sib(struct dynarec_compiler *compiler,
@@ -1822,9 +1864,9 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
       }
    } else {
       if (reg_addr == PSX_REG_R0) {
-         /* XXX We could optimize this since it means that the offset
-            is static. Not sure if this is common enough to be worth
-            it. */
+         /* XXX We could optimize this since it means that the target
+            address is static. Not sure if this is common enough to be
+            worth it. */
          MOV_U32_R32((int32_t)offset, REG_DX);
       } else {
          MOV_OFF_PR64_R32(DYNAREC_STATE_REG_OFFSET(reg_addr),
