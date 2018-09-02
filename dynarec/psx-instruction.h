@@ -16,6 +16,7 @@
 # define MIPS_FN_MTLO           0x13U
 # define MIPS_FN_MULTU          0x19U
 # define MIPS_FN_DIV            0x1AU
+# define MIPS_FN_DIVU           0x1BU
 # define MIPS_FN_ADD            0x20U
 # define MIPS_FN_ADDU           0x21U
 # define MIPS_FN_SUBU           0x23U

@@ -526,6 +526,7 @@ static enum optype dynarec_instruction_registers(uint32_t instruction,
          break;
       case MIPS_FN_MULTU:
       case MIPS_FN_DIV:
+      case MIPS_FN_DIVU:
         *reg_op0 = reg_s;
         *reg_op1 = reg_t;
         /* XXX It's actually LO and HI, but for the moment we only
@@ -719,6 +720,9 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
          break;
       case MIPS_FN_DIV:
          dynasm_emit_div(compiler, reg_op0, reg_op1);
+         break;
+      case MIPS_FN_DIVU:
+         dynasm_emit_divu(compiler, reg_op0, reg_op1);
          break;
       case MIPS_FN_ADD:
          emit_add(compiler,
