@@ -75,6 +75,15 @@ void dynarec_delete(struct dynarec_state *state) {
    free(state);
 }
 
+/* Flush all recompiled code, restarting from scratch */
+void dynarec_flush_cache(struct dynarec_state *state) {
+   DYNAREC_LOG("Cache flush\n");
+
+   state->free_map = state->map;
+   rbt_init(&state->blocks);
+   dynarec_compiler_init(state);
+}
+
 void dynarec_set_pc(struct dynarec_state *state, uint32_t pc) {
    state->pc = pc;
 }
@@ -100,26 +109,47 @@ struct dynarec_ret dynarec_run(struct dynarec_state *state, int32_t cycles_to_ru
    struct dynarec_block *block;
    struct dynarec_ret ret;
 
-   DYNAREC_LOG("dynarec_run(0x%08x, 0x%08x)\n", state->pc);
+   for (;;) {
+      DYNAREC_LOG("dynarec_run(0x%08x, 0x%08x)\n", state->pc);
 
-   block = dynarec_find_or_compile_block(state, state->pc);
+      block = dynarec_find_or_compile_block(state, state->pc);
 
-   dynarec_fn_t f = dynarec_block_code(block);
+      dynarec_fn_t f = dynarec_block_code(block);
 
-   ret = dynasm_execute(state, f, cycles_to_run);
+      ret = dynasm_execute(state, f, cycles_to_run);
 
-   if (ret.val.code == DYNAREC_EXIT_UNIMPLEMENTED) {
-      printf("Dynarec encountered unimplemented construct no line %u\n",
-             ret.val.param);
-      abort();
+      switch (ret.val.code) {
+      case DYNAREC_EXIT_UNIMPLEMENTED:
+         printf("Dynarec encountered unimplemented construct no line %u\n",
+                ret.val.param);
+         abort();
+         break;
+      case DYNAREC_CACHE_FLUSH:
+         /* Our recompiled code cache might be outdated, flush
+            everything */
+         dynarec_flush_cache(state);
+         /* Now we can continue the execution with a clean cache */
+         break;
+      case DYNAREC_EXIT_COUNTER:
+         /* Ran for at least `cycles_to_run` */
+         return ret;
+      case DYNAREC_EXIT_BREAK:
+         /* Encountered debug BREAK */
+         return ret;
+      default:
+         printf("Unsupported return value %u %u\n",
+                ret.val.code,
+                ret.val.param);
+         abort();
+      }
    }
-
-   return ret;
 }
 
-/* Helper functions called by the recompiled code */
-void dynarec_set_cache_isolation(struct dynarec_state *state, int enabled) {
-   DYNAREC_LOG("set cache isolation %d\n", enabled);
+/* Helper functions called by the recompiled code. Returns 1 if cache
+   should be flushed. */
+void dynarec_set_cache_isolation(struct dynarec_state *state,
+                                 int enabled) {
+      DYNAREC_LOG("set cache isolation %d\n", enabled);
 
    /* This is not completely accurate, I think when the cache is
       isolated you can't access *anything* (RAM, scratchpad, device

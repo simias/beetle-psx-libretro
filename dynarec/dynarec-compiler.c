@@ -596,15 +596,18 @@ static enum optype dynarec_instruction_registers(uint32_t instruction,
    case MIPS_OP_LUI:
       *reg_target = reg_t;
       break;
-   case 0x10: /* COP0 */
-      switch ((instruction >> 21) & 0x1f) {
-      case 0x00: /* MFC0 */
+   case MIPS_OP_COP0:
+      switch (reg_s) {
+      case MIPS_COP_MFC:
          *reg_target = reg_t;
          break;
-      case 0x04: /* MTC0 */
+      case MIPS_COP_MTC:
          *reg_op0 = reg_t;
          break;
-      case 0x10: /* RFE */
+      case MIPS_COP_RFE:
+         /* Effectively the opposite of an exception but semantically
+            the same: control leaves the block without delay slot. */
+         type = OP_EXCEPTION;
          break;
       default:
          printf("Dynarec encountered unsupported COP0 instruction %08x\n",
@@ -857,15 +860,15 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
 
       dynasm_emit_li(compiler, reg_target, ((uint32_t)imm) << 16);
       break;
-   case 0x10: /* COP0 */
+   case MIPS_OP_COP0:
       switch ((instruction >> 21) & 0x1f) {
-      case 0x00: /* MFC0 */
+      case MIPS_COP_MFC:
          dynasm_emit_mfc0(compiler, reg_target, (instruction >> 11) & 0x1f);
          break;
-      case 0x04: /* MTC0 */
+      case MIPS_COP_MTC:
          dynasm_emit_mtc0(compiler, reg_op0, (instruction >> 11) & 0x1f);
          break;
-      case 0x10: /* RFE */
+      case MIPS_COP_RFE:
          emit_rfe(compiler, instruction);
          break;
       default:
@@ -1028,10 +1031,6 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
                                           &ds_op0,
                                           &ds_op1);
 
-         if ((ds_type == OP_BRANCH_ALWAYS) || (ds_type == OP_EXCEPTION)) {
-            eob = true;
-         }
-
          if (ds_target == reg_target) {
             /* The instruction in the delay slot overwrites the value,
                effectively making the LW useless (or only useful for
@@ -1048,7 +1047,9 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
                previous value of `reg_target` is used in the load
                delay. */
 
-            if (ds_type == OP_BRANCH_ALWAYS || ds_type == OP_BRANCH_COND) {
+            if (ds_type == OP_BRANCH_ALWAYS ||
+                ds_type == OP_BRANCH_COND ||
+                ds_type == OP_EXCEPTION) {
                /* If the instruction in the delay slot is a branch we
                   can't reorder (otherwise we'll jump away before we
                   have a chance to execute the load). If this needs
@@ -1119,10 +1120,6 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
                                           &ds_target,
                                           &ds_op0,
                                           &ds_op1);
-
-         if ((ds_type == OP_BRANCH_ALWAYS) || (ds_type == OP_EXCEPTION)) {
-            eob = true;
-         }
 
          if (ds_type == OP_BRANCH_ALWAYS ||
              ds_type == OP_BRANCH_COND ||

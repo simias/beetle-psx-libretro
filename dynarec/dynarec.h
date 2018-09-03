@@ -30,7 +30,9 @@ extern "C" {
  */
 enum dynarec_exit {
    /* Counter exhausted */
-   DYNAREC_EXIT_COUTER = 0,
+   DYNAREC_EXIT_COUNTER = 0,
+   /* Cache flush necessary */
+   DYNAREC_CACHE_FLUSH = 1,
    /* Unimplemented feature encountered. */
    DYNAREC_EXIT_UNIMPLEMENTED = 0xd,
    /* A BREAK instruction was encountered while DYNAREC_OPT_EXIT_ON_BREAK
@@ -313,6 +315,7 @@ static struct dynarec_block *dynarec_find_block(struct dynarec_state *state,
 struct dynarec_state *dynarec_init(uint8_t *ram,
                                    uint8_t *scratchpad,
                                    const uint8_t *bios);
+void dynarec_flush_cache(struct dynarec_state *state);
 struct dynarec_block *dynarec_find_block(struct dynarec_state *state,
                                          uint32_t addr);
 struct dynarec_block *dynarec_find_or_compile_block(struct dynarec_state *state,

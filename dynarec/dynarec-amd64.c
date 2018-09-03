@@ -1188,26 +1188,29 @@ void dynasm_emit_exception(struct dynarec_compiler *compiler,
    CALL(dynabi_exception);
 }
 
+void dynasm_emit_exit_noval(struct dynarec_compiler *compiler) {
+   if (compiler->spent_cycles) {
+      SUB_U32_R32(compiler->spent_cycles, REG_CX);
+   }
+   MOV_U32_R32(compiler->pc, REG_DX);
+   RET;
+}
+
 void dynasm_emit_exit(struct dynarec_compiler *compiler,
                       enum dynarec_exit code,
                       unsigned val) {
    assert(code <= 0xf);
    assert(val <= 0xfffffff);
 
-   if (compiler->spent_cycles) {
-      SUB_U32_R32(compiler->spent_cycles, REG_CX);
-   }
-
    MOV_U32_R32((code << 28) | val, REG_AX);
-   MOV_U32_R32(compiler->pc, REG_DX);
-   RET;
+   dynasm_emit_exit_noval(compiler);
 }
 
 void dynasm_emit_block_prologue(struct dynarec_compiler *compiler) {
    /* Check if counter is < 0 */
    TEST_R32_R32(REG_CX, REG_CX);
    IF_LESS_EQUAL {
-      dynasm_emit_exit(compiler, DYNAREC_EXIT_COUTER, 0);
+      dynasm_emit_exit(compiler, DYNAREC_EXIT_COUNTER, 0);
    } ENDIF;
 }
 
@@ -2647,6 +2650,12 @@ void dynasm_emit_mtc0(struct dynarec_compiler *compiler,
    switch (reg_cop0) {
    case PSX_COP0_SR:
       CALL(dynabi_set_cop0_sr);
+      /* Check return value, if it's != 0 we interrupt the execution
+         and return it */
+      SHL_U8_R32(28, REG_AX);
+      IF_NOT_EQUAL {
+         dynasm_emit_exit_noval(compiler);
+      } ENDIF;
       break;
    case PSX_COP0_CAUSE:
       CALL(dynabi_set_cop0_cause);

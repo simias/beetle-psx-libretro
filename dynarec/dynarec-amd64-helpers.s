@@ -20,6 +20,8 @@
 /* offsetof(struct dynarec_state, sr) */
 .EQU STATE_SR_OFFSET, 0xcc
 
+.EQU DYNAREC_CACHE_FLUSH, 1
+
 .text
 
 .global dynasm_execute
@@ -266,34 +268,56 @@ dynabi_exception:
 .global dynabi_set_cop0_sr
 .type   dynabi_set_cop0_sr, function
 /* Called by the dynarec code when storing the value of the SR
- * register. The value is in %esi.*/
+ * register. The value is in %esi.
+ */
 dynabi_set_cop0_sr:
-        /* Load current value of the SR into %eax */
-        mov STATE_SR_OFFSET(%rdi), %eax
+        /* Load current value of the SR into %edx */
+        mov STATE_SR_OFFSET(%rdi), %edx
+        /* Store new value of SR in state struct */
+        mov %esi, STATE_SR_OFFSET(%rdi)
 
         /* Check if the value of the cache isolation bit changed */
-        xor %esi, %eax
-        and $0x10000, %eax
-        jz  1f /* Jump if no change */
+        xor %esi, %edx
+        and $0x10000, %edx
+        /* Jump if no change */
+        jz 1f
 
         /* The cache isolation bit changed, call the emulator code to
-	 * take care of it. We pass the cache isolation bit as 2nd
-	 * argument. */
-	push %rsi
+         * take care of it. We pass the cache isolation bit as 2nd
+         * argument. */
+        push %rsi
         and $0x10000, %esi
-	shr $16, %esi
+        shr $16, %esi
 
         /* Push counter */
         push %rcx
+
+        /* Push counter */
 
         c_call dynarec_set_cache_isolation
 
         pop %rcx
         pop %rsi
+
+        mov %esi, %edx
+        and $0x10000, %esi
+        /* If cache isolation is set we continue normally */
+        jnz  1f
+
+        /* If we reach this part it means that cache isolation was
+        just disabled. It probably means that the game or BIOS was
+        just done clearing the cache, which in turn probably means
+        that new code has been loaded. It's probably a good place to
+        clean the dynarec cache. Return DYNAREC_CACHE_FLUSH to tell
+        the calling code to stop running and flush the cache */
+        mov $DYNAREC_CACHE_FLUSH, %eax
+
+        ret
+
 1:
         /* XXX check for interrupts */
-        mov %esi, STATE_SR_OFFSET(%rdi)
 
+        xor %eax, %eax
         ret
 
 .global dynabi_set_cop0_cause

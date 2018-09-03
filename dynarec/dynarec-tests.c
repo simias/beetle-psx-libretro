@@ -218,6 +218,14 @@ static int run_test(const char *name, test_fn_t f) {
            .reg_t = (_rv),                      \
            .off = (_off) }}
 
+#define COP0(_cop_op, _rt, _r_c)                \
+   (union mips_instruction){                    \
+      .cop =                                    \
+         { .opcode = MIPS_OP_COP0,              \
+           .cop_op = (_cop_op),                 \
+           .reg_t = (_rt),                      \
+           .reg_cop = (_r_c) }}
+
 #define JR(_r)                                  \
    FN_RR(MIPS_FN_JR, 0, (_r), 0)
 #define JALR(_rt, _r)                           \
@@ -296,6 +304,15 @@ static int run_test(const char *name, test_fn_t f) {
    LOAD_STORE(MIPS_OP_LHU, (_rv), (_ra), (_off))
 #define LW(_rv, _ra, _off)                      \
    LOAD_STORE(MIPS_OP_LW, (_rv), (_ra), (_off))
+#define SB(_rv, _ra, _off)                      \
+   LOAD_STORE(MIPS_OP_SB, (_rv), (_ra), (_off))
+#define SH(_rv, _ra, _off)                      \
+   LOAD_STORE(MIPS_OP_SH, (_rv), (_ra), (_off))
+#define SW(_rv, _ra, _off)                      \
+   LOAD_STORE(MIPS_OP_SW, (_rv), (_ra), (_off))
+
+#define MTC0(_rt, _r_c) COP0(MIPS_COP_MTC, _rt, _r_c)
+#define MFC0(_rt, _r_c) COP0(MIPS_COP_MFC, _rt, _r_c)
 
 /*********
  * Tests *
@@ -364,7 +381,7 @@ static int test_counter(struct dynarec_state *state) {
    ret = dynarec_run(state, 101);
 
    TEST_EQ(state->pc, end_pc);
-   TEST_EQ(ret.val.code, DYNAREC_EXIT_COUTER);
+   TEST_EQ(ret.val.code, DYNAREC_EXIT_COUNTER);
    TEST_EQ(ret.val.param, 0);
 
    return check_regs(state, expected, ARRAY_SIZE(expected));
@@ -2035,6 +2052,54 @@ static int test_lw(struct dynarec_state *state) {
    return check_regs(state, expected, ARRAY_SIZE(expected));
 }
 
+static int test_cache_isolation(struct dynarec_state *state) {
+   union mips_instruction code[] = {
+      /* Cache isolation */
+      LI(PSX_REG_T0, 0x10000),
+
+      LI(PSX_REG_V0, 0xabcdef),
+      SW(PSX_REG_V0, PSX_REG_R0, 0x1000),
+
+      /* Overwrite the "bad" break below with a NOP: toggling page
+         isolation on and off should trigger a dynarec cache flush, if
+         that's not the case the bad instruction will remain in the
+         cache and be executed. */
+      SW(PSX_REG_R0, PSX_REG_R0, 0x28),
+
+      MTC0(PSX_REG_T0, PSX_COP0_SR),
+
+      /* Cache should be isolated, attempt to overwrite the value we
+         wrote above */
+      SW(PSX_REG_R0, PSX_REG_R0, 0x1000),
+
+      /* Disable cache isolation, should trigger a cache flush */
+      MTC0(PSX_REG_R0, PSX_COP0_SR),
+
+      LW(PSX_REG_V1, PSX_REG_R0, 0x1000),
+
+      BREAK(0xbad),
+
+      BREAK(0x0ff0ff),
+   };
+   struct reg_val expected[] = {
+      { .r = PSX_REG_T0, .v = 0x10000 },
+      { .r = PSX_REG_V0, .v = 0xabcdef},
+      { .r = PSX_REG_V1, .v = 0xabcdef},
+   };
+   uint32_t end_pc = 0x2c;
+   struct dynarec_ret ret;
+
+   load_code(state, code, ARRAY_SIZE(code), 0);
+
+   ret = dynarec_run(state, 0x1000);
+
+   TEST_EQ(state->pc, end_pc);
+   TEST_EQ(ret.val.code, DYNAREC_EXIT_BREAK);
+   TEST_EQ(ret.val.param, 0x0ff0ff);
+
+   return check_regs(state, expected, ARRAY_SIZE(expected));
+}
+
 int main() {
    unsigned ntests = 0;
    unsigned nsuccess = 0;
@@ -2083,6 +2148,7 @@ int main() {
    RUN_TEST(test_lh);
    RUN_TEST(test_lhu);
    RUN_TEST(test_lw);
+   RUN_TEST(test_cache_isolation);
 
    printf("Tests done, results: %u/%u\n", nsuccess, ntests);
 

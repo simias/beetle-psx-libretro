@@ -38,11 +38,18 @@
 #define MIPS_OP_ANDI           0x0CU
 #define MIPS_OP_ORI            0x0DU
 #define MIPS_OP_LUI            0x0FU
+#define MIPS_OP_COP0           0x10U
+# define MIPS_COP_MFC           0x00U
+# define MIPS_COP_MTC           0x04U
+# define MIPS_COP_RFE           0x10U
 #define MIPS_OP_LB             0x20U
 #define MIPS_OP_LH             0x21U
 #define MIPS_OP_LW             0x23U
 #define MIPS_OP_LBU            0x24U
 #define MIPS_OP_LHU            0x25U
+#define MIPS_OP_SB             0x28U
+#define MIPS_OP_SH             0x29U
+#define MIPS_OP_SW             0x2BU
 
 union mips_instruction {
    uint32_t encoded;
@@ -95,6 +102,14 @@ union mips_instruction {
       unsigned reg_s: 5;
       unsigned opcode: 6;
    } load_store;
+
+   struct {
+      unsigned pad: 11;
+      unsigned reg_cop: 5;
+      unsigned reg_t: 5;
+      unsigned cop_op: 5;
+      unsigned opcode: 6;
+   } cop;
 };
 
 #endif /* __PSX_INSTRUCTION_H__ */
