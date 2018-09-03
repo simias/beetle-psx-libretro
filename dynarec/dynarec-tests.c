@@ -262,6 +262,8 @@ static int run_test(const char *name, test_fn_t f) {
    FN_RR(MIPS_FN_AND, (_rt), (_ro1), (_ro2))
 #define OR(_rt, _ro1, _ro2)                     \
    FN_RR(MIPS_FN_OR, (_rt), (_ro1), (_ro2))
+#define SLT(_rt, _ro1, _ro2)                    \
+   FN_RR(MIPS_FN_SLT, (_rt), (_ro1), (_ro2))
 #define SLTU(_rt, _ro1, _ro2)                   \
    FN_RR(MIPS_FN_SLTU, (_rt), (_ro1), (_ro2))
 #define ADDI(_rt, _ro, _i)                      \
@@ -1009,6 +1011,56 @@ static int test_or(struct dynarec_state *state) {
    return check_regs(state, expected, ARRAY_SIZE(expected));
 }
 
+static int test_slt(struct dynarec_state *state) {
+   union mips_instruction code[] = {
+      LI(PSX_REG_T0, 6),
+      LI(PSX_REG_T1, 3),
+      LI(PSX_REG_T2, -1),
+      LI(PSX_REG_T3, 0),
+
+      SLT(PSX_REG_R0, PSX_REG_R0, PSX_REG_T0),
+      SLT(PSX_REG_S0, PSX_REG_R0, PSX_REG_T2),
+      SLT(PSX_REG_S1, PSX_REG_T0, PSX_REG_T1),
+      SLT(PSX_REG_V0, PSX_REG_T0, PSX_REG_T1),
+      SLT(PSX_REG_V1, PSX_REG_T0, PSX_REG_V0),
+      SLT(PSX_REG_S2, PSX_REG_T0, PSX_REG_T2),
+      SLT(PSX_REG_S3, PSX_REG_T0, PSX_REG_T3),
+      SLT(PSX_REG_S4, PSX_REG_T2, PSX_REG_R0),
+      SLT(PSX_REG_T0, PSX_REG_T0, PSX_REG_T0),
+      SLT(PSX_REG_T1, PSX_REG_T2, PSX_REG_T1),
+      SLT(PSX_REG_T1, PSX_REG_T2, PSX_REG_T1),
+      SLT(PSX_REG_T2, PSX_REG_T1, PSX_REG_T2),
+      SLT(PSX_REG_T0, PSX_REG_T0, PSX_REG_S0),
+
+      BREAK(0x0ff0ff),
+   };
+   struct reg_val expected[] = {
+      { .r = PSX_REG_S0, .v = 0 },
+      { .r = PSX_REG_S1, .v = 0 },
+      { .r = PSX_REG_S4, .v = 1 },
+      { .r = PSX_REG_V0, .v = 0 },
+      { .r = PSX_REG_V1, .v = 0 },
+      { .r = PSX_REG_S2, .v = 0 },
+      { .r = PSX_REG_S3, .v = 0 },
+      { .r = PSX_REG_T0, .v = 0 },
+      { .r = PSX_REG_T1, .v = 1 },
+      { .r = PSX_REG_T2, .v = 0 },
+      { .r = PSX_REG_T3, .v = 0 },
+   };
+   uint32_t end_pc = 0x54;
+   struct dynarec_ret ret;
+
+   load_code(state, code, ARRAY_SIZE(code), 0);
+
+   ret = dynarec_run(state, 0x1000);
+
+   TEST_EQ(state->pc, end_pc);
+   TEST_EQ(ret.val.code, DYNAREC_EXIT_BREAK);
+   TEST_EQ(ret.val.param, 0x0ff0ff);
+
+   return check_regs(state, expected, ARRAY_SIZE(expected));
+}
+
 static int test_sltu(struct dynarec_state *state) {
    union mips_instruction code[] = {
       LI(PSX_REG_T0, 6),
@@ -1023,6 +1075,7 @@ static int test_sltu(struct dynarec_state *state) {
       SLTU(PSX_REG_V1, PSX_REG_T0, PSX_REG_V0),
       SLTU(PSX_REG_S2, PSX_REG_T0, PSX_REG_T2),
       SLTU(PSX_REG_S3, PSX_REG_T0, PSX_REG_T3),
+      SLTU(PSX_REG_S4, PSX_REG_T2, PSX_REG_R0),
       SLTU(PSX_REG_T0, PSX_REG_T0, PSX_REG_T0),
       SLTU(PSX_REG_T1, PSX_REG_T2, PSX_REG_T1),
       SLTU(PSX_REG_T1, PSX_REG_T1, PSX_REG_T2),
@@ -1034,6 +1087,7 @@ static int test_sltu(struct dynarec_state *state) {
    struct reg_val expected[] = {
       { .r = PSX_REG_S0, .v = 1 },
       { .r = PSX_REG_S1, .v = 0 },
+      { .r = PSX_REG_S4, .v = 0 },
       { .r = PSX_REG_V0, .v = 0 },
       { .r = PSX_REG_V1, .v = 0 },
       { .r = PSX_REG_S2, .v = 1 },
@@ -1043,7 +1097,7 @@ static int test_sltu(struct dynarec_state *state) {
       { .r = PSX_REG_T2, .v = 0 },
       { .r = PSX_REG_T3, .v = 0 },
    };
-   uint32_t end_pc = 0x50;
+   uint32_t end_pc = 0x54;
    struct dynarec_ret ret;
 
    load_code(state, code, ARRAY_SIZE(code), 0);
@@ -2008,6 +2062,7 @@ int main() {
    RUN_TEST(test_subu);
    RUN_TEST(test_and);
    RUN_TEST(test_or);
+   RUN_TEST(test_slt);
    RUN_TEST(test_sltu);
    RUN_TEST(test_slti);
    RUN_TEST(test_sltiu);

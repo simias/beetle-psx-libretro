@@ -1883,6 +1883,50 @@ void dynasm_emit_andi(struct dynarec_compiler *compiler,
    }
 }
 
+extern void dynasm_emit_slt(struct dynarec_compiler *compiler,
+                            enum PSX_REG reg_target,
+                            enum PSX_REG reg_op0,
+                            enum PSX_REG reg_op1) {
+   int target = register_location(reg_target);
+   int op0 = register_location(reg_op0);
+   int op1 = register_location(reg_op1);
+
+   if (target < 0) {
+      /* Use AX as temporary */
+      target = REG_AX;
+   }
+
+   if (op0 < 0) {
+      /* Use SI as temporary */
+      op0 = REG_SI;
+
+      if (reg_op0 != PSX_REG_R0) {
+         MOVE_FROM_BANKED(reg_op0, op0);
+      } else {
+         CLEAR_REG(op0);
+      }
+   }
+
+   if (op1 < 0) {
+      /* Use DX as temporary */
+      op1 = REG_DX;
+
+      if (reg_op1 != PSX_REG_R0) {
+         MOVE_FROM_BANKED(reg_op1, op1);
+      } else {
+         CLEAR_REG(op1);
+      }
+   }
+
+   CLEAR_REG(target);
+   CMP_R32_R32(op1, op0);
+   SETL_R8(target);
+
+   if (target == REG_AX) {
+      MOVE_TO_BANKED(target, reg_target);
+   }
+}
+
 extern void dynasm_emit_sltu(struct dynarec_compiler *compiler,
                              enum PSX_REG reg_target,
                              enum PSX_REG reg_op0,

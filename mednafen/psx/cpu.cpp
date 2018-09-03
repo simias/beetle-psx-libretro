@@ -2684,7 +2684,7 @@ pscpu_timestamp_t PS_CPU::RunDynarec(int32_t timestamp)
 
    ACTIVE_TO_BACKING;
 
-   return 0;
+   return timestamp;
 }
 #endif /* HAVE_DYNAREC */
 

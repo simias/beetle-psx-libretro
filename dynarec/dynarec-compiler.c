@@ -542,6 +542,7 @@ static enum optype dynarec_instruction_registers(uint32_t instruction,
       case MIPS_FN_SUBU:
       case MIPS_FN_AND:
       case MIPS_FN_OR:
+      case MIPS_FN_SLT:
       case MIPS_FN_SLTU:
          *reg_target = reg_d;
          *reg_op0 = reg_s;
@@ -753,6 +754,20 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
                  reg_target,
                  reg_op0,
                  reg_op1);
+         break;
+      case MIPS_FN_SLT:
+         if (reg_target == PSX_REG_R0) {
+            /* NOP */
+            break;
+         }
+
+         if (reg_op0 == PSX_REG_R0 && reg_op1 == PSX_REG_R0) {
+            /* 0 isn't less than 0 */
+            dynasm_emit_li(compiler, reg_target, 0);
+            break;
+         }
+
+         dynasm_emit_slt(compiler, reg_target, reg_op0, reg_op1);
          break;
       case MIPS_FN_SLTU:
          if (reg_target == PSX_REG_R0) {
