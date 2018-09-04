@@ -134,6 +134,8 @@ struct dynarec_ret dynarec_run(struct dynarec_state *state, int32_t cycles_to_ru
             everything */
          dynarec_flush_cache(state);
          /* Now we can continue the execution with a clean cache */
+         ret.val.code = DYNAREC_EXIT_COUNTER;
+         ret.val.param = 0;
          break;
       case DYNAREC_EXIT_COUNTER:
          /* Ran for at least `cycles_to_run` */
