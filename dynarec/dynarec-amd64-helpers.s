@@ -292,8 +292,6 @@ dynabi_set_cop0_sr:
         /* Push counter */
         push %rcx
 
-        /* Push counter */
-
         c_call dynarec_set_cache_isolation
 
         pop %rcx

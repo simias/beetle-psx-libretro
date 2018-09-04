@@ -106,21 +106,26 @@ struct dynarec_block *dynarec_find_or_compile_block(struct dynarec_state *state,
 }
 
 struct dynarec_ret dynarec_run(struct dynarec_state *state, int32_t cycles_to_run) {
-   struct dynarec_block *block;
    struct dynarec_ret ret;
 
-   for (;;) {
+   ret.val.code = DYNAREC_EXIT_COUNTER;
+   ret.val.param = 0;
+   ret.counter = cycles_to_run;
+
+   while (ret.counter > 0) {
+      struct dynarec_block *block;
+
       DYNAREC_LOG("dynarec_run(0x%08x, 0x%08x)\n", state->pc);
 
       block = dynarec_find_or_compile_block(state, state->pc);
 
       dynarec_fn_t f = dynarec_block_code(block);
 
-      ret = dynasm_execute(state, f, cycles_to_run);
+      ret = dynasm_execute(state, f, ret.counter);
 
       switch (ret.val.code) {
       case DYNAREC_EXIT_UNIMPLEMENTED:
-         printf("Dynarec encountered unimplemented construct no line %u\n",
+         printf("Dynarec encountered unimplemented construct on line %u\n",
                 ret.val.param);
          abort();
          break;
@@ -143,6 +148,8 @@ struct dynarec_ret dynarec_run(struct dynarec_state *state, int32_t cycles_to_ru
          abort();
       }
    }
+
+   return ret;
 }
 
 /* Helper functions called by the recompiled code. Returns 1 if cache
