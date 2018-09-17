@@ -124,7 +124,7 @@ static void emit_bxx(struct dynarec_compiler *compiler,
       cond = DYNAREC_JUMP_LT;
    }
 
-   emit_branch(compiler, offset, reg_op, PSX_REG_R0, cond);
+   emit_branch(compiler, offset, PSX_REG_R0, reg_op, cond);
 }
 
 static void emit_beq(struct dynarec_compiler *compiler,
@@ -559,12 +559,13 @@ static enum optype dynarec_instruction_registers(uint32_t instruction,
          abort();
       }
       break;
-   case 0x01: /* BXX */
+   case MIPS_OP_BXX:
       if (((instruction >> 17) & 0xf) == 8) {
          /* Link */
          *reg_target = PSX_REG_RA;
       }
       *reg_op0 = reg_s;
+      type = OP_BRANCH_COND;
       break;
    case MIPS_OP_J:
       type = OP_BRANCH_ALWAYS;
@@ -797,7 +798,7 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
          abort();
       }
       break;
-   case 0x01: /* BXX */
+   case MIPS_OP_BXX:
       emit_bxx(compiler, simm_se, reg_target, reg_op0, (instruction >> 16) & 1);
       break;
    case MIPS_OP_J:

@@ -24,7 +24,7 @@
 # define MIPS_FN_OR             0x25U
 # define MIPS_FN_SLT            0x2AU
 # define MIPS_FN_SLTU           0x2BU
-#define MIPS_OP_BXX            0x00U
+#define MIPS_OP_BXX            0x01U
 #define MIPS_OP_J              0x02U
 #define MIPS_OP_JAL            0x03U
 #define MIPS_OP_BEQ            0x04U

@@ -238,6 +238,10 @@ static int run_test(const char *name, test_fn_t f) {
    FN_RI(MIPS_OP_BLEZ, 0, (_r), (_off) >> 2)
 #define BGTZ(_r, _off)                          \
    FN_RI(MIPS_OP_BGTZ, 0, (_r), (_off) >> 2)
+#define BGEZ(_r, _off)                          \
+   FN_RI(MIPS_OP_BXX, 1, (_r), (_off) >> 2)
+#define BLTZ(_r, _off)                          \
+   FN_RI(MIPS_OP_BXX, 0, (_r), (_off) >> 2)
 #define SLL(_rt, _ro, _s)                       \
    SHIFT_RI(MIPS_FN_SLL, (_rt), (_ro), (_s))
 #define SRL(_rt, _ro, _s)                       \
@@ -1847,6 +1851,94 @@ static int test_bgtz(struct dynarec_state *state) {
    return check_regs(state, expected, ARRAY_SIZE(expected));
 }
 
+static int test_bgez(struct dynarec_state *state) {
+   union mips_instruction code[] = {
+      LI(PSX_REG_T1, 1),
+      LI(PSX_REG_T2, -1),
+
+      LI(PSX_REG_S0, 0),
+
+      BGEZ(PSX_REG_T2, -4),
+      ADDIU(PSX_REG_S0, PSX_REG_S0, 1),
+
+      BGEZ(PSX_REG_T1, 8),
+      NOP,
+
+      BREAK(0xbad),
+
+      LI(PSX_REG_V0, 4),
+
+      SUBU(PSX_REG_V0, PSX_REG_V0, PSX_REG_T1),
+      BGEZ(PSX_REG_V0, -8),
+      ADDIU(PSX_REG_S0, PSX_REG_S0, 0x10),
+
+      BREAK(0xff0ff),
+   };
+   struct reg_val expected[] = {
+      { .r = PSX_REG_T1, .v = 1 },
+      { .r = PSX_REG_T2, .v = -1 },
+      { .r = PSX_REG_S0, .v = 0x51 },
+      { .r = PSX_REG_V0, .v = -1 },
+   };
+   uint32_t end_pc = 0x40;
+   struct dynarec_ret ret;
+
+   load_code(state, code, ARRAY_SIZE(code), 0);
+
+   ret = dynarec_run(state, 0x1000);
+
+   TEST_EQ(state->pc, end_pc);
+   TEST_EQ(ret.val.code, DYNAREC_EXIT_BREAK);
+   TEST_EQ(ret.val.param, 0x0ff0ff);
+
+   return check_regs(state, expected, ARRAY_SIZE(expected));
+}
+
+static int test_bltz(struct dynarec_state *state) {
+   union mips_instruction code[] = {
+      LI(PSX_REG_T0, 0),
+      LI(PSX_REG_T1, 1),
+      LI(PSX_REG_T2, -1),
+
+      LI(PSX_REG_S0, 0),
+
+      BLTZ(PSX_REG_T0, -4),
+      ADDIU(PSX_REG_S0, PSX_REG_S0, 1),
+
+      BLTZ(PSX_REG_T2, 8),
+      NOP,
+
+      BREAK(0xbad),
+
+      LI(PSX_REG_V0, -4),
+
+      ADDIU(PSX_REG_V0, PSX_REG_V0, 1),
+      BLTZ(PSX_REG_V0, -8),
+      ADDIU(PSX_REG_S0, PSX_REG_S0, 0x10),
+
+      BREAK(0xff0ff),
+   };
+   struct reg_val expected[] = {
+      { .r = PSX_REG_T0, .v = 0 },
+      { .r = PSX_REG_T1, .v = 1 },
+      { .r = PSX_REG_T2, .v = -1 },
+      { .r = PSX_REG_S0, .v = 0x41 },
+      { .r = PSX_REG_V0, .v = 0 },
+   };
+   uint32_t end_pc = 0x48;
+   struct dynarec_ret ret;
+
+   load_code(state, code, ARRAY_SIZE(code), 0);
+
+   ret = dynarec_run(state, 0x1000);
+
+   TEST_EQ(state->pc, end_pc);
+   TEST_EQ(ret.val.code, DYNAREC_EXIT_BREAK);
+   TEST_EQ(ret.val.param, 0x0ff0ff);
+
+   return check_regs(state, expected, ARRAY_SIZE(expected));
+}
+
 static int test_lb(struct dynarec_state *state) {
    union mips_instruction code[] = {
       LI(PSX_REG_T0, 0xff000000),
@@ -2143,6 +2235,8 @@ int main() {
    RUN_TEST(test_bne);
    RUN_TEST(test_blez);
    RUN_TEST(test_bgtz);
+   RUN_TEST(test_bgez);
+   RUN_TEST(test_bltz);
    RUN_TEST(test_lb);
    RUN_TEST(test_lbu);
    RUN_TEST(test_lh);
