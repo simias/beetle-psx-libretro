@@ -271,6 +271,9 @@ dynabi_exception:
  * register. The value is in %esi.
  */
 dynabi_set_cop0_sr:
+        /* Mask bits that are always set to zero*/
+        and $0xf27fff3f, %esi
+
         /* Load current value of the SR into %edx */
         mov STATE_SR_OFFSET(%rdi), %edx
         /* Store new value of SR in state struct */
@@ -300,7 +303,7 @@ dynabi_set_cop0_sr:
         mov %esi, %edx
         and $0x10000, %esi
         /* If cache isolation is set we continue normally */
-        jnz  1f
+        jnz 1f
 
         /* If we reach this part it means that cache isolation was
         just disabled. It probably means that the game or BIOS was
@@ -323,8 +326,15 @@ dynabi_set_cop0_sr:
 /* Called by the dynarec code when storing the value of the CAUSE
  * register. The value is in %esi.*/
 dynabi_set_cop0_cause:
+        /* Only bits 8 and 9 are writeable and can be used for
+	"software" interrupt */
+        mov STATE_CAUSE_OFFSET(%rdi), %edx
+        and $0x00000300, %esi
+        and $0xfffffcff, %edx
+        or  %esi, %edx
+        mov %edx, STATE_CAUSE_OFFSET(%rdi)
+
         /* TODO: check for interrupt */
-        mov %esi, STATE_CAUSE_OFFSET(%rdi)
         ret
 
 .global dynabi_set_cop0_misc

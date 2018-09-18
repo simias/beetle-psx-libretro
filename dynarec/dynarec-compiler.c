@@ -505,6 +505,7 @@ static enum optype dynarec_instruction_registers(uint32_t instruction,
          *reg_target = reg_d;
          type = OP_BRANCH_ALWAYS;
          break;
+      case MIPS_FN_SYSCALL:
       case MIPS_FN_BREAK:
          type = OP_EXCEPTION;
          break;
@@ -690,6 +691,9 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
          break;
       case MIPS_FN_JALR:
          emit_jalr(compiler, reg_op0, reg_target);
+         break;
+      case MIPS_FN_SYSCALL:
+         dynasm_emit_exit(compiler, DYNAREC_EXIT_SYSCALL, instruction >> 6);
          break;
       case MIPS_FN_BREAK:
          if (compiler->state->options & DYNAREC_OPT_EXIT_ON_BREAK) {

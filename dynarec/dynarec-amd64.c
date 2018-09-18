@@ -1182,7 +1182,7 @@ static void emit_ret(struct dynarec_compiler *compiler) {
 #define RET emit_ret(compiler)
 
 void dynasm_emit_exception(struct dynarec_compiler *compiler,
-                           enum PSX_CPU_EXCEPTION exception) {
+                           enum psx_cpu_exception exception) {
    MOV_U32_R32(exception, REG_SI);
    MOV_U32_R32(compiler->pc, REG_DX);
    CALL(dynabi_exception);
@@ -2096,7 +2096,7 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
 
       IF_NOT_EQUAL {
          /* Address is not aligned correctly. */
-         enum PSX_CPU_EXCEPTION e;
+         enum psx_cpu_exception e;
 
          if (dir == DIR_STORE) {
             e = PSX_EXCEPTION_STORE_ALIGN;
@@ -2608,6 +2608,10 @@ void dynasm_emit_mfc0(struct dynarec_compiler *compiler,
    case PSX_COP0_CAUSE:
       load_off = offsetof(struct dynarec_state, cause);
       break;
+   case PSX_COP0_EPC:
+      /* TODO */
+      UNIMPLEMENTED;
+      break;
    default:
       /* Other registers not handled for now, just return zeroes */
       dynasm_emit_li(compiler, reg_target, 0);
@@ -2625,7 +2629,7 @@ void dynasm_emit_mfc0(struct dynarec_compiler *compiler,
                     target_tmp);
 
    if (target_tmp != target) {
-      MOVE_TO_BANKED(target, reg_target);
+      MOVE_TO_BANKED(target_tmp, reg_target);
    }
 }
 

@@ -193,9 +193,16 @@ static int run_test(const char *name, test_fn_t f) {
 
 #define BREAK(_code)                            \
    (union mips_instruction){                    \
-      .brk =                                    \
+      .sysbrk =                                 \
          { .opcode = MIPS_OP_FN,                \
            .fn = MIPS_FN_BREAK,                 \
+           .code = (_code) }}
+
+#define SYSCALL(_code)                          \
+   (union mips_instruction){                    \
+      .sysbrk =                                 \
+         { .opcode = MIPS_OP_FN,                \
+           .fn = MIPS_FN_SYSCALL,               \
            .code = (_code) }}
 
 #define J(_target)                              \
@@ -338,6 +345,35 @@ static int test_break(struct dynarec_state *state) {
    TEST_EQ(ret.val.param, 0x0ff0ff);
 
    return check_regs(state, NULL, 0);
+}
+
+static int test_syscall(struct dynarec_state *state) {
+   union mips_instruction code[] = {
+      SYSCALL(0x0ff0ff),
+      BREAK(0xbad),
+   };
+   union mips_instruction handler[] = {
+      MFC0(PSX_REG_T0, PSX_COP0_SR),
+      MFC0(PSX_REG_T1, PSX_COP0_CAUSE),
+      BREAK(0x0ff0ff),
+   };
+   struct reg_val expected[] = {
+      { .r = PSX_REG_T0, .v = 0 },
+      { .r = PSX_REG_T1, .v = 0x20 },
+   };
+   uint32_t end_pc = 0x80000088;
+   struct dynarec_ret ret;
+
+   load_code(state, code, ARRAY_SIZE(code), 0);
+   load_code(state, handler, ARRAY_SIZE(handler), 0x80);
+
+   ret = dynarec_run(state, 0x1000);
+
+   TEST_EQ(state->pc, end_pc);
+   TEST_EQ(ret.val.code, DYNAREC_EXIT_BREAK);
+   TEST_EQ(ret.val.param, 0x0ff0ff);
+
+   return check_regs(state, expected, ARRAY_SIZE(expected));
 }
 
 static int test_lui(struct dynarec_state *state) {
@@ -2202,6 +2238,7 @@ int main() {
    } while (0)
 
    RUN_TEST(test_break);
+   RUN_TEST(test_syscall);
    RUN_TEST(test_nop);
    RUN_TEST(test_lui);
    RUN_TEST(test_counter);

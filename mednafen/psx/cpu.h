@@ -152,6 +152,11 @@ class PS_CPU
   CP0REG_PRID = 15		// Product ID
  };
 
+#ifndef HAVE_DYNAREC
+ // simias: for now I stub this code when the dynarec is enabled to
+ // make sure that I catch all interactions with COP0. Once everything
+ // is working correctly this should be reworked to allow switching
+ // from dynarec to interpreter at runtime
  struct
  {
   union
@@ -178,6 +183,7 @@ class PS_CPU
    };
   };
  } CP0;
+#endif /* HAVE_DYNAREC */
 
  uint8 MULT_Tab24[24];
 

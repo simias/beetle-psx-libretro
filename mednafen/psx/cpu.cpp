@@ -121,6 +121,7 @@ void PS_CPU::SetFastMap(void *region_mem, uint32 region_address, uint32 region_s
  }
 }
 
+#ifndef HAVE_DYNAREC
 INLINE void PS_CPU::RecalcIPCache(void)
 {
  IPCache = 0;
@@ -131,11 +132,14 @@ INLINE void PS_CPU::RecalcIPCache(void)
  if(Halted)
   IPCache = 0x80;
 }
+#endif
 
 void PS_CPU::SetHalt(bool status)
 {
  Halted = status;
+#ifndef HAVE_DYNAREC
  RecalcIPCache();
+#endif
 }
 
 void PS_CPU::Power(void)
@@ -143,7 +147,9 @@ void PS_CPU::Power(void)
  assert(sizeof(ICache) == sizeof(ICache_Bulk));
 
  memset(GPR, 0, sizeof(GPR));
+#ifndef HAVE_DYNAREC
  memset(&CP0, 0, sizeof(CP0));
+#endif
  LO = 0;
  HI = 0;
 
@@ -161,13 +167,14 @@ void PS_CPU::Power(void)
  ReadAbsorbWhich = 0;
  ReadFudge = 0;
 
+#ifndef HAVE_DYNAREC
  CP0.SR |= (1 << 22);	// BEV
  CP0.SR |= (1 << 21);	// TS
 
  CP0.PRID = 0x2;
 
  RecalcIPCache();
-
+#endif
 
  BIU = 0;
 
@@ -183,6 +190,16 @@ void PS_CPU::Power(void)
  }
 
  GTE_Power();
+
+ /* Dynarec init */
+ assert(dynarec_state == NULL);
+
+ dynarec_state = dynarec_init((uint8_t *)MainRAM.data32,
+                              (uint8_t *)ScratchRAM.data32,
+                              (uint8_t *)BIOSROM->data32);
+ assert(dynarec_state != NULL);
+
+ dynarec_set_pc(dynarec_state, BACKED_PC);
 }
 
 int PS_CPU::StateAction(StateMem *sm, const unsigned load, const bool data_only)
@@ -212,7 +229,9 @@ int PS_CPU::StateAction(StateMem *sm, const unsigned load, const bool data_only)
   SFVAR(BIU),
   SFVAR(ICache_Bulk),
 
+#ifndef HAVE_DYNAREC
   SFVAR(CP0.Regs),
+#endif
 
   SFARRAY(ReadAbsorb, 0x20),
   SFVARN(ReadAbsorb[0x20], "ReadAbsorbDummy"),
@@ -253,6 +272,7 @@ int PS_CPU::StateAction(StateMem *sm, const unsigned load, const bool data_only)
  return ret;
 }
 
+#ifndef HAVE_DYNAREC
 void PS_CPU::AssertIRQ(unsigned which, bool asserted)
 {
  assert(which <= 5);
@@ -264,6 +284,7 @@ void PS_CPU::AssertIRQ(unsigned which, bool asserted)
 
  RecalcIPCache();
 }
+#endif /* HAVE_DYNAREC */
 
 void PS_CPU::SetBIU(uint32 val)
 {
@@ -422,7 +443,11 @@ INLINE T PS_CPU::ReadMemory(pscpu_timestamp_t &timestamp, uint32 address, bool D
 template<typename T>
 INLINE void PS_CPU::WriteMemory(pscpu_timestamp_t &timestamp, uint32 address, uint32 value, bool DS24)
 {
+#ifndef HAVE_DYNAREC
  if(MDFN_LIKELY(!(CP0.SR & 0x10000)))
+#else
+ if (1)
+#endif
  {
   address &= addr_mask[address >> 29];
 
@@ -569,6 +594,7 @@ INLINE uint32 PS_CPU::ReadInstruction(pscpu_timestamp_t &timestamp, uint32 addre
  return instr;
 }
 
+#ifndef HAVE_DYNAREC
 uint32 NO_INLINE PS_CPU::Exception(uint32 code, uint32 PC, const uint32 NP, const uint32 instr)
 {
  uint32 handler = 0x80000080;
@@ -620,6 +646,7 @@ uint32 NO_INLINE PS_CPU::Exception(uint32 code, uint32 PC, const uint32 NP, cons
 
  return(handler);
 }
+#endif
 
 #define BACKING_TO_ACTIVE			\
 	PC = BACKED_PC;				\
@@ -641,6 +668,7 @@ uint32 NO_INLINE PS_CPU::Exception(uint32 code, uint32 PC, const uint32 NP, cons
 #define GPR_RES(n) { unsigned tn = (n); ReadAbsorb[tn] = 0; }
 #define GPR_DEPRES_END ReadAbsorb[0] = back; }
 
+#ifndef HAVE_DYNAREC
 template<bool DebugMode, bool BIOSPrintMode, bool ILHMode>
 pscpu_timestamp_t PS_CPU::RunReal(pscpu_timestamp_t timestamp_in)
 {
@@ -2642,6 +2670,7 @@ pscpu_timestamp_t PS_CPU::RunReal(pscpu_timestamp_t timestamp_in)
 
  return(timestamp);
 }
+#endif
 
 #ifdef HAVE_DYNAREC
 pscpu_timestamp_t PS_CPU::RunDynarec(int32_t timestamp)
@@ -2653,15 +2682,6 @@ pscpu_timestamp_t PS_CPU::RunDynarec(int32_t timestamp)
    uint32_t LDValue;
 
    BACKING_TO_ACTIVE;
-
-   if (dynarec_state == NULL) {
-      dynarec_state = dynarec_init((uint8_t *)MainRAM.data32,
-                                   (uint8_t *)ScratchRAM.data32,
-                                   (uint8_t *)BIOSROM->data32);
-      assert(dynarec_state != NULL);
-
-      dynarec_set_pc(dynarec_state, PC);
-   }
 
    do {
       int32_t cycles_to_run = next_event_ts - timestamp;
@@ -2686,17 +2706,25 @@ pscpu_timestamp_t PS_CPU::RunDynarec(int32_t timestamp)
 
    return timestamp;
 }
+
+void PS_CPU::AssertIRQ(unsigned which, bool asserted)
+{
+   uint32_t mask = 1U << (10 + which);
+   assert(which <= 5);
+
+   if (asserted) {
+      dynarec_state->cause  |= mask;
+   } else {
+      dynarec_state->cause  &= ~mask;
+   }
+}
 #endif /* HAVE_DYNAREC */
 
 pscpu_timestamp_t PS_CPU::Run(pscpu_timestamp_t timestamp_in, bool BIOSPrintMode, bool ILHMode)
 {
 #ifdef HAVE_DYNAREC
-   bool use_dynarec = true;
-
-   if (use_dynarec) {
-      return(RunDynarec(timestamp_in));
-   }
-#endif /* HAVE_DYNAREC */
+   return(RunDynarec(timestamp_in));
+#else
 
  if(CPUHook || ADDBT)
   return(RunReal<true, true, false>(timestamp_in));
@@ -2708,6 +2736,7 @@ pscpu_timestamp_t PS_CPU::Run(pscpu_timestamp_t timestamp_in, bool BIOSPrintMode
 #endif
 
  return(RunReal<false, false, false>(timestamp_in));
+#endif
 }
 
 void PS_CPU::SetCPUHook(void (*cpuh)(const pscpu_timestamp_t timestamp, uint32 pc), void (*addbt)(uint32 from, uint32 to, bool exception))
@@ -2716,6 +2745,7 @@ void PS_CPU::SetCPUHook(void (*cpuh)(const pscpu_timestamp_t timestamp, uint32 p
  CPUHook = cpuh;
 }
 
+#ifndef HAVE_DYNAREC
 uint32 PS_CPU::GetRegister(unsigned int which, char *special, const uint32 special_len)
 {
  uint32 ret = 0;
@@ -2840,6 +2870,7 @@ void PS_CPU::SetRegister(unsigned int which, uint32 value)
 
  }
 }
+#endif
 
 bool PS_CPU::PeekCheckICache(uint32 PC, uint32 *iw)
 {
@@ -2883,6 +2914,7 @@ void PS_CPU::PokeMem32(uint32 A, uint32 V)
  PokeMemory<uint32>(A, V);
 }
 
+#ifndef HAVE_DYNAREC
 void PS_CPU::SetCop0Register(uint32 R, uint32 V)
 {
    // SR and CAUSE need special handling
@@ -2890,6 +2922,7 @@ void PS_CPU::SetCop0Register(uint32 R, uint32 V)
 
    CP0.Regs[R] = V;
 }
+#endif
 
 #undef BEGIN_OPF
 #undef END_OPF
@@ -2899,6 +2932,7 @@ void PS_CPU::SetCop0Register(uint32 R, uint32 V)
 #define BEGIN_OPF(op, funct) case MK_OPF(op, funct): {
 #define END_OPF } break;
 
+#ifndef HAVE_DYNAREC
 // FIXME: should we breakpoint on an illegal address?  And with LWC2/SWC2 if CP2 isn't enabled?
 void PS_CPU::CheckBreakpoints(void (*callback)(bool write, uint32 address, unsigned int len), uint32 instr)
 {
@@ -3074,6 +3108,7 @@ void PS_CPU::CheckBreakpoints(void (*callback)(bool write, uint32 address, unsig
 
  }
 }
+#endif
 
 #if NOT_LIBRETRO
 }

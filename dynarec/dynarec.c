@@ -32,6 +32,7 @@ struct dynarec_state *dynarec_init(uint8_t *ram,
    state->bios = bios;
    rbt_init(&state->blocks);
 
+
    /* For now let's be greedy and allocate a huge buffer. Untouched
       pages shouldn't take any resident memory so it shouldn't be too
       bad. Later it might make more sense to allocate smaller buffers
@@ -105,6 +106,57 @@ struct dynarec_block *dynarec_find_or_compile_block(struct dynarec_state *state,
    return block;
 }
 
+static void dynarec_exception(struct dynarec_state *state,
+                              enum psx_cpu_exception e) {
+
+   uint32_t sr = state->sr;
+   uint32_t mode;
+
+   /* Shift bits [5:0] of `SR` two places to the left. Those bits
+      are three pairs of Interrupt Enable/User Mode bits behaving
+      like a stack 3 entries deep. */
+   mode = (sr & 0x3f);
+   sr &= ~(0x3fU);
+   sr |= (mode << 2) & 0x3f;
+   state->sr = sr;
+
+   /* Update `CAUSE` register with the exception code (bits [6:2]) */
+   state->cause &= !0x7c;
+   state->cause |= ((uint32_t)e) << 2;
+
+   /* Store execution PC, used in RFE */
+   state->epc = state->pc;
+
+   /* Address of exception handler depends on the value of bit 22 of SR */
+   if (sr & (1U << 22)) {
+      state->pc = 0xbfc00180;
+   } else {
+      state->pc = 0x80000080;
+   }
+
+   DYNAREC_LOG("Exception! code: %d PC: 0x%08x CAUSE: 0x%08x SR: 0x%08x\n",
+               e, state->pc, state->cause, state->sr);
+}
+
+static void dynarec_check_for_interrupt(struct dynarec_state *state) {
+   /* Check if an interruption is pending */
+   uint32_t sr = state->sr;
+
+   if ((sr & 1) == 0) {
+      /* Bit 0 of SR is the global IRQ enable, if it's zero there
+         can't be an active interrupt */
+      return;
+   }
+
+   abort();
+
+   /* Check if one of the enabled IRQs in SR is active in CAUSE */
+   if (sr & state->cause & 0xff00) {
+      /* An interrupt is active! */
+      dynarec_exception(state, PSX_EXCEPTION_INTERRUPT);
+   }
+}
+
 struct dynarec_ret dynarec_run(struct dynarec_state *state, int32_t cycles_to_run) {
    struct dynarec_ret ret;
 
@@ -115,7 +167,9 @@ struct dynarec_ret dynarec_run(struct dynarec_state *state, int32_t cycles_to_ru
    while (ret.counter > 0) {
       struct dynarec_block *block;
 
-      DYNAREC_LOG("dynarec_run(0x%08x, 0x%08x)\n", state->pc);
+      dynarec_check_for_interrupt(state);
+
+      DYNAREC_LOG("dynarec_run(0x%08x, %d, %08x, %08x)\n", state->pc, ret.counter, state->sr, state->cause);
 
       block = dynarec_find_or_compile_block(state, state->pc);
 
@@ -140,9 +194,17 @@ struct dynarec_ret dynarec_run(struct dynarec_state *state, int32_t cycles_to_ru
       case DYNAREC_EXIT_COUNTER:
          /* Ran for at least `cycles_to_run` */
          return ret;
+      case DYNAREC_EXIT_SYSCALL:
+         dynarec_exception(state, PSX_EXCEPTION_SYSCALL);
+         break;
       case DYNAREC_EXIT_BREAK:
-         /* Encountered debug BREAK */
-         return ret;
+         /* Encountered BREAK instructions */
+         if (state->options & DYNAREC_OPT_EXIT_ON_BREAK) {
+            return ret;
+         } else {
+            dynarec_exception(state, PSX_EXCEPTION_BREAK);
+         }
+         break;
       default:
          printf("Unsupported return value %u %u\n",
                 ret.val.code,

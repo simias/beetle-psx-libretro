@@ -942,7 +942,7 @@ extern "C" void dynarec_set_cop0_misc(struct dynarec_state *s,
                                       uint32_t cop0_reg) {
    DYNAREC_LOG("dynarec cop0 %08x @ %d\n", val, cop0_reg);
 
-   CPU->SetCop0Register(cop0_reg, val);
+   //CPU->SetCop0Register(cop0_reg, val);
 }
 
 /* Callbacks used by the dynarec to handle device memory access */
