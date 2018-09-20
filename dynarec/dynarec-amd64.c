@@ -624,10 +624,6 @@ static void emit_movzwl_pr64_r32(struct dynarec_compiler *compiler,
    *(compiler->map++) = 0x0f;
    *(compiler->map++) = 0xb7;
    *(compiler->map++) = addr | (target << 3);
-
-   if (target == REG_SP) {
-      *(compiler->map++) = 0x24;
-   }
 }
 #define MOVZWL_PR64_R32(_a, _t) emit_movzwl_pr64_r32(compiler, (_a), (_t))
 
@@ -642,10 +638,6 @@ static void emit_movswl_pr64_r32(struct dynarec_compiler *compiler,
    *(compiler->map++) = 0x0f;
    *(compiler->map++) = 0xbf;
    *(compiler->map++) = addr | (target << 3);
-
-   if (target == REG_SP) {
-      *(compiler->map++) = 0x24;
-   }
 }
 #define MOVSWL_PR64_R32(_a, _t) emit_movswl_pr64_r32(compiler, (_a), (_t))
 
