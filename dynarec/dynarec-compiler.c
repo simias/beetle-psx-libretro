@@ -181,16 +181,16 @@ static void emit_bgtz(struct dynarec_compiler *compiler,
    emit_branch(compiler, offset, reg_op, PSX_REG_R0, cond);
 }
 
-typedef void (*shift_emit_fn_t)(struct dynarec_compiler *compiler,
-                                enum PSX_REG reg_target,
-                                enum PSX_REG reg_source,
-                                uint8_t shift);
+typedef void (*shift_imm_emit_fn_t)(struct dynarec_compiler *compiler,
+                                    enum PSX_REG reg_target,
+                                    enum PSX_REG reg_source,
+                                    uint8_t shift);
 
 static void emit_shift_imm(struct dynarec_compiler *compiler,
                            enum PSX_REG reg_target,
                            enum PSX_REG reg_source,
                            uint8_t shift,
-                           shift_emit_fn_t emit_fn) {
+                           shift_imm_emit_fn_t emit_fn) {
    if (reg_target == 0 || (reg_target == reg_source && shift == 0)) {
       /* NOP */
       return;
@@ -207,6 +207,36 @@ static void emit_shift_imm(struct dynarec_compiler *compiler,
    }
 
    emit_fn(compiler, reg_target, reg_source, shift);
+}
+
+typedef void (*shift_reg_emit_fn_t)(struct dynarec_compiler *compiler,
+                                    enum PSX_REG reg_target,
+                                    enum PSX_REG reg_source,
+                                    enum PSX_REG reg_shift);
+
+
+static void emit_shift_reg(struct dynarec_compiler *compiler,
+                           enum PSX_REG reg_target,
+                           enum PSX_REG reg_source,
+                           enum PSX_REG reg_shift,
+                           shift_reg_emit_fn_t emit_fn) {
+   if (reg_target == 0 ||
+       (reg_target == reg_source && reg_shift == PSX_REG_R0)) {
+      /* NOP */
+      return;
+   }
+
+   if (reg_source == PSX_REG_R0) {
+      dynasm_emit_li(compiler, reg_target, 0);
+      return;
+   }
+
+   if (reg_shift == PSX_REG_R0) {
+      dynasm_emit_mov(compiler, reg_target, reg_source);
+      return;
+   }
+
+   emit_fn(compiler, reg_target, reg_source, reg_shift);
 }
 
 static void emit_addi(struct dynarec_compiler *compiler,
@@ -495,6 +525,13 @@ static enum optype dynarec_instruction_registers(uint32_t instruction,
          *reg_target = reg_d;
          *reg_op0    = reg_t;
          break;
+      case MIPS_FN_SLLV:
+      case MIPS_FN_SRLV:
+      case MIPS_FN_SRAV:
+         *reg_target = reg_d;
+         *reg_op0 = reg_t;
+         *reg_op1 = reg_s;
+         break;
       case MIPS_FN_JR:
          *reg_op0 = reg_s;
          type = OP_BRANCH_ALWAYS;
@@ -681,6 +718,27 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
                         reg_op0,
                         shift,
                         dynasm_emit_sra);
+         break;
+      case MIPS_FN_SLLV:
+         emit_shift_reg(compiler,
+                        reg_target,
+                        reg_op0,
+                        reg_op1,
+                        dynasm_emit_sllv);
+         break;
+      case MIPS_FN_SRLV:
+         emit_shift_reg(compiler,
+                        reg_target,
+                        reg_op0,
+                        reg_op1,
+                        dynasm_emit_srlv);
+         break;
+      case MIPS_FN_SRAV:
+         emit_shift_reg(compiler,
+                        reg_target,
+                        reg_op0,
+                        reg_op1,
+                        dynasm_emit_srav);
          break;
       case MIPS_FN_JR:
          emit_jalr(compiler, reg_op0, PSX_REG_R0);
