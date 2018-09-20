@@ -2609,8 +2609,7 @@ void dynasm_emit_mfc0(struct dynarec_compiler *compiler,
       load_off = offsetof(struct dynarec_state, cause);
       break;
    case PSX_COP0_EPC:
-      /* TODO */
-      UNIMPLEMENTED;
+      load_off = offsetof(struct dynarec_state, epc);
       break;
    default:
       /* Other registers not handled for now, just return zeroes */

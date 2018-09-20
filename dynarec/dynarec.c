@@ -124,7 +124,7 @@ static void dynarec_exception(struct dynarec_state *state,
    state->cause &= !0x7c;
    state->cause |= ((uint32_t)e) << 2;
 
-   /* Store execution PC, used in RFE */
+   /* Store execution PC in coprocessor register */
    state->epc = state->pc;
 
    /* Address of exception handler depends on the value of bit 22 of SR */

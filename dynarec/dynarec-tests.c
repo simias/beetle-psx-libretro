@@ -349,19 +349,22 @@ static int test_break(struct dynarec_state *state) {
 
 static int test_syscall(struct dynarec_state *state) {
    union mips_instruction code[] = {
+      NOP,
       SYSCALL(0x0ff0ff),
       BREAK(0xbad),
    };
    union mips_instruction handler[] = {
       MFC0(PSX_REG_T0, PSX_COP0_SR),
       MFC0(PSX_REG_T1, PSX_COP0_CAUSE),
+      MFC0(PSX_REG_T2, PSX_COP0_EPC),
       BREAK(0x0ff0ff),
    };
    struct reg_val expected[] = {
       { .r = PSX_REG_T0, .v = 0 },
       { .r = PSX_REG_T1, .v = 0x20 },
+      { .r = PSX_REG_T2, .v = 4 },
    };
-   uint32_t end_pc = 0x80000088;
+   uint32_t end_pc = 0x8000008c;
    struct dynarec_ret ret;
 
    load_code(state, code, ARRAY_SIZE(code), 0);
