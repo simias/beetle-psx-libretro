@@ -449,8 +449,7 @@ static void emit_or(struct dynarec_compiler *compiler,
 
 static void emit_rfe(struct dynarec_compiler *compiler,
                      uint32_t instruction) {
-   (void)instruction;
-   dynasm_emit_exit(compiler, DYNAREC_EXIT_UNIMPLEMENTED, __LINE__);
+   dynasm_emit_rfe(compiler);
 }
 
 enum optype {
@@ -607,9 +606,6 @@ static enum optype dynarec_instruction_registers(uint32_t instruction,
          *reg_op0 = reg_t;
          break;
       case MIPS_COP_RFE:
-         /* Effectively the opposite of an exception but semantically
-            the same: control leaves the block without delay slot. */
-         type = OP_EXCEPTION;
          break;
       default:
          printf("Dynarec encountered unsupported COP0 instruction %08x\n",

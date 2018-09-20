@@ -225,13 +225,14 @@ static int run_test(const char *name, test_fn_t f) {
            .reg_t = (_rv),                      \
            .off = (_off) }}
 
-#define COP0(_cop_op, _rt, _r_c)                \
+#define COP0(_cop_op, _rt, _r_c, _m)            \
    (union mips_instruction){                    \
       .cop =                                    \
          { .opcode = MIPS_OP_COP0,              \
            .cop_op = (_cop_op),                 \
            .reg_t = (_rt),                      \
-           .reg_cop = (_r_c) }}
+           .reg_cop = (_r_c),                   \
+           .misc = (_m) }}
 
 #define JR(_r)                                  \
    FN_RR(MIPS_FN_JR, 0, (_r), 0)
@@ -322,8 +323,9 @@ static int run_test(const char *name, test_fn_t f) {
 #define SW(_rv, _ra, _off)                      \
    LOAD_STORE(MIPS_OP_SW, (_rv), (_ra), (_off))
 
-#define MTC0(_rt, _r_c) COP0(MIPS_COP_MTC, _rt, _r_c)
-#define MFC0(_rt, _r_c) COP0(MIPS_COP_MFC, _rt, _r_c)
+#define MTC0(_rt, _r_c) COP0(MIPS_COP_MTC, _rt, _r_c, 0)
+#define MFC0(_rt, _r_c) COP0(MIPS_COP_MFC, _rt, _r_c, 0)
+#define RFE             COP0(MIPS_COP_RFE, 0, 0, 0x10)
 
 /*********
  * Tests *
@@ -365,6 +367,48 @@ static int test_syscall(struct dynarec_state *state) {
       { .r = PSX_REG_T2, .v = 4 },
    };
    uint32_t end_pc = 0x8000008c;
+   struct dynarec_ret ret;
+
+   load_code(state, code, ARRAY_SIZE(code), 0);
+   load_code(state, handler, ARRAY_SIZE(handler), 0x80);
+
+   ret = dynarec_run(state, 0x1000);
+
+   TEST_EQ(state->pc, end_pc);
+   TEST_EQ(ret.val.code, DYNAREC_EXIT_BREAK);
+   TEST_EQ(ret.val.param, 0x0ff0ff);
+
+   return check_regs(state, expected, ARRAY_SIZE(expected));
+}
+
+static int test_rfe(struct dynarec_state *state) {
+   union mips_instruction code[] = {
+      LI(PSX_REG_T0, 0x3),
+      NOP,
+      MTC0(PSX_REG_T0, PSX_COP0_SR),
+      SYSCALL(0x0ff0ff),
+      // Should return here
+      MFC0(PSX_REG_T4, PSX_COP0_SR),
+
+      BREAK(0x0ff0ff),
+   };
+   union mips_instruction handler[] = {
+      MFC0(PSX_REG_T0, PSX_COP0_SR),
+      MFC0(PSX_REG_T1, PSX_COP0_CAUSE),
+      MFC0(PSX_REG_T2, PSX_COP0_EPC),
+      ADDIU(PSX_REG_T3, PSX_REG_T2, 4),
+      JR(PSX_REG_T3),
+      RFE,
+      BREAK(0xbad),
+   };
+   struct reg_val expected[] = {
+      { .r = PSX_REG_T0, .v = 0xc },
+      { .r = PSX_REG_T1, .v = 0x20 },
+      { .r = PSX_REG_T2, .v = 0x10 },
+      { .r = PSX_REG_T3, .v = 0x14 },
+      { .r = PSX_REG_T4, .v = 0x3 },
+   };
+   uint32_t end_pc = 0x18;
    struct dynarec_ret ret;
 
    load_code(state, code, ARRAY_SIZE(code), 0);
@@ -2242,6 +2286,7 @@ int main() {
 
    RUN_TEST(test_break);
    RUN_TEST(test_syscall);
+   RUN_TEST(test_rfe);
    RUN_TEST(test_nop);
    RUN_TEST(test_lui);
    RUN_TEST(test_counter);

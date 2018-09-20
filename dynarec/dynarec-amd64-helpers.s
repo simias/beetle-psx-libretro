@@ -265,6 +265,27 @@ dynabi_exception:
         /* TODO */
         int $3
 
+.global dynabi_rfe
+.type   dynabi_rfe, function
+/* Return From Exception */
+dynabi_rfe:
+        /* Load current value of the SR into %eax*/
+        mov  STATE_SR_OFFSET(%rdi), %eax
+        mov  %eax, %edx
+
+        /* Clear the first two entries in the mode "stack" */
+        and  $0xfffffff0, %eax
+        /* Shift the top two entries to the right and or it back,
+	effectively poping the first entry of the stack. The third
+	entry is duplicated in 2nd position and isn't cleared. */
+        shr  $2, %edx
+        and  $0xf, %edx
+        or   %edx, %eax
+
+        /* Store SR back into state */
+        mov  %eax, STATE_SR_OFFSET(%rdi)
+        ret
+
 .global dynabi_set_cop0_sr
 .type   dynabi_set_cop0_sr, function
 /* Called by the dynarec code when storing the value of the SR

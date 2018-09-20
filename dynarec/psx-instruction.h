@@ -188,7 +188,7 @@ union mips_instruction {
    } load_store;
 
    struct {
-      unsigned pad: 11;
+      unsigned misc: 11;
       unsigned reg_cop: 5;
       unsigned reg_t: 5;
       unsigned cop_op: 5;

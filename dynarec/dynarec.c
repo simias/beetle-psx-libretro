@@ -148,8 +148,6 @@ static void dynarec_check_for_interrupt(struct dynarec_state *state) {
       return;
    }
 
-   abort();
-
    /* Check if one of the enabled IRQs in SR is active in CAUSE */
    if (sr & state->cause & 0xff00) {
       /* An interrupt is active! */

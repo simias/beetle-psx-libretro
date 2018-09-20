@@ -9,6 +9,7 @@
 /* Helper assembly functions. They use a custom ABI and are not meant
  * to be called directly from C code */
 extern void dynabi_exception(void);
+extern void dynabi_rfe(void);
 extern void dynabi_device_sw(void);
 extern void dynabi_device_sh(void);
 extern void dynabi_device_sb(void);

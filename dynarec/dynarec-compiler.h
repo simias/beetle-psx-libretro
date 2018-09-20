@@ -61,6 +61,7 @@ extern void dynasm_patch_link(struct dynarec_compiler *compiler,
                               void *link);
 extern void dynasm_emit_exception(struct dynarec_compiler *compiler,
                                   enum psx_cpu_exception exception);
+extern void dynasm_emit_rfe(struct dynarec_compiler *compiler);
 extern void dynasm_emit_exit(struct dynarec_compiler *compiler,
                              enum dynarec_exit code,
                              unsigned val);

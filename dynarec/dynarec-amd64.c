@@ -1188,6 +1188,10 @@ void dynasm_emit_exception(struct dynarec_compiler *compiler,
    CALL(dynabi_exception);
 }
 
+void dynasm_emit_rfe(struct dynarec_compiler *compiler) {
+   CALL(dynabi_rfe);
+}
+
 void dynasm_emit_exit_noval(struct dynarec_compiler *compiler) {
    if (compiler->spent_cycles) {
       SUB_U32_R32(compiler->spent_cycles, REG_CX);
