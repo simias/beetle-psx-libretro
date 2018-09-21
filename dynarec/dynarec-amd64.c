@@ -588,10 +588,6 @@ static void emit_movzbl_pr64_r32(struct dynarec_compiler *compiler,
    *(compiler->map++) = 0x0f;
    *(compiler->map++) = 0xb6;
    *(compiler->map++) = addr | (target << 3);
-
-   if (target == REG_SP) {
-      *(compiler->map++) = 0x24;
-   }
 }
 #define MOVZBL_PR64_R32(_a, _t) emit_movzbl_pr64_r32(compiler, (_a), (_t))
 
@@ -606,10 +602,6 @@ static void emit_movsbl_pr64_r32(struct dynarec_compiler *compiler,
    *(compiler->map++) = 0x0f;
    *(compiler->map++) = 0xbe;
    *(compiler->map++) = addr | (target << 3);
-
-   if (target == REG_SP) {
-      *(compiler->map++) = 0x24;
-   }
 }
 #define MOVSBL_PR64_R32(_a, _t) emit_movsbl_pr64_r32(compiler, (_a), (_t))
 
