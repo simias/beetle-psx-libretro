@@ -115,6 +115,9 @@ extern void dynasm_emit_addiu(struct dynarec_compiler *compiler,
 extern void dynasm_emit_neg(struct dynarec_compiler *compiler,
                              enum PSX_REG reg_target,
                              enum PSX_REG reg_src);
+extern void dynasm_emit_not(struct dynarec_compiler *compiler,
+                             enum PSX_REG reg_target,
+                             enum PSX_REG reg_src);
 extern void dynasm_emit_subu(struct dynarec_compiler *compiler,
                              enum PSX_REG reg_target,
                              enum PSX_REG reg_op0,
@@ -131,6 +134,14 @@ extern void dynasm_emit_or(struct dynarec_compiler *compiler,
                            enum PSX_REG reg_target,
                            enum PSX_REG reg_op0,
                            enum PSX_REG reg_op1);
+extern void dynasm_emit_xor(struct dynarec_compiler *compiler,
+                            enum PSX_REG reg_target,
+                            enum PSX_REG reg_op0,
+                            enum PSX_REG reg_op1);
+extern void dynasm_emit_nor(struct dynarec_compiler *compiler,
+                            enum PSX_REG reg_target,
+                            enum PSX_REG reg_op0,
+                            enum PSX_REG reg_op1);
 extern void dynasm_emit_ori(struct dynarec_compiler *compiler,
                             enum PSX_REG reg_t,
                             enum PSX_REG reg_s,

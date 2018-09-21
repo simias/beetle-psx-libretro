@@ -477,6 +477,67 @@ static void emit_or(struct dynarec_compiler *compiler,
    }
 }
 
+static void emit_xor(struct dynarec_compiler *compiler,
+                    enum PSX_REG reg_target,
+                    enum PSX_REG reg_op0,
+                    enum PSX_REG reg_op1) {
+   if (reg_target == PSX_REG_R0) {
+      /* NOP */
+      return;
+   }
+
+   if (reg_op0 == PSX_REG_R0) {
+      if (reg_op1 == PSX_REG_R0) {
+         dynasm_emit_li(compiler, reg_target, 0);
+      } else if (reg_target != reg_op1) {
+         dynasm_emit_mov(compiler, reg_target, reg_op1);
+      } else {
+         /* XOR a, 0, a -> NOP */
+         return;
+      }
+   } else if (reg_op1 == PSX_REG_R0) {
+      if (reg_target != reg_op0) {
+         dynasm_emit_mov(compiler, reg_target, reg_op0);
+      } else {
+         /* XOR a, a, 0 -> NOP */
+         return;
+      }
+   } else if (reg_op0 == reg_op1) {
+      /* XOR t, a, a -> 0 */
+      dynasm_emit_li(compiler, reg_target, 0);
+   } else {
+      dynasm_emit_xor(compiler, reg_target, reg_op0, reg_op1);
+   }
+}
+
+static void emit_nor(struct dynarec_compiler *compiler,
+                     enum PSX_REG reg_target,
+                     enum PSX_REG reg_op0,
+                     enum PSX_REG reg_op1) {
+   if (reg_target == PSX_REG_R0) {
+      /* NOP */
+      return;
+   }
+
+   if (reg_op0 == PSX_REG_R0) {
+      if (reg_op1 == PSX_REG_R0) {
+         /* NOR x, 0, 0 -> ~0 */
+         dynasm_emit_li(compiler, reg_target, 0xffffffff);
+      } else {
+         /* NOR x, 0, a -> ~a */
+         dynasm_emit_not(compiler, reg_target, reg_op1);
+      }
+   } else if (reg_op1 == PSX_REG_R0) {
+      /* NOR x, a, 0 -> ~a */
+      dynasm_emit_not(compiler, reg_target, reg_op0);
+   } else if (reg_op0 == reg_op1) {
+      /* NOR x, a, a -> ~a */
+      dynasm_emit_not(compiler, reg_target, reg_op0);
+   } else {
+      dynasm_emit_nor(compiler, reg_target, reg_op0, reg_op1);
+   }
+}
+
 static void emit_rfe(struct dynarec_compiler *compiler,
                      uint32_t instruction) {
    dynasm_emit_rfe(compiler);
@@ -579,6 +640,8 @@ static enum optype dynarec_instruction_registers(uint32_t instruction,
       case MIPS_FN_SUBU:
       case MIPS_FN_AND:
       case MIPS_FN_OR:
+      case MIPS_FN_XOR:
+      case MIPS_FN_NOR:
       case MIPS_FN_SLT:
       case MIPS_FN_SLTU:
          *reg_target = reg_d;
@@ -813,6 +876,18 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
          break;
       case MIPS_FN_OR:
          emit_or(compiler,
+                 reg_target,
+                 reg_op0,
+                 reg_op1);
+         break;
+      case MIPS_FN_XOR:
+         emit_xor(compiler,
+                 reg_target,
+                 reg_op0,
+                 reg_op1);
+         break;
+      case MIPS_FN_NOR:
+         emit_nor(compiler,
                  reg_target,
                  reg_op0,
                  reg_op1);

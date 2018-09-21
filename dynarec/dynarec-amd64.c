@@ -710,7 +710,17 @@ static void emit_neg_r32(struct dynarec_compiler *compiler,
 }
 #define NEG_R32(_r) emit_neg_r32(compiler, (_r))
 
-/* NEG off(%base64) */
+/* NOT %reg32 */
+static void emit_not_r32(struct dynarec_compiler *compiler,
+                         enum X86_REG reg) {
+   emit_rex_prefix(compiler, reg, 0, 0);
+
+   *(compiler->map++) = 0xf7;
+   *(compiler->map++) = 0xd0 | (reg & 7);
+}
+#define NOT_R32(_r) emit_not_r32(compiler, (_r))
+
+/* NEGL off(%base64) */
 static void emit_negl_off_pr64(struct dynarec_compiler *compiler,
                                uint32_t off,
                                enum X86_REG base) {
@@ -719,13 +729,43 @@ static void emit_negl_off_pr64(struct dynarec_compiler *compiler,
    *(compiler->map++) = 0xf7;
    if (is_imms8(off)) {
       *(compiler->map++) = 0x58 | (base & 7);
+      if (base == REG_SP) {
+         *(compiler->map++) = 0x24;
+      }
       emit_imms8(compiler, off);
    } else {
       *(compiler->map++) = 0x98 | (base & 7);
+      if (base == REG_SP) {
+         *(compiler->map++) = 0x24;
+      }
       emit_imm32(compiler, off);
    }
 }
 #define NEGL_OFF_PR64(_o, _r) emit_negl_off_pr64(compiler, (_o), (_r))
+
+/* NOTL off(%base64) */
+static void emit_notl_off_pr64(struct dynarec_compiler *compiler,
+                               uint32_t off,
+                               enum X86_REG base) {
+   emit_rex_prefix(compiler, base, 0, 0);
+   base &= 7;
+
+   *(compiler->map++) = 0xf7;
+   if (is_imms8(off)) {
+      *(compiler->map++) = 0x50 | base;
+      if (base == REG_SP) {
+         *(compiler->map++) = 0x24;
+      }
+      emit_imms8(compiler, off);
+   } else {
+      *(compiler->map++) = 0x90 | base;
+      if (base == REG_SP) {
+         *(compiler->map++) = 0x24;
+      }
+      emit_imm32(compiler, off);
+   }
+}
+#define NOTL_OFF_PR64(_o, _r) emit_notl_off_pr64(compiler, (_o), (_r))
 
 /* ALU $val, %reg32 */
 static void emit_alu_u32_r32(struct dynarec_compiler *compiler,
@@ -1707,6 +1747,44 @@ void dynasm_emit_neg(struct dynarec_compiler *compiler,
    }
 }
 
+void dynasm_emit_not(struct dynarec_compiler *compiler,
+                     enum PSX_REG reg_target,
+                     enum PSX_REG reg_source) {
+   const int target = register_location(reg_target);
+   const int source = register_location(reg_source);
+
+   if (reg_target == reg_source) {
+      if (target >= 0) {
+         NOT_R32(target);
+      } else {
+         NOTL_OFF_PR64(DYNAREC_STATE_REG_OFFSET(reg_target),
+                       STATE_REG);
+      }
+   } else {
+      /* Move source to target register */
+      if (target >= 0) {
+         if (source >= 0) {
+            MOV_R32_R32(source, target);
+         } else {
+            MOVE_FROM_BANKED(reg_source, target);
+         }
+
+         NOT_R32(target);
+      } else {
+         if (source >= 0) {
+            MOVE_TO_BANKED(source, reg_target);
+            NOTL_OFF_PR64(DYNAREC_STATE_REG_OFFSET(reg_target),
+                          STATE_REG);
+         } else {
+            /* Use EAX as intermediary */
+            MOVE_FROM_BANKED(reg_source, REG_AX);
+            NOT_R32(REG_AX);
+            MOVE_TO_BANKED(REG_AX, reg_target);
+         }
+      }
+   }
+}
+
 void dynasm_emit_subu(struct dynarec_compiler *compiler,
                       enum PSX_REG reg_target,
                       enum PSX_REG reg_op0,
@@ -1835,7 +1913,8 @@ static void dynasm_emit_alu(struct dynarec_compiler *compiler,
                             uint8_t alu_op,
                             enum PSX_REG reg_target,
                             enum PSX_REG reg_op0,
-                            enum PSX_REG reg_op1) {
+                            enum PSX_REG reg_op1,
+                            bool is_nor) {
    const int target = register_location(reg_target);
 
    if (reg_op0 == reg_target || reg_op1 == reg_target) {
@@ -1864,6 +1943,9 @@ static void dynasm_emit_alu(struct dynarec_compiler *compiler,
                              STATE_REG,
                              target);
          }
+         if (is_nor) {
+            NOT_R32(target);
+         }
       } else {
          if (op < 0) {
             MOVE_FROM_BANKED(reg_op, REG_AX);
@@ -1874,6 +1956,10 @@ static void dynasm_emit_alu(struct dynarec_compiler *compiler,
                           op,
                           DYNAREC_STATE_REG_OFFSET(reg_target),
                           STATE_REG);
+         if (is_nor) {
+            NOTL_OFF_PR64(DYNAREC_STATE_REG_OFFSET(reg_target),
+                         STATE_REG);
+         }
       }
    } else {
       /* The target register isn't an operand */
@@ -1902,6 +1988,9 @@ static void dynasm_emit_alu(struct dynarec_compiler *compiler,
                           target_tmp);
       }
 
+      if (is_nor) {
+         NOT_R32(target_tmp);
+      }
       if (target_tmp != target) {
          MOVE_TO_BANKED(target_tmp, reg_target);
       }
@@ -1912,7 +2001,7 @@ void dynasm_emit_and(struct dynarec_compiler *compiler,
                      enum PSX_REG reg_target,
                      enum PSX_REG reg_op0,
                      enum PSX_REG reg_op1) {
-   dynasm_emit_alu(compiler, AND_OP, reg_target, reg_op0, reg_op1);
+   dynasm_emit_alu(compiler, AND_OP, reg_target, reg_op0, reg_op1, false);
 }
 
 
@@ -1920,9 +2009,22 @@ void dynasm_emit_or(struct dynarec_compiler *compiler,
                     enum PSX_REG reg_target,
                     enum PSX_REG reg_op0,
                     enum PSX_REG reg_op1) {
-   dynasm_emit_alu(compiler, OR_OP, reg_target, reg_op0, reg_op1);
+   dynasm_emit_alu(compiler, OR_OP, reg_target, reg_op0, reg_op1, false);
 }
 
+void dynasm_emit_xor(struct dynarec_compiler *compiler,
+                    enum PSX_REG reg_target,
+                    enum PSX_REG reg_op0,
+                    enum PSX_REG reg_op1) {
+   dynasm_emit_alu(compiler, XOR_OP, reg_target, reg_op0, reg_op1, false);
+}
+
+void dynasm_emit_nor(struct dynarec_compiler *compiler,
+                    enum PSX_REG reg_target,
+                    enum PSX_REG reg_op0,
+                    enum PSX_REG reg_op1) {
+   dynasm_emit_alu(compiler, OR_OP, reg_target, reg_op0, reg_op1, true);
+}
 
 void dynasm_emit_ori(struct dynarec_compiler *compiler,
                      enum PSX_REG reg_t,
