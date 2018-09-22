@@ -701,6 +701,7 @@ static enum optype dynarec_instruction_registers(uint32_t instruction,
       switch (reg_s) {
       case MIPS_COP_MFC:
          *reg_target = reg_t;
+         type = OP_LOAD;
          break;
       case MIPS_COP_MTC:
          *reg_op0 = reg_t;

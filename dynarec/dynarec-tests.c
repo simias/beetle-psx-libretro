@@ -406,6 +406,7 @@ static int test_rfe(struct dynarec_state *state) {
       MFC0(PSX_REG_T0, PSX_COP0_SR),
       MFC0(PSX_REG_T1, PSX_COP0_CAUSE),
       MFC0(PSX_REG_T2, PSX_COP0_EPC),
+      NOP,
       ADDIU(PSX_REG_T3, PSX_REG_T2, 4),
       JR(PSX_REG_T3),
       RFE,
