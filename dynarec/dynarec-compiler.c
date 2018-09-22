@@ -1373,7 +1373,7 @@ void *dynarec_recompile_and_patch(struct dynarec_state *state,
    link = dynarec_block_code(b);
 
 #ifdef DYNAREC_NO_PATCH
-   patch_offset = NULL;
+   patch_offset = 0;
 #endif
 
    if (patch_offset != 0) {
