@@ -336,6 +336,10 @@ static int run_test(const char *name, test_fn_t f) {
    LOAD_STORE(MIPS_OP_SH, (_rv), (_ra), (_off))
 #define SW(_rv, _ra, _off)                      \
    LOAD_STORE(MIPS_OP_SW, (_rv), (_ra), (_off))
+#define SWL(_rv, _ra, _off)                     \
+   LOAD_STORE(MIPS_OP_SWL, (_rv), (_ra), (_off))
+#define SWR(_rv, _ra, _off)                     \
+   LOAD_STORE(MIPS_OP_SWR, (_rv), (_ra), (_off))
 
 #define MTC0(_rt, _r_c) COP0(MIPS_COP_MTC, _rt, _r_c, 0)
 #define MFC0(_rt, _r_c) COP0(MIPS_COP_MFC, _rt, _r_c, 0)

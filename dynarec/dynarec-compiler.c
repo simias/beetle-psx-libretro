@@ -25,6 +25,8 @@ enum optype {
    /* Load instruction that combines with the previous load if we're
       in a delay slot (for lwl/lwr) */
    OP_LOAD_COMBINE,
+   /* For SWL/SWR, unaligned store instructions */
+   OP_STORE_NOALIGN,
 };
 
 struct opdesc {
@@ -572,7 +574,7 @@ static void emit_nor(struct dynarec_compiler *compiler,
 }
 
 /* Attempt to fold lwl/lwr instruction pair for unaligned memory
-   access */
+   load */
 static bool try_fold_lwl_lwr(struct dynarec_compiler *compiler,
                              struct opdesc *op1,
                              struct opdesc *op2) {
@@ -608,6 +610,7 @@ static bool try_fold_lwl_lwr(struct dynarec_compiler *compiler,
 
    if (op_lwl->imm.iunsigned != op_lwr->imm.iunsigned + 3) {
       /* The offsets don't match */
+      return false;
    }
 
    /* We can fold the two instructions into a single (potentially)
@@ -616,6 +619,55 @@ static bool try_fold_lwl_lwr(struct dynarec_compiler *compiler,
                           op_lwr->target,
                           op_lwr->imm.iunsigned,
                           op_lwr->op0);
+   return true;
+}
+
+/* Attempt to fold swl/swr instruction pair for unaligned memory
+   store */
+static bool try_fold_swl_swr(struct dynarec_compiler *compiler,
+                             struct opdesc *op1,
+                             struct opdesc *op2) {
+   struct opdesc *op_swl;
+   struct opdesc *op_swr;
+   unsigned opc1 = op1->instruction >> 26;
+   unsigned opc2 = op2->instruction >> 26;
+
+   if (op1->target != op2->target ||
+       op1->op0 != op2->op0) {
+      /* We don't use the same registers, can't fold */
+      return false;
+   }
+
+   if (opc1 == MIPS_OP_SWL) {
+      op_swl = op1;
+      if (opc2 == MIPS_OP_SWR) {
+         op_swr = op2;
+      } else {
+         return false;
+      }
+   } else if (opc1 == MIPS_OP_SWR) {
+      op_swr = op1;
+
+      if (opc2 == MIPS_OP_SWL) {
+         op_swl = op2;
+      } else {
+         return false;
+      }
+   } else {
+      return false;
+   }
+
+   if (op_swl->imm.iunsigned != op_swr->imm.iunsigned + 3) {
+      /* The offsets don't match */
+      return false;
+   }
+
+   /* We can fold the two instructions into a single (potentially)
+      non-aligned access */
+   dynasm_emit_sw_noalign(compiler,
+                          op_swr->target,
+                          op_swr->imm.iunsigned,
+                          op_swr->op0);
    return true;
 }
 
@@ -843,6 +895,13 @@ static void dynarec_decode_instruction(struct opdesc *op) {
       op->op0 = reg_s;
       op->op1 = reg_t;
       op->imm.iunsigned = imm;
+      break;
+   case MIPS_OP_SWL:
+   case MIPS_OP_SWR:
+      op->op0 = reg_s;
+      op->op1 = reg_t;
+      op->imm.iunsigned = imm;
+      op->type = OP_STORE_NOALIGN;
       break;
    case 0x18:
    case 0x19:
@@ -1235,12 +1294,23 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
          eob = true;
       }
 
-      if (has_delay_slot && (cur + 4) < block_max) {
+      if ((has_delay_slot || op.type == OP_STORE_NOALIGN) &&
+          (cur + 4) < block_max) {
          ds_op.instruction = load_le(cur + 4);
          dynarec_decode_instruction(&ds_op);
       } else {
          /* Pretend the delay slot is a NOP */
          memset(&ds_op, 0, sizeof(ds_op));
+      }
+
+      if (op.type == OP_STORE_NOALIGN &&
+          ds_op.type == OP_STORE_NOALIGN &&
+          try_fold_swl_swr(&compiler, &op, &ds_op)) {
+         /* We've folded both instructions, skip ahead */
+         cur += 4;
+         compiler.pc += 4;
+         compiler.spent_cycles += PSX_CYCLES_PER_INSTRUCTION;
+         continue;
       }
 
       if (op.type == OP_LOAD_COMBINE &&

@@ -2550,6 +2550,17 @@ void dynasm_emit_sw(struct dynarec_compiler *compiler,
                       DIR_STORE, WIDTH_WORD, true);
 }
 
+void dynasm_emit_sw_noalign(struct dynarec_compiler *compiler,
+                            enum PSX_REG reg_addr,
+                            int16_t offset,
+                            enum PSX_REG reg_val) {
+   dynasm_emit_mem_rw(compiler,
+                      reg_addr,
+                      offset,
+                      reg_val,
+                      DIR_STORE, WIDTH_WORD, false);
+}
+
 void dynasm_emit_lb(struct dynarec_compiler *compiler,
                     enum PSX_REG reg_target,
                     int16_t offset,
