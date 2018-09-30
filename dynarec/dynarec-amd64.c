@@ -2259,7 +2259,8 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
                                int16_t offset,
                                enum PSX_REG reg_val,
                                enum MEM_DIR dir,
-                               enum MEM_WIDTH width) {
+                               enum MEM_WIDTH width,
+                               bool strict_align) {
    int addr_r  = register_location(reg_addr);
    int value_r = register_location(reg_val);
 
@@ -2303,7 +2304,7 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
       value_r = REG_SI;
    }
 
-   if (width != WIDTH_BYTE) {
+   if (width != WIDTH_BYTE && strict_align) {
       /* Copy address to %eax */
       MOV_R32_R32(REG_DX, REG_AX);
 
@@ -2524,7 +2525,7 @@ void dynasm_emit_sb(struct dynarec_compiler *compiler,
                       reg_addr,
                       offset,
                       reg_val,
-                      DIR_STORE, WIDTH_BYTE);
+                      DIR_STORE, WIDTH_BYTE, true);
 }
 
 void dynasm_emit_sh(struct dynarec_compiler *compiler,
@@ -2535,7 +2536,7 @@ void dynasm_emit_sh(struct dynarec_compiler *compiler,
                       reg_addr,
                       offset,
                       reg_val,
-                      DIR_STORE, WIDTH_HALFWORD);
+                      DIR_STORE, WIDTH_HALFWORD, true);
 }
 
 void dynasm_emit_sw(struct dynarec_compiler *compiler,
@@ -2546,7 +2547,7 @@ void dynasm_emit_sw(struct dynarec_compiler *compiler,
                       reg_addr,
                       offset,
                       reg_val,
-                      DIR_STORE, WIDTH_WORD);
+                      DIR_STORE, WIDTH_WORD, true);
 }
 
 void dynasm_emit_lb(struct dynarec_compiler *compiler,
@@ -2557,7 +2558,7 @@ void dynasm_emit_lb(struct dynarec_compiler *compiler,
                       reg_addr,
                       offset,
                       reg_target,
-                      DIR_LOAD_SIGNED, WIDTH_BYTE);
+                      DIR_LOAD_SIGNED, WIDTH_BYTE, true);
 }
 
 void dynasm_emit_lbu(struct dynarec_compiler *compiler,
@@ -2568,7 +2569,7 @@ void dynasm_emit_lbu(struct dynarec_compiler *compiler,
                       reg_addr,
                       offset,
                       reg_target,
-                      DIR_LOAD_UNSIGNED, WIDTH_BYTE);
+                      DIR_LOAD_UNSIGNED, WIDTH_BYTE, true);
 }
 
 void dynasm_emit_lh(struct dynarec_compiler *compiler,
@@ -2579,7 +2580,7 @@ void dynasm_emit_lh(struct dynarec_compiler *compiler,
                       reg_addr,
                       offset,
                       reg_target,
-                      DIR_LOAD_SIGNED, WIDTH_HALFWORD);
+                      DIR_LOAD_SIGNED, WIDTH_HALFWORD, true);
 }
 
 void dynasm_emit_lhu(struct dynarec_compiler *compiler,
@@ -2590,7 +2591,7 @@ void dynasm_emit_lhu(struct dynarec_compiler *compiler,
                       reg_addr,
                       offset,
                       reg_target,
-                      DIR_LOAD_UNSIGNED, WIDTH_HALFWORD);
+                      DIR_LOAD_UNSIGNED, WIDTH_HALFWORD, true);
 }
 
 
@@ -2602,7 +2603,18 @@ void dynasm_emit_lw(struct dynarec_compiler *compiler,
                       reg_addr,
                       offset,
                       reg_target,
-                      DIR_LOAD_UNSIGNED, WIDTH_WORD);
+                      DIR_LOAD_UNSIGNED, WIDTH_WORD, true);
+}
+
+void dynasm_emit_lw_noalign(struct dynarec_compiler *compiler,
+                            enum PSX_REG reg_target,
+                            int16_t offset,
+                            enum PSX_REG reg_addr) {
+   dynasm_emit_mem_rw(compiler,
+                      reg_addr,
+                      offset,
+                      reg_target,
+                      DIR_LOAD_UNSIGNED, WIDTH_WORD, false);
 }
 
 static uint8_t emit_branch_cond(struct dynarec_compiler *compiler,

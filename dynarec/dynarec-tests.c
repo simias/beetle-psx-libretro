@@ -326,6 +326,10 @@ static int run_test(const char *name, test_fn_t f) {
    LOAD_STORE(MIPS_OP_LHU, (_rv), (_ra), (_off))
 #define LW(_rv, _ra, _off)                      \
    LOAD_STORE(MIPS_OP_LW, (_rv), (_ra), (_off))
+#define LWL(_rv, _ra, _off)                     \
+   LOAD_STORE(MIPS_OP_LWL, (_rv), (_ra), (_off))
+#define LWR(_rv, _ra, _off)                     \
+   LOAD_STORE(MIPS_OP_LWR, (_rv), (_ra), (_off))
 #define SB(_rv, _ra, _off)                      \
    LOAD_STORE(MIPS_OP_SB, (_rv), (_ra), (_off))
 #define SH(_rv, _ra, _off)                      \
@@ -2478,6 +2482,37 @@ static int test_lw(struct dynarec_state *state) {
    return check_regs(state, expected, ARRAY_SIZE(expected));
 }
 
+static int test_lwl_lwr(struct dynarec_state *state) {
+   union mips_instruction code[] = {
+      LI(PSX_REG_T0, 1),
+
+      LWL(PSX_REG_S0, PSX_REG_T0, 3),
+      LWR(PSX_REG_S0, PSX_REG_T0, 0),
+
+      LWR(PSX_REG_S1, PSX_REG_T0, 0),
+      LWL(PSX_REG_S1, PSX_REG_T0, 3),
+
+      BREAK(0x0ff0ff),
+   };
+   struct reg_val expected[] = {
+      { .r = PSX_REG_T0, .v = 1 },
+      { .r = PSX_REG_S0, .v = 0x13c0800 },
+      { .r = PSX_REG_S1, .v = 0x13c0800 },
+   };
+   uint32_t end_pc = 0x18;
+   struct dynarec_ret ret;
+
+   load_code(state, code, ARRAY_SIZE(code), 0);
+
+   ret = dynarec_run(state, 0x1000);
+
+   TEST_EQ(state->pc, end_pc);
+   TEST_EQ(ret.val.code, DYNAREC_EXIT_BREAK);
+   TEST_EQ(ret.val.param, 0x0ff0ff);
+
+   return check_regs(state, expected, ARRAY_SIZE(expected));
+}
+
 static int test_cache_isolation(struct dynarec_state *state) {
    union mips_instruction code[] = {
       /* Cache isolation */
@@ -2583,6 +2618,7 @@ int main() {
    RUN_TEST(test_lh);
    RUN_TEST(test_lhu);
    RUN_TEST(test_lw);
+   RUN_TEST(test_lwl_lwr);
    RUN_TEST(test_cache_isolation);
 
    printf("Tests done, results: %u/%u\n", nsuccess, ntests);

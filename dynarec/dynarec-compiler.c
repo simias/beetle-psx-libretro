@@ -2,10 +2,42 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <string.h>
 
 #include "dynarec-compiler.h"
 #include "dynarec-jit-debugger.h"
 #include "psx-instruction.h"
+
+enum optype {
+   /* Instruction with no effect */
+   OP_NOP,
+   /* Anything that doesn't fit any of the other types */
+   OP_SIMPLE,
+   /* Unconditional branch jump (we're shure that the control will
+      leave the block) */
+   OP_BRANCH_ALWAYS,
+   /* Conditional branch: may or may not be taken at runtime */
+   OP_BRANCH_COND,
+   /* Exception: no delay slot but execution leaves the block */
+   OP_EXCEPTION,
+   /* Load instruction, followed by a load delay slot. */
+   OP_LOAD,
+   /* Load instruction that combines with the previous load if we're
+      in a delay slot (for lwl/lwr) */
+   OP_LOAD_COMBINE,
+};
+
+struct opdesc {
+   uint32_t instruction;
+   enum optype type;
+   enum PSX_REG target;
+   enum PSX_REG op0;
+   enum PSX_REG op1;
+   union {
+      uint32_t isigned;
+      int32_t  iunsigned;
+   } imm;
+};
 
 static void emit_branch_or_jump(struct dynarec_compiler *compiler,
                                 uint32_t target,
@@ -57,8 +89,8 @@ static void emit_jump(struct dynarec_compiler *compiler,
 }
 
 static void emit_j(struct dynarec_compiler *compiler,
-                   uint32_t instruction) {
-   uint32_t imm_jump = (instruction & 0x3ffffff) << 2;
+                   struct opdesc *op) {
+   uint32_t imm_jump = op->imm.iunsigned;
    uint32_t target;
 
    target = compiler->pc & 0xf0000000;
@@ -68,10 +100,10 @@ static void emit_j(struct dynarec_compiler *compiler,
 }
 
 static void emit_jal(struct dynarec_compiler *compiler,
-                     uint32_t instruction) {
+                     struct opdesc *op) {
    /* Store return address in RA */
    dynasm_emit_li(compiler, PSX_REG_RA, compiler->pc + 8);
-   emit_j(compiler, instruction);
+   emit_j(compiler, op);
 }
 
 static void emit_jalr(struct dynarec_compiler *compiler,
@@ -106,11 +138,12 @@ static void emit_branch(struct dynarec_compiler *compiler,
 }
 
 static void emit_bxx(struct dynarec_compiler *compiler,
-                     int16_t offset,
-                     enum PSX_REG reg_link,
-                     enum PSX_REG reg_op,
-                     bool is_bgez) {
+                     struct opdesc *op) {
    enum dynarec_jump_cond cond;
+   int16_t offset = op->imm.isigned;
+   enum PSX_REG reg_link = op->target;
+   enum PSX_REG reg_op = op->op0;
+   bool is_bgez = (op->instruction >> 16) & 1;
 
    if (reg_link != PSX_REG_R0) {
       /* Store return address. This is done unconditionally even if
@@ -538,102 +571,142 @@ static void emit_nor(struct dynarec_compiler *compiler,
    }
 }
 
-static void emit_rfe(struct dynarec_compiler *compiler,
-                     uint32_t instruction) {
-   dynasm_emit_rfe(compiler);
+/* Attempt to fold lwl/lwr instruction pair for unaligned memory
+   access */
+static bool try_fold_lwl_lwr(struct dynarec_compiler *compiler,
+                             struct opdesc *op1,
+                             struct opdesc *op2) {
+   struct opdesc *op_lwl;
+   struct opdesc *op_lwr;
+   unsigned opc1 = op1->instruction >> 26;
+   unsigned opc2 = op2->instruction >> 26;
+
+   if (op1->target != op2->target ||
+       op1->op0 != op2->op0) {
+      /* We don't use the same registers, can't fold */
+      return false;
+   }
+
+   if (opc1 == MIPS_OP_LWL) {
+      op_lwl = op1;
+      if (opc2 == MIPS_OP_LWR) {
+         op_lwr = op2;
+      } else {
+         return false;
+      }
+   } else if (opc1 == MIPS_OP_LWR) {
+      op_lwr = op1;
+
+      if (opc2 == MIPS_OP_LWL) {
+         op_lwl = op2;
+      } else {
+         return false;
+      }
+   } else {
+      return false;
+   }
+
+   if (op_lwl->imm.iunsigned != op_lwr->imm.iunsigned + 3) {
+      /* The offsets don't match */
+   }
+
+   /* We can fold the two instructions into a single (potentially)
+      non-aligned access */
+   dynasm_emit_lw_noalign(compiler,
+                          op_lwr->target,
+                          op_lwr->imm.iunsigned,
+                          op_lwr->op0);
+   return true;
 }
 
-enum optype {
-   /* Anything that doesn't fit any of the other types */
-   OP_SIMPLE,
-   /* Unconditional branch jump (we're shure that the control will
-      leave the block) */
-   OP_BRANCH_ALWAYS,
-   /* Conditional branch: may or may not be taken at runtime */
-   OP_BRANCH_COND,
-   /* Exception: no delay slot but execution leaves the block */
-   OP_EXCEPTION,
-   /* Load instruction, followed by a load delay slot. */
-   OP_LOAD,
-};
-
-/* Gets the general purpose registers referenced by `instruction`. At
- * most any instruction will reference one target and two "operand"
- * registers. For instruction that reference fewer registers the
- * remaining arguments are set to PSX_REG_R0.
- *
- * Returns the number of cycles taken by this instruction to execute.
+/* Decode the fields of `instruction`. At most any instruction will
+ * reference one target and two "operand" registers (with the
+ * exception of DIV/MULT instructions which have two target registers
+ * HI/LO, see below). For instruction that reference fewer registers
+ * the remaining arguments are set to PSX_REG_R0.
  */
-static enum optype dynarec_instruction_registers(uint32_t instruction,
-                                                 enum PSX_REG *reg_target,
-                                                 enum PSX_REG *reg_op0,
-                                                 enum PSX_REG *reg_op1) {
-   uint8_t reg_d = (instruction >> 11) & 0x1f;
-   uint8_t reg_t = (instruction >> 16) & 0x1f;
-   uint8_t reg_s = (instruction >> 21) & 0x1f;
-   enum optype type = OP_SIMPLE;
+static void dynarec_decode_instruction(struct opdesc *op) {
+   uint8_t reg_d = (op->instruction >> 11) & 0x1f;
+   uint8_t reg_t = (op->instruction >> 16) & 0x1f;
+   uint8_t reg_s = (op->instruction >> 21) & 0x1f;
+   uint16_t imm = op->instruction & 0xffff;
+   int16_t  simm_se = op->instruction & 0xffff;
+   uint32_t imm_se = (int16_t)simm_se;
+   uint32_t sysbrk_code = op->instruction >> 6;
+   uint8_t  shift = (op->instruction >> 6) & 0x1f;
+   uint32_t j_target = (op->instruction & 0x3ffffff) << 2;
 
-   *reg_target = PSX_REG_R0;
-   *reg_op0    = PSX_REG_R0;
-   *reg_op1    = PSX_REG_R0;
+   op->type = OP_SIMPLE;
+   op->target = PSX_REG_R0;
+   op->op0 = PSX_REG_R0;
+   op->op1 = PSX_REG_R0;
+   op->imm.iunsigned = 0;
 
-   switch (instruction >> 26) {
+   switch (op->instruction >> 26) {
    case MIPS_OP_FN:
-      switch (instruction & 0x3f) {
+      switch (op->instruction & 0x3f) {
       case MIPS_FN_SLL:
       case MIPS_FN_SRL:
       case MIPS_FN_SRA:
-         *reg_target = reg_d;
-         *reg_op0    = reg_t;
+         op->target = reg_d;
+         op->op0 = reg_t;
+         op->imm.iunsigned = shift;
+         if (op->target == PSX_REG_R0) {
+            op->type = OP_NOP;
+         }
          break;
       case MIPS_FN_SLLV:
       case MIPS_FN_SRLV:
       case MIPS_FN_SRAV:
-         *reg_target = reg_d;
-         *reg_op0 = reg_t;
-         *reg_op1 = reg_s;
+         op->target = reg_d;
+         op->op0 = reg_t;
+         op->op1 = reg_s;
+         if (op->target == PSX_REG_R0) {
+            op->type = OP_NOP;
+         }
          break;
       case MIPS_FN_JR:
-         *reg_op0 = reg_s;
-         type = OP_BRANCH_ALWAYS;
+         op->op0 = reg_s;
+         op->type = OP_BRANCH_ALWAYS;
          break;
       case MIPS_FN_JALR:
-         *reg_op0 = reg_s;
-         *reg_target = reg_d;
-         type = OP_BRANCH_ALWAYS;
+         op->op0 = reg_s;
+         op->target = reg_d;
+         op->type = OP_BRANCH_ALWAYS;
          break;
       case MIPS_FN_SYSCALL:
       case MIPS_FN_BREAK:
-         type = OP_EXCEPTION;
+         op->imm.iunsigned = sysbrk_code;
+         op->type = OP_EXCEPTION;
          break;
       case MIPS_FN_MFHI:
-         *reg_op0 = PSX_REG_HI;
-         *reg_target = reg_d;
+         op->op0 = PSX_REG_HI;
+         op->target = reg_d;
          break;
       case MIPS_FN_MTHI:
-         *reg_op0 = reg_s;
-         *reg_target = PSX_REG_HI;
+         op->op0 = reg_s;
+         op->target = PSX_REG_HI;
          break;
       case MIPS_FN_MFLO:
-         *reg_op0 = PSX_REG_LO;
-         *reg_target = reg_d;
+         op->op0 = PSX_REG_LO;
+         op->target = reg_d;
          break;
       case MIPS_FN_MTLO:
-         *reg_op0 = reg_s;
-         *reg_target = PSX_REG_LO;
+         op->op0 = reg_s;
+         op->target = PSX_REG_LO;
          break;
       case MIPS_FN_MULTU:
       case MIPS_FN_DIV:
       case MIPS_FN_DIVU:
-        *reg_op0 = reg_s;
-        *reg_op1 = reg_t;
+        op->op0 = reg_s;
+        op->op1 = reg_t;
         /* XXX It's actually LO and HI, but for the moment we only
            support a single target reg in the logic. That being said
            I don't think it's an issue: HI and LO cannot be addressed
            directly by regular instructions, you have to use
            MTHI/MFHI/MTLO/MFLO to move them to a GPR so I can't think
            of any situation where a data hazard could occur. */
-        *reg_target = PSX_REG_LO;
+        op->target = PSX_REG_LO;
         break;
       case MIPS_FN_ADD:
       case MIPS_FN_ADDU:
@@ -644,9 +717,12 @@ static enum optype dynarec_instruction_registers(uint32_t instruction,
       case MIPS_FN_NOR:
       case MIPS_FN_SLT:
       case MIPS_FN_SLTU:
-         *reg_target = reg_d;
-         *reg_op0 = reg_s;
-         *reg_op1 = reg_t;
+         op->target = reg_d;
+         op->op0 = reg_s;
+         op->op1 = reg_t;
+         if (op->target == PSX_REG_R0) {
+            op->type = OP_NOP;
+         }
          break;
       case 0x1f:
       case 0x34:
@@ -654,63 +730,93 @@ static enum optype dynarec_instruction_registers(uint32_t instruction,
          break;
       default:
          printf("Dynarec encountered unsupported instruction %08x (sub: 0x%x)\n",
-                instruction,
-                instruction & 0x3f);
+                op->instruction,
+                op->instruction & 0x3f);
          abort();
       }
       break;
    case MIPS_OP_BXX:
-      if (((instruction >> 17) & 0xf) == 8) {
+      if (((op->instruction >> 17) & 0xf) == 8) {
          /* Link */
-         *reg_target = PSX_REG_RA;
+         op->target = PSX_REG_RA;
       }
-      *reg_op0 = reg_s;
-      type = OP_BRANCH_COND;
+      op->op0 = reg_s;
+      op->imm.isigned = simm_se;
+      op->type = OP_BRANCH_COND;
       break;
    case MIPS_OP_J:
-      type = OP_BRANCH_ALWAYS;
+      op->imm.iunsigned = j_target;
+      op->type = OP_BRANCH_ALWAYS;
       break;
    case MIPS_OP_JAL:
-      type = OP_BRANCH_ALWAYS;
-      *reg_target = PSX_REG_RA;
+      op->imm.iunsigned = j_target;
+      op->type = OP_BRANCH_ALWAYS;
+      op->target = PSX_REG_RA;
       break;
    case MIPS_OP_BEQ:
+      op->op0 = reg_s;
+      op->op1 = reg_t;
+      op->imm.isigned = simm_se;
+      op->type = OP_BRANCH_COND;
+      if (op->op0 == op->op1) {
+         op->type = OP_BRANCH_ALWAYS;
+      }
+      break;
    case MIPS_OP_BNE:
-      *reg_op0 = reg_s;
-      *reg_op1 = reg_t;
-      type = OP_BRANCH_COND;
+      op->op0 = reg_s;
+      op->op1 = reg_t;
+      op->imm.isigned = simm_se;
+      op->type = OP_BRANCH_COND;
+      if (op->op0 == op->op1) {
+         op->type = OP_NOP;
+      }
       break;
    case MIPS_OP_BLEZ:
    case MIPS_OP_BGTZ:
-      *reg_op0 = reg_s;
-      type = OP_BRANCH_COND;
+      op->op0 = reg_s;
+      op->imm.isigned = simm_se;
+      op->type = OP_BRANCH_COND;
       break;
    case MIPS_OP_ADDI:
    case MIPS_OP_ADDIU:
    case MIPS_OP_SLTI:
    case MIPS_OP_SLTIU:
+      op->target = reg_t;
+      op->op0    = reg_s;
+      op->imm.iunsigned = imm_se;
+      if (op->target == PSX_REG_R0) {
+         op->type = OP_NOP;
+      }
+      break;
    case MIPS_OP_ANDI:
    case MIPS_OP_ORI:
-      *reg_target = reg_t;
-      *reg_op0    = reg_s;
+      op->target = reg_t;
+      op->op0    = reg_s;
+      op->imm.iunsigned = imm;
+      if (op->target == PSX_REG_R0) {
+         op->type = OP_NOP;
+      }
       break;
    case MIPS_OP_LUI:
-      *reg_target = reg_t;
+      op->target = reg_t;
+      op->imm.iunsigned = imm << 16;
       break;
    case MIPS_OP_COP0:
       switch (reg_s) {
       case MIPS_COP_MFC:
-         *reg_target = reg_t;
-         type = OP_LOAD;
+         op->target = reg_t;
+         op->op0 = reg_d;
+         op->type = OP_LOAD;
          break;
       case MIPS_COP_MTC:
-         *reg_op0 = reg_t;
+         op->target = reg_d;
+         op->op0 = reg_t;
          break;
       case MIPS_COP_RFE:
          break;
       default:
-         printf("Dynarec encountered unsupported COP0 instruction %08x\n",
-                instruction);
+         printf("Dynarec encountered unsupported COP0 instruction %08x (%x)\n",
+                op->instruction, reg_s);
          abort();
       }
       break;
@@ -719,15 +825,24 @@ static enum optype dynarec_instruction_registers(uint32_t instruction,
    case MIPS_OP_LHU:
    case MIPS_OP_LH:
    case MIPS_OP_LW:
-      *reg_target = reg_t;
-      *reg_op0 = reg_s;
-      type = OP_LOAD;
+      op->target = reg_t;
+      op->op0 = reg_s;
+      op->imm.iunsigned = imm;
+      op->type = OP_LOAD;
+      break;
+   case MIPS_OP_LWL:
+   case MIPS_OP_LWR:
+      op->target = reg_t;
+      op->op0 = reg_s;
+      op->imm.iunsigned = imm;
+      op->type = OP_LOAD_COMBINE;
       break;
    case 0x28: /* SB */
    case 0x29: /* SH */
    case 0x2b: /* SW */
-      *reg_op0 = reg_s;
-      *reg_op1 = reg_t;
+      op->op0 = reg_s;
+      op->op1 = reg_t;
+      op->imm.iunsigned = imm;
       break;
    case 0x18:
    case 0x19:
@@ -738,84 +853,73 @@ static enum optype dynarec_instruction_registers(uint32_t instruction,
          break;
    default:
       printf("Dynarec encountered unsupported instruction %08x (fn: 0x%x)\n",
-             instruction,
-             instruction >> 26);
+             op->instruction,
+             op->instruction >> 26);
       abort();
    }
-
-   return type;
 }
 
 static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
-                                     uint32_t instruction,
-                                     enum PSX_REG reg_target,
-                                     enum PSX_REG reg_op0,
-                                     enum PSX_REG reg_op1) {
+                                     struct opdesc *op) {
+   DYNAREC_LOG("Emitting 0x%08x\n", op->instruction);
 
-   uint16_t imm = instruction & 0xffff;
-   int16_t  simm_se = instruction & 0xffff;
-   uint32_t imm_se = (int16_t)simm_se;
-   uint8_t  shift = (instruction >> 6) & 0x1f;
-
-   DYNAREC_LOG("Emitting 0x%08x\n", instruction);
-
-   switch (instruction >> 26) {
+   switch (op->instruction >> 26) {
    case MIPS_OP_FN:
-      switch (instruction & 0x3f) {
+      switch (op->instruction & 0x3f) {
       case MIPS_FN_SLL:
          emit_shift_imm(compiler,
-                        reg_target,
-                        reg_op0,
-                        shift,
+                        op->target,
+                        op->op0,
+                        op->imm.iunsigned,
                         dynasm_emit_sll);
          break;
       case MIPS_FN_SRL:
          emit_shift_imm(compiler,
-                        reg_target,
-                        reg_op0,
-                        shift,
+                        op->target,
+                        op->op0,
+                        op->imm.iunsigned,
                         dynasm_emit_srl);
          break;
       case MIPS_FN_SRA:
          emit_shift_imm(compiler,
-                        reg_target,
-                        reg_op0,
-                        shift,
+                        op->target,
+                        op->op0,
+                        op->imm.iunsigned,
                         dynasm_emit_sra);
          break;
       case MIPS_FN_SLLV:
          emit_shift_reg(compiler,
-                        reg_target,
-                        reg_op0,
-                        reg_op1,
+                        op->target,
+                        op->op0,
+                        op->op1,
                         dynasm_emit_sllv);
          break;
       case MIPS_FN_SRLV:
          emit_shift_reg(compiler,
-                        reg_target,
-                        reg_op0,
-                        reg_op1,
+                        op->target,
+                        op->op0,
+                        op->op1,
                         dynasm_emit_srlv);
          break;
       case MIPS_FN_SRAV:
          emit_shift_reg(compiler,
-                        reg_target,
-                        reg_op0,
-                        reg_op1,
+                        op->target,
+                        op->op0,
+                        op->op1,
                         dynasm_emit_srav);
          break;
       case MIPS_FN_JR:
-         emit_jalr(compiler, reg_op0, PSX_REG_R0);
+         emit_jalr(compiler, op->op0, PSX_REG_R0);
          break;
       case MIPS_FN_JALR:
-         emit_jalr(compiler, reg_op0, reg_target);
+         emit_jalr(compiler, op->op0, op->target);
          break;
       case MIPS_FN_SYSCALL:
-         dynasm_emit_exit(compiler, DYNAREC_EXIT_SYSCALL, instruction >> 6);
+         dynasm_emit_exit(compiler, DYNAREC_EXIT_SYSCALL, op->imm.iunsigned);
          break;
       case MIPS_FN_BREAK:
          if (compiler->state->options & DYNAREC_OPT_EXIT_ON_BREAK) {
-            dynasm_emit_exit(compiler, DYNAREC_EXIT_BREAK, instruction >> 6);
+            dynasm_emit_exit(compiler, DYNAREC_EXIT_BREAK, op->imm.iunsigned);
          } else {
             dynasm_emit_exception(compiler, PSX_EXCEPTION_BREAK);
          }
@@ -824,102 +928,102 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
       case MIPS_FN_MTHI:
       case MIPS_FN_MFLO:
       case MIPS_FN_MTLO:
-         if (reg_target == PSX_REG_R0) {
+         if (op->target == PSX_REG_R0) {
             /* nop */
             break;
          }
 
-         if (reg_op0 == PSX_REG_R0) {
-            dynasm_emit_li(compiler, reg_target, 0);
+         if (op->op0 == PSX_REG_R0) {
+            dynasm_emit_li(compiler, op->target, 0);
             break;
          }
 
-         dynasm_emit_mov(compiler, reg_target, reg_op0);
+         dynasm_emit_mov(compiler, op->target, op->op0);
          break;
       case MIPS_FN_MULTU:
-         if (reg_op0 == PSX_REG_R0 || reg_op1 == PSX_REG_R0) {
+         if (op->op0 == PSX_REG_R0 || op->op1 == PSX_REG_R0) {
             // Multiplication by zero yields zero
             dynasm_emit_li(compiler, PSX_REG_LO, 0);
             dynasm_emit_li(compiler, PSX_REG_HI, 0);
          } else {
-            dynasm_emit_multu(compiler, reg_op0, reg_op1);
+            dynasm_emit_multu(compiler, op->op0, op->op1);
          }
          break;
       case MIPS_FN_DIV:
-         dynasm_emit_div(compiler, reg_op0, reg_op1);
+         dynasm_emit_div(compiler, op->op0, op->op1);
          break;
       case MIPS_FN_DIVU:
-         dynasm_emit_divu(compiler, reg_op0, reg_op1);
+         dynasm_emit_divu(compiler, op->op0, op->op1);
          break;
       case MIPS_FN_ADD:
          emit_add(compiler,
-                  reg_target,
-                  reg_op0,
-                  reg_op1);
+                  op->target,
+                  op->op0,
+                  op->op1);
          break;
       case MIPS_FN_ADDU:
          emit_addu(compiler,
-                   reg_target,
-                   reg_op0,
-                   reg_op1);
+                   op->target,
+                   op->op0,
+                   op->op1);
          break;
       case MIPS_FN_SUBU:
          emit_subu(compiler,
-                   reg_target,
-                   reg_op0,
-                   reg_op1);
+                   op->target,
+                   op->op0,
+                   op->op1);
          break;
       case MIPS_FN_AND:
          emit_and(compiler,
-                  reg_target,
-                  reg_op0,
-                  reg_op1);
+                  op->target,
+                  op->op0,
+                  op->op1);
          break;
       case MIPS_FN_OR:
          emit_or(compiler,
-                 reg_target,
-                 reg_op0,
-                 reg_op1);
+                 op->target,
+                 op->op0,
+                 op->op1);
          break;
       case MIPS_FN_XOR:
          emit_xor(compiler,
-                 reg_target,
-                 reg_op0,
-                 reg_op1);
+                 op->target,
+                 op->op0,
+                 op->op1);
          break;
       case MIPS_FN_NOR:
          emit_nor(compiler,
-                 reg_target,
-                 reg_op0,
-                 reg_op1);
+                 op->target,
+                 op->op0,
+                 op->op1);
          break;
       case MIPS_FN_SLT:
-         if (reg_target == PSX_REG_R0) {
+         if (op->target == PSX_REG_R0) {
             /* NOP */
             break;
          }
 
-         if (reg_op0 == PSX_REG_R0 && reg_op1 == PSX_REG_R0) {
+         if (op->op0 == PSX_REG_R0 && op->op1 == PSX_REG_R0) {
             /* 0 isn't less than 0 */
-            dynasm_emit_li(compiler, reg_target, 0);
+            dynasm_emit_li(compiler, op->target, 0);
             break;
          }
 
-         dynasm_emit_slt(compiler, reg_target, reg_op0, reg_op1);
+         dynasm_emit_slt(compiler, op->target, op->op0, op->op1);
          break;
       case MIPS_FN_SLTU:
-         if (reg_target == PSX_REG_R0) {
+         if (op->target == PSX_REG_R0) {
             /* NOP */
             break;
          }
 
-         if (reg_op1 == PSX_REG_R0) {
+         if (op->op1 == PSX_REG_R0) {
             /* Nothing is less than 0 */
-            dynasm_emit_li(compiler, reg_target, 0);
+            dynasm_emit_li(compiler, op->target, 0);
             break;
          }
 
-         dynasm_emit_sltu(compiler, reg_target, reg_op0, reg_op1);
+         dynasm_emit_sltu(compiler, op->target, op->op0, op->op1);
          break;
       case 0x1f:
       case 0x34:
@@ -928,117 +1032,117 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
          break;
       default:
          printf("Dynarec encountered unsupported instruction %08x\n",
-                instruction);
+                op->instruction);
          abort();
       }
       break;
    case MIPS_OP_BXX:
-      emit_bxx(compiler, simm_se, reg_target, reg_op0, (instruction >> 16) & 1);
+      emit_bxx(compiler, op);
       break;
    case MIPS_OP_J:
-      emit_j(compiler, instruction);
+      emit_j(compiler, op);
       break;
    case MIPS_OP_JAL:
-      emit_jal(compiler, instruction);
+      emit_jal(compiler, op);
       break;
    case MIPS_OP_BEQ:
-      emit_beq(compiler, simm_se, reg_op0, reg_op1);
+      emit_beq(compiler, op->imm.isigned, op->op0, op->op1);
       break;
    case MIPS_OP_BNE:
-      emit_bne(compiler, simm_se, reg_op0, reg_op1);
+      emit_bne(compiler, op->imm.isigned, op->op0, op->op1);
       break;
    case MIPS_OP_BLEZ:
-      emit_blez(compiler, simm_se, reg_op0);
+      emit_blez(compiler, op->imm.isigned, op->op0);
       break;
    case MIPS_OP_BGTZ:
-      emit_bgtz(compiler, simm_se, reg_op0);
+      emit_bgtz(compiler, op->imm.isigned, op->op0);
       break;
    case MIPS_OP_ADDI:
-      emit_addi(compiler, reg_target, reg_op0, imm_se);
+      emit_addi(compiler, op->target, op->op0, op->imm.iunsigned);
       break;
    case MIPS_OP_ADDIU:
-      emit_addiu(compiler, reg_target, reg_op0, imm_se);
+      emit_addiu(compiler, op->target, op->op0, op->imm.iunsigned);
       break;
    case 0x0a: /* SLTI */
-      if (reg_target == PSX_REG_R0) {
+      if (op->target == PSX_REG_R0) {
          /* NOP */
          break;
       }
 
-      dynasm_emit_slti(compiler, reg_target, reg_op0, imm_se);
+      dynasm_emit_slti(compiler, op->target, op->op0, op->imm.iunsigned);
       break;
    case 0x0b: /* SLTIU */
-      if (reg_target == PSX_REG_R0) {
+      if (op->target == PSX_REG_R0) {
          /* NOP */
          break;
       }
 
-      if (imm_se == 0) {
+      if (op->imm.iunsigned == 0) {
          /* Nothing is less than 0 */
-         dynasm_emit_li(compiler, reg_target, 0);
+         dynasm_emit_li(compiler, op->target, 0);
          break;
       }
 
-      dynasm_emit_sltiu(compiler, reg_target, reg_op0, imm_se);
+      dynasm_emit_sltiu(compiler, op->target, op->op0, op->imm.iunsigned);
       break;
    case MIPS_OP_ANDI:
-      emit_andi(compiler, reg_target, reg_op0, imm);
+      emit_andi(compiler, op->target, op->op0, op->imm.iunsigned);
       break;
    case MIPS_OP_ORI:
-      emit_ori(compiler, reg_target, reg_op0, imm);
+      emit_ori(compiler, op->target, op->op0, op->imm.iunsigned);
       break;
    case MIPS_OP_LUI:
-      if (reg_target == PSX_REG_R0) {
+      if (op->target == PSX_REG_R0) {
          /* NOP */
          break;
       }
 
-      dynasm_emit_li(compiler, reg_target, ((uint32_t)imm) << 16);
+      dynasm_emit_li(compiler, op->target, op->imm.iunsigned);
       break;
    case MIPS_OP_COP0:
-      switch ((instruction >> 21) & 0x1f) {
+      switch ((op->instruction >> 21) & 0x1f) {
       case MIPS_COP_MFC:
-         dynasm_emit_mfc0(compiler, reg_target, (instruction >> 11) & 0x1f);
+         dynasm_emit_mfc0(compiler, op->target, op->op0);
          break;
       case MIPS_COP_MTC:
-         dynasm_emit_mtc0(compiler, reg_op0, (instruction >> 11) & 0x1f);
+         dynasm_emit_mtc0(compiler, op->op0, op->target);
          break;
       case MIPS_COP_RFE:
-         emit_rfe(compiler, instruction);
+         dynasm_emit_rfe(compiler);
          break;
       default:
          printf("Dynarec encountered unsupported COP0 instruction %08x\n",
-                instruction);
+                op->instruction);
          abort();
       }
       break;
    case MIPS_OP_LB:
-      dynasm_emit_lb(compiler, reg_target, imm, reg_op0);
+      dynasm_emit_lb(compiler, op->target, op->imm.iunsigned, op->op0);
       break;
    case MIPS_OP_LBU:
-      dynasm_emit_lbu(compiler, reg_target, imm, reg_op0);
+      dynasm_emit_lbu(compiler, op->target, op->imm.iunsigned, op->op0);
       break;
    case MIPS_OP_LH:
-      dynasm_emit_lh(compiler, reg_target, imm, reg_op0);
+      dynasm_emit_lh(compiler, op->target, op->imm.iunsigned, op->op0);
       break;
    case MIPS_OP_LHU:
-      dynasm_emit_lhu(compiler, reg_target, imm, reg_op0);
+      dynasm_emit_lhu(compiler, op->target, op->imm.iunsigned, op->op0);
       break;
    case MIPS_OP_LW:
-      dynasm_emit_lw(compiler, reg_target, imm, reg_op0);
+      dynasm_emit_lw(compiler, op->target, op->imm.iunsigned, op->op0);
       break;
    case 0x28: /* SB */
-      dynasm_emit_sb(compiler, reg_op0, imm, reg_op1);
+      dynasm_emit_sb(compiler, op->op0, op->imm.iunsigned, op->op1);
       break;
    case 0x29: /* SH */
-      dynasm_emit_sh(compiler, reg_op0, imm, reg_op1);
+      dynasm_emit_sh(compiler, op->op0, op->imm.iunsigned, op->op1);
       break;
    case 0x2b: /* SW */
-      dynasm_emit_sw(compiler, reg_op0, imm, reg_op1);
+      dynasm_emit_sw(compiler, op->op0, op->imm.iunsigned, op->op1);
       break;
    default:
       printf("Dynarec encountered unsupported instruction %08x\n",
-             instruction);
+             op->instruction);
       abort();
    }
 }
@@ -1054,14 +1158,15 @@ static uint32_t load_le(const uint8_t *p) {
 struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
                                         uint32_t addr) {
    struct dynarec_compiler  compiler = { 0 };
-   struct dynarec_block    *block;
-   const uint8_t           *block_start;
-   const uint8_t           *block_end;
-   const uint8_t           *block_max;
-   const uint8_t           *cur;
-   enum optype              optype = OP_SIMPLE;
-   uint32_t                 canonical_addr;
-   bool                     eob;
+   struct dynarec_block *block;
+   const uint8_t *block_start;
+   const uint8_t *block_end;
+   const uint8_t *block_max;
+   const uint8_t *cur;
+   uint32_t canonical_addr;
+   bool eob;
+   struct opdesc op = { .type = OP_SIMPLE };
+   struct opdesc ds_op = { .type = OP_SIMPLE };
 
    DYNAREC_LOG("Recompiling block starting at 0x%08x\n", addr);
 
@@ -1106,37 +1211,24 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
    for (eob = false, cur = block_start;
         !eob && cur < block_end;
         cur += 4, compiler.pc += 4) {
-      uint32_t instruction = load_le(cur);
-
-      /* Various decodings of the fields, of course they won't all be
-         valid for a given instruction. For now I'll trust the
-         compiler to optimize this correctly, otherwise it might be
-         better to move them to the instructions where they make
-         sense.*/
-      enum PSX_REG reg_target;
-      enum PSX_REG reg_op0;
-      enum PSX_REG reg_op1;
-      uint32_t ds_instruction = 0;
       int has_branch_delay_slot;
       int has_load_delay_slot;
       int has_delay_slot;
 
-      DYNAREC_LOG("Compiling 0x%08x @ 0x%08x\n", instruction, compiler.pc);
+      op.instruction = load_le(cur);
+
+      DYNAREC_LOG("Compiling 0x%08x @ 0x%08x\n", op.instruction, compiler.pc);
 
       compiler.spent_cycles += PSX_CYCLES_PER_INSTRUCTION;
 
-      optype =
-         dynarec_instruction_registers(instruction,
-                                       &reg_target,
-                                       &reg_op0,
-                                       &reg_op1);
+      dynarec_decode_instruction(&op);
 
       has_branch_delay_slot =
-         (optype == OP_BRANCH_ALWAYS) || (optype == OP_BRANCH_COND);
-      has_load_delay_slot = (optype == OP_LOAD);
+         (op.type == OP_BRANCH_ALWAYS) || (op.type == OP_BRANCH_COND);
+      has_load_delay_slot = (op.type == OP_LOAD || op.type == OP_LOAD_COMBINE);
       has_delay_slot = has_branch_delay_slot || has_load_delay_slot;
 
-      if ((optype == OP_BRANCH_ALWAYS) || (optype == OP_EXCEPTION)) {
+      if ((op.type == OP_BRANCH_ALWAYS) || (op.type == OP_EXCEPTION)) {
          /* We are certain that the execution won't continue after
             this instruction (besides potentially the load delay slot
             which is handled below) */
@@ -1144,47 +1236,51 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
       }
 
       if (has_delay_slot && (cur + 4) < block_max) {
-         ds_instruction = load_le(cur + 4);
+         ds_op.instruction = load_le(cur + 4);
+         dynarec_decode_instruction(&ds_op);
       } else {
-         /* Assume the delay slot is a NOP */
-         ds_instruction = 0;
+         /* Pretend the delay slot is a NOP */
+         memset(&ds_op, 0, sizeof(ds_op));
+      }
+
+      if (op.type == OP_LOAD_COMBINE &&
+          ds_op.type == OP_LOAD_COMBINE &&
+          try_fold_lwl_lwr(&compiler, &op, &ds_op)) {
+         /* We've folded both instructions, skip ahead */
+         cur += 4;
+         compiler.pc += 4;
+         compiler.spent_cycles += PSX_CYCLES_PER_INSTRUCTION;
+         continue;
       }
 
       if (has_load_delay_slot &&
-          reg_target != PSX_REG_R0 &&
-          ds_instruction != 0) {
+          op.target != PSX_REG_R0 &&
+          ds_op.type != OP_NOP) {
+
          /* We have to check if the next instruction conflicts with
             the load target */
-         enum optype ds_type;
-         enum PSX_REG ds_target;
-         enum PSX_REG ds_op0;
-         enum PSX_REG ds_op1;
-
-         ds_type =
-            dynarec_instruction_registers(ds_instruction,
-                                          &ds_target,
-                                          &ds_op0,
-                                          &ds_op1);
-
-         if (ds_target == reg_target) {
+         if (ds_op.type == OP_LOAD_COMBINE) {
+            /* Next instruction bypasses the load delay, we don't have
+               to worry about it */
+            dynarec_emit_instruction(&compiler, &op);
+         } else if (ds_op.target == op.target) {
             /* The instruction in the delay slot overwrites the value,
                effectively making the LW useless (or only useful for
                side-effect). Seems odd but easy enough to implement,
                we can just pretend that this load just targets R0
                since it's functionally equivalent. */
-            reg_target = PSX_REG_R0;
+            op.target = PSX_REG_R0;
 
-            dynarec_emit_instruction(&compiler, instruction,
-                                     reg_target, reg_op0, reg_op1);
+            dynarec_emit_instruction(&compiler, &op);
 
-         } else if (reg_target == ds_op0 || reg_target == ds_op1) {
+         } else if (op.target == ds_op.op0 || op.target == ds_op.op1) {
             /* That's a bit trickier, we need to make sure that the
-               previous value of `reg_target` is used in the load
+               previous value of `op.target` is used in the load
                delay. */
 
-            if (ds_type == OP_BRANCH_ALWAYS ||
-                ds_type == OP_BRANCH_COND ||
-                ds_type == OP_EXCEPTION) {
+            if (ds_op.type == OP_BRANCH_ALWAYS ||
+                ds_op.type == OP_BRANCH_COND ||
+                ds_op.type == OP_EXCEPTION) {
                /* If the instruction in the delay slot is a branch we
                   can't reorder (otherwise we'll jump away before we
                   have a chance to execute the load). If this needs
@@ -1197,31 +1293,29 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
                   if the load references the target as operand. */
                bool needs_dt = false;
 
-               if (reg_op0 == ds_target) {
+               if (op.op0 == ds_op.target) {
                   needs_dt = true;
-                  reg_op0 = PSX_REG_DT;
+                  op.op0 = PSX_REG_DT;
                }
 
-               if (reg_op1 == ds_target) {
+               if (op.op1 == ds_op.target) {
                   needs_dt = true;
-                  reg_op1 = PSX_REG_DT;
+                  op.op1 = PSX_REG_DT;
                }
 
                if (needs_dt) {
                   /* The instruction in the delay slot targets a register
                      used by the branch, we need to keep a copy. */
-                  dynasm_emit_mov(&compiler, PSX_REG_DT, ds_target);
+                  dynasm_emit_mov(&compiler, PSX_REG_DT, ds_op.target);
                }
 
                /* Emit instruction in load delay slot */
                compiler.pc += 4;
-               dynarec_emit_instruction(&compiler, ds_instruction,
-                                           ds_target, ds_op0, ds_op1);
+               dynarec_emit_instruction(&compiler, &ds_op);
                compiler.pc -= 4;
 
                /* Emit load instruction */
-               dynarec_emit_instruction(&compiler, instruction,
-                                        reg_target, reg_op0, reg_op1);
+               dynarec_emit_instruction(&compiler, &op);
 
                /* Since we reordered we must jump ahead not to execute
                   the load delay instruction twice */
@@ -1232,38 +1326,27 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
          } else {
             /* We don't have any hazard, we can simply emit the load
                normally */
-            dynarec_emit_instruction(&compiler, instruction,
-                                     reg_target, reg_op0, reg_op1);
+            dynarec_emit_instruction(&compiler, &op);
          }
       } else if (has_branch_delay_slot &&
                  /* Special case a NOP in the delay slot since it's
                     fairly common. A branch with a NOP in the delay
                     slot behaves like a common instruction. */
-                 ds_instruction != 0) {
+                 ds_op.instruction != 0) {
          /* We have to run the delay slot before the actual
           * jump. First let's make sure that we don't have a data
           * hazard.
           */
-         enum PSX_REG ds_target;
-         enum PSX_REG ds_op0;
-         enum PSX_REG ds_op1;
-         enum optype ds_type;
          int needs_dt = 0;
 
-         ds_type =
-            dynarec_instruction_registers(ds_instruction,
-                                          &ds_target,
-                                          &ds_op0,
-                                          &ds_op1);
-
-         if (ds_type == OP_BRANCH_ALWAYS ||
-             ds_type == OP_BRANCH_COND ||
-             ds_type == OP_EXCEPTION) {
+         if (ds_op.type == OP_BRANCH_ALWAYS ||
+             ds_op.type == OP_BRANCH_COND ||
+             ds_op.type == OP_EXCEPTION) {
             /* Nested branch delay slot or exception in delay
                slot. This would be a pain to implement. Let's hope the
                average game doesn't require something like that. */
             dynasm_emit_exit(&compiler, DYNAREC_EXIT_UNIMPLEMENTED, __LINE__);
-         } else if (ds_type == OP_LOAD) {
+         } else if (ds_op.type == OP_LOAD || ds_op.type == OP_LOAD_COMBINE) {
             /* Emitting this directly is technically inaccurate but
                probably fine the vast majority of the time (relying on
                load delay slot behaviour across a jump sounds nasty,
@@ -1273,9 +1356,9 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
 #endif
          }
 
-         if (ds_target != PSX_REG_R0) {
+         if (ds_op.target != PSX_REG_R0) {
             /* Check for data hazard */
-            if (ds_target == reg_target) {
+            if (ds_op.target == op.target) {
                /* Not sure what happens if the jump and delay slot
                   write to the same register. If the jump wins then we
                   have nothing to do, if it's the instruction we just
@@ -1284,43 +1367,40 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
                DYNAREC_FATAL("Register race on branch target\n");
             }
 
-            if (ds_target == reg_op0) {
+            if (ds_op.target == op.op0) {
                needs_dt = 1;
-               reg_op0 = PSX_REG_DT;
+               op.op0 = PSX_REG_DT;
             }
 
-            if (ds_target == reg_op1) {
+            if (ds_op.target == op.op1) {
                needs_dt = 1;
-               reg_op1 = PSX_REG_DT;
+               op.op1 = PSX_REG_DT;
             }
 
             if (needs_dt) {
                /* The instruction in the delay slot targets a register
                   used by the branch, we need to keep a copy. */
-               dynasm_emit_mov(&compiler, PSX_REG_DT, ds_target);
+               dynasm_emit_mov(&compiler, PSX_REG_DT, ds_op.target);
             }
          }
 
          /* Emit instruction in branch delay slot */
          compiler.pc += 4;
-         dynarec_emit_instruction(&compiler, ds_instruction,
-                                  ds_target, ds_op0, ds_op1);
+         dynarec_emit_instruction(&compiler, &ds_op);
          compiler.pc -= 4;
 
          /* Emit branch instruction */
-         dynarec_emit_instruction(&compiler, instruction,
-                                  reg_target, reg_op0, reg_op1);
+         dynarec_emit_instruction(&compiler, &op);
          /* Move ahead not to emit the same instruction twice */
          cur += 4;
          compiler.pc += 4;
          compiler.spent_cycles += PSX_CYCLES_PER_INSTRUCTION;
-      } else {
+      } else if (op.type != OP_NOP) {
          /* Boring old instruction, no delay slot involved. */
-         dynarec_emit_instruction(&compiler, instruction,
-                                  reg_target, reg_op0, reg_op1);
+         dynarec_emit_instruction(&compiler, &op);
       }
 
-#if 1
+#if 0
       {
          int fd = open("/tmp/dump.amd64", O_WRONLY | O_CREAT| O_TRUNC, 0644);
 
@@ -1333,7 +1413,7 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
    }
 
    /* We're done with this block */
-   if ((optype != OP_BRANCH_ALWAYS) && (optype != OP_EXCEPTION)) {
+   if ((op.type != OP_BRANCH_ALWAYS) && (op.type != OP_EXCEPTION)) {
       /* Execution continues after this block, we need to link it to
          the next one */
       emit_jump(&compiler, compiler.pc);
