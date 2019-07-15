@@ -95,6 +95,9 @@ extern void dynasm_emit_srav(struct dynarec_compiler *compiler,
                              enum PSX_REG reg_target,
                              enum PSX_REG reg_op,
                              enum PSX_REG reg_shift);
+extern void dynasm_emit_mult(struct dynarec_compiler *compiler,
+                              enum PSX_REG reg_op0,
+                              enum PSX_REG reg_op1);
 extern void dynasm_emit_multu(struct dynarec_compiler *compiler,
                               enum PSX_REG reg_op0,
                               enum PSX_REG reg_op1);

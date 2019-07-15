@@ -772,6 +772,7 @@ static void dynarec_decode_instruction(struct opdesc *op) {
          op->op0 = reg_s;
          op->target = PSX_REG_LO;
          break;
+      case MIPS_FN_MULT:
       case MIPS_FN_MULTU:
       case MIPS_FN_DIV:
       case MIPS_FN_DIVU:
@@ -1024,6 +1025,15 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
          }
 
          dynasm_emit_mov(compiler, op->target, op->op0);
+         break;
+      case MIPS_FN_MULT:
+         if (op->op0 == PSX_REG_R0 || op->op1 == PSX_REG_R0) {
+            // Multiplication by zero yields zero
+            dynasm_emit_li(compiler, PSX_REG_LO, 0);
+            dynasm_emit_li(compiler, PSX_REG_HI, 0);
+         } else {
+            dynasm_emit_mult(compiler, op->op0, op->op1);
+         }
          break;
       case MIPS_FN_MULTU:
          if (op->op0 == PSX_REG_R0 || op->op1 == PSX_REG_R0) {

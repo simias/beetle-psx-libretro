@@ -266,6 +266,8 @@ static int run_test(const char *name, test_fn_t f) {
    FN_RR(MIPS_FN_MFLO, (_rt), 0, 0)
 #define MTLO(_rs)                               \
    FN_RR(MIPS_FN_MTLO, 0, (_rs), 0)
+#define MULT(_ro1, _ro2)                       \
+   FN_RR(MIPS_FN_MULT, 0, (_ro1), (_ro2))
 #define MULTU(_ro1, _ro2)                       \
    FN_RR(MIPS_FN_MULTU, 0, (_ro1), (_ro2))
 #define DIV(_ro1, _ro2)                         \
@@ -1647,6 +1649,68 @@ static int test_hi_lo(struct dynarec_state *state) {
    return check_regs(state, expected, ARRAY_SIZE(expected));
 }
 
+static int test_mult_no_exception(struct dynarec_state *state) {
+   union mips_instruction code[] = {
+      LI(PSX_REG_T0, 6),
+      LI(PSX_REG_T1, 7),
+      LI(PSX_REG_T2, 0xabcde),
+      LI(PSX_REG_T3, 0x89abcdef),
+
+      MULT(PSX_REG_T0, PSX_REG_T1),
+      MFHI(PSX_REG_S0),
+      MFLO(PSX_REG_S1),
+
+      MULT(PSX_REG_T2, PSX_REG_T2),
+      MFHI(PSX_REG_S2),
+      MFLO(PSX_REG_S3),
+
+      MULT(PSX_REG_T2, PSX_REG_T3),
+      MFHI(PSX_REG_S4),
+      MFLO(PSX_REG_S5),
+
+      MULT(PSX_REG_T3, PSX_REG_T3),
+      MFHI(PSX_REG_S6),
+      MFLO(PSX_REG_S7),
+
+      MULT(PSX_REG_T3, PSX_REG_R0),
+
+      BREAK(0x0ff0ff),
+   };
+   struct reg_val expected[] = {
+      { .r = PSX_REG_T0, .v = 6 },
+      { .r = PSX_REG_T1, .v = 7 },
+      { .r = PSX_REG_T2, .v = 0xabcde },
+      { .r = PSX_REG_T3, .v = 0x89abcdef },
+
+      { .r = PSX_REG_S0, .v = 0 },
+      { .r = PSX_REG_S1, .v = 42 },
+
+      { .r = PSX_REG_S2, .v = 0x73 },
+      { .r = PSX_REG_S3, .v = 0x4caed084 },
+
+      { .r = PSX_REG_S4, .v = 0x5c647 },
+      { .r = PSX_REG_S5, .v = 0x998e1942 },
+
+      { .r = PSX_REG_S6, .v = 0x4a0955b6 },
+      { .r = PSX_REG_S7, .v = 0x90f2a521 },
+
+      { .r = PSX_REG_HI, .v = 0 },
+      { .r = PSX_REG_LO, .v = 0 },
+   };
+   uint32_t end_pc = 0x54;
+   struct dynarec_ret ret;
+
+   load_code(state, code, ARRAY_SIZE(code), 0);
+
+   ret = dynarec_run(state, 0x1000);
+
+   TEST_EQ(state->pc, end_pc);
+   TEST_EQ(ret.val.code, DYNAREC_EXIT_BREAK);
+   TEST_EQ(ret.val.param, 0x0ff0ff);
+
+   return check_regs(state, expected, ARRAY_SIZE(expected));
+}
+
 static int test_multu(struct dynarec_state *state) {
    union mips_instruction code[] = {
       LI(PSX_REG_T0, 6),
@@ -2652,6 +2716,7 @@ int main() {
    RUN_TEST(test_slti);
    RUN_TEST(test_sltiu);
    RUN_TEST(test_hi_lo);
+   RUN_TEST(test_mult_no_exception);
    RUN_TEST(test_multu);
    RUN_TEST(test_div);
    RUN_TEST(test_divu);

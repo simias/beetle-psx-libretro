@@ -1469,6 +1469,31 @@ extern void dynasm_emit_srav(struct dynarec_compiler *compiler,
    dynasm_emit_shift_reg(compiler, reg_target, reg_source, reg_shift, SAR_OP);
 }
 
+extern void dynasm_emit_mult(struct dynarec_compiler *compiler,
+                              enum PSX_REG reg_op0,
+                              enum PSX_REG reg_op1) {
+   const int op0 = register_location(reg_op0);
+   const int op1 = register_location(reg_op1);
+
+   if (op0 >= 0) {
+      MOV_R32_R32(op0, REG_AX);
+   } else {
+      MOVE_FROM_BANKED(reg_op0, REG_AX);
+   }
+
+   if (op1 >= 0) {
+      MOV_R32_R32(op1, REG_SI);
+   } else {
+      MOVE_FROM_BANKED(reg_op1, REG_SI);
+   }
+
+   IMUL_R64_R64(REG_SI, REG_AX);
+
+   MOVE_TO_BANKED(REG_AX, PSX_REG_LO);
+   SHR_U8_R64(32, REG_AX);
+   MOVE_TO_BANKED(REG_AX, PSX_REG_HI);
+}
+
 extern void dynasm_emit_multu(struct dynarec_compiler *compiler,
                               enum PSX_REG reg_op0,
                               enum PSX_REG reg_op1) {
