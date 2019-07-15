@@ -282,6 +282,8 @@ static int run_test(const char *name, test_fn_t f) {
    FN_RR(MIPS_FN_SRLV, (_rt), (_ro2), (_ro1))
 #define ADDU(_rt, _ro1, _ro2)                   \
    FN_RR(MIPS_FN_ADDU, (_rt), (_ro1), (_ro2))
+#define SUB(_rt, _ro1, _ro2)                   \
+   FN_RR(MIPS_FN_SUB, (_rt), (_ro1), (_ro2))
 #define SUBU(_rt, _ro1, _ro2)                   \
    FN_RR(MIPS_FN_SUBU, (_rt), (_ro1), (_ro2))
 #define AND(_rt, _ro1, _ro2)                    \
@@ -1117,6 +1119,51 @@ static int test_add_no_exception(struct dynarec_state *state) {
       { .r = PSX_REG_S6, .v = -4 },
    };
    uint32_t end_pc = 0x54;
+   struct dynarec_ret ret;
+
+   load_code(state, code, ARRAY_SIZE(code), 0);
+
+   ret = dynarec_run(state, 0x1000);
+
+   TEST_EQ(state->pc, end_pc);
+   TEST_EQ(ret.val.code, DYNAREC_EXIT_BREAK);
+   TEST_EQ(ret.val.param, 0x0ff0ff);
+
+   return check_regs(state, expected, ARRAY_SIZE(expected));
+}
+
+static int test_sub_no_exception(struct dynarec_state *state) {
+   union mips_instruction code[] = {
+      LI(PSX_REG_T0, 1),
+      LI(PSX_REG_T1, 2),
+      LI(PSX_REG_T2, 10),
+      LI(PSX_REG_T3, 0x80000000),
+
+      SUBU(PSX_REG_R0, PSX_REG_T2, PSX_REG_T2),
+      SUBU(PSX_REG_R0, PSX_REG_R0, PSX_REG_T2),
+      SUBU(PSX_REG_V0, PSX_REG_T2, PSX_REG_T1),
+      SUBU(PSX_REG_V1, PSX_REG_T0, PSX_REG_T1),
+      SUBU(PSX_REG_AT, PSX_REG_V0, PSX_REG_T0),
+      SUBU(PSX_REG_S0, PSX_REG_T0, PSX_REG_V0),
+      SUBU(PSX_REG_S1, PSX_REG_T3, PSX_REG_T0),
+      SUBU(PSX_REG_V0, PSX_REG_V0, PSX_REG_T1),
+      SUBU(PSX_REG_T0, PSX_REG_T0, PSX_REG_T0),
+      SUBU(PSX_REG_T1, PSX_REG_T1, PSX_REG_T1),
+
+      BREAK(0x0ff0ff),
+   };
+   struct reg_val expected[] = {
+      { .r = PSX_REG_T0, .v = 0 },
+      { .r = PSX_REG_T1, .v = 0 },
+      { .r = PSX_REG_T2, .v = 10 },
+      { .r = PSX_REG_T3, .v = 0x80000000 },
+      { .r = PSX_REG_V0, .v = 6 },
+      { .r = PSX_REG_V1, .v = 0xffffffff },
+      { .r = PSX_REG_AT, .v = 7 },
+      { .r = PSX_REG_S0, .v = 0xfffffff9 },
+      { .r = PSX_REG_S1, .v = 0x7fffffff },
+   };
+   uint32_t end_pc = 0x48;
    struct dynarec_ret ret;
 
    load_code(state, code, ARRAY_SIZE(code), 0);
@@ -2594,6 +2641,7 @@ int main() {
    RUN_TEST(test_srav);
    RUN_TEST(test_addu);
    RUN_TEST(test_add_no_exception);
+   RUN_TEST(test_sub_no_exception);
    RUN_TEST(test_subu);
    RUN_TEST(test_and);
    RUN_TEST(test_or);

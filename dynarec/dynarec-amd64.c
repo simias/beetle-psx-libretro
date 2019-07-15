@@ -1777,6 +1777,72 @@ void dynasm_emit_not(struct dynarec_compiler *compiler,
    }
 }
 
+void dynasm_emit_sub(struct dynarec_compiler *compiler,
+                      enum PSX_REG reg_target,
+                      enum PSX_REG reg_op0,
+                      enum PSX_REG reg_op1) {
+   const int target = register_location(reg_target);
+   const int op0 = register_location(reg_op0);
+   const int op1 = register_location(reg_op1);
+
+   if (reg_target == reg_op0) {
+      if (target >= 0) {
+         if (op1 >= 0) {
+            SUB_R32_R32(op1, target);
+         } else {
+            SUB_OFF_PR64_R32(DYNAREC_STATE_REG_OFFSET(reg_op1),
+                             STATE_REG,
+                             target);
+         }
+      } else {
+         int op;
+
+         if (op1 >= 0) {
+            op = op1;
+         } else {
+            MOVE_FROM_BANKED(reg_op1, REG_AX);
+            op = REG_AX;
+         }
+         SUB_R32_OFF_PR64(op,
+                          DYNAREC_STATE_REG_OFFSET(reg_target),
+                          STATE_REG);
+      }
+
+      IF_OVERFLOW {
+         dynasm_emit_exception(compiler, PSX_OVERFLOW);
+      } ENDIF;
+   } else {
+      int target_tmp;
+      if (target >= 0) {
+         target_tmp = target;
+      } else {
+         target_tmp = REG_AX;
+      }
+
+      if (op0 >= 0) {
+         MOV_R32_R32(op0, target_tmp);
+      } else {
+         MOVE_FROM_BANKED(reg_op0, target_tmp);
+      }
+
+      if (op1 >= 0) {
+         SUB_R32_R32(op1, target_tmp);
+      } else {
+         SUB_OFF_PR64_R32(DYNAREC_STATE_REG_OFFSET(reg_op1),
+                          STATE_REG,
+                          target_tmp);
+      }
+
+      IF_OVERFLOW {
+         dynasm_emit_exception(compiler, PSX_OVERFLOW);
+      } ENDIF;
+
+      if (target != target_tmp) {
+         MOVE_TO_BANKED(target_tmp, reg_target);
+      }
+   }
+}
+
 void dynasm_emit_subu(struct dynarec_compiler *compiler,
                       enum PSX_REG reg_target,
                       enum PSX_REG reg_op0,

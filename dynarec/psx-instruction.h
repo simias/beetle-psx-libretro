@@ -106,6 +106,7 @@ enum psx_cpu_exception {
 # define MIPS_FN_DIVU           0x1BU
 # define MIPS_FN_ADD            0x20U
 # define MIPS_FN_ADDU           0x21U
+# define MIPS_FN_SUB            0x22U
 # define MIPS_FN_SUBU           0x23U
 # define MIPS_FN_AND            0x24U
 # define MIPS_FN_OR             0x25U

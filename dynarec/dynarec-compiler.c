@@ -420,6 +420,31 @@ static void emit_addu(struct dynarec_compiler *compiler,
    }
 }
 
+static void emit_sub(struct dynarec_compiler *compiler,
+                      enum PSX_REG reg_target,
+                      enum PSX_REG reg_op0,
+                      enum PSX_REG reg_op1) {
+   if (reg_op0 == PSX_REG_R0) {
+      if (reg_op1 == PSX_REG_R0) {
+         dynasm_emit_li(compiler, reg_target, 0);
+      } else {
+         /* Sub a, 0, b -> a = -b */
+         dynasm_emit_neg(compiler, reg_target, reg_op1);
+      }
+   } else {
+      if (reg_op1 == PSX_REG_R0) {
+         if (reg_target != reg_op0) {
+            dynasm_emit_mov(compiler, reg_target, reg_op0);
+         } else {
+            /* NOP: sub a, a, 0 */
+            return;
+         }
+      } else {
+         dynasm_emit_sub(compiler, reg_target, reg_op0, reg_op1);
+      }
+   }
+}
+
 static void emit_subu(struct dynarec_compiler *compiler,
                       enum PSX_REG reg_target,
                       enum PSX_REG reg_op0,
@@ -762,6 +787,7 @@ static void dynarec_decode_instruction(struct opdesc *op) {
         break;
       case MIPS_FN_ADD:
       case MIPS_FN_ADDU:
+      case MIPS_FN_SUB:
       case MIPS_FN_SUBU:
       case MIPS_FN_AND:
       case MIPS_FN_OR:
@@ -1022,6 +1048,12 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
          break;
       case MIPS_FN_ADDU:
          emit_addu(compiler,
+                   op->target,
+                   op->op0,
+                   op->op1);
+         break;
+      case MIPS_FN_SUB:
+         emit_sub(compiler,
                    op->target,
                    op->op0,
                    op->op1);
