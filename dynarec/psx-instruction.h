@@ -67,6 +67,74 @@ enum PSX_COP0_REG {
    PSX_COP0_PRID = 15,    /* CPU ID (R) */
 };
 
+/* GTE registers (accessed with mtc2,ctc2,mfc2,cfc2)*/
+enum PSX_GTE_REG {
+   PSX_GTE_R0 = 0,        /* N/A */
+   PSX_GTE_R1 = 1,        /* N/A */
+   PSX_GTE_R2 = 2,        /* N/A */
+   PSX_GTE_R3 = 3,        /* N/A */
+   PSX_GTE_R4 = 4,        /* N/A */
+   PSX_GTE_R5 = 5,        /* N/A */
+   PSX_GTE_R6 = 6,        /* N/A */
+   PSX_GTE_R7 = 7,        /* N/A */
+   PSX_GTE_R8 = 8,        /* N/A */
+   PSX_GTE_R9 = 9,        /* N/A */
+   PSX_GTE_R10 = 10,      /* N/A */
+   PSX_GTE_R11 = 11,      /* N/A */
+   PSX_GTE_R12 = 12,      /* N/A */
+   PSX_GTE_R13 = 13,      /* N/A */
+   PSX_GTE_R14 = 14,      /* N/A */
+   PSX_GTE_R15 = 15,      /* N/A */
+   PSX_GTE_R16 = 16,      /* N/A */
+   PSX_GTE_R17 = 17,      /* N/A */
+   PSX_GTE_R18 = 18,      /* N/A */
+   PSX_GTE_R19 = 19,      /* N/A */
+   PSX_GTE_R20 = 20,      /* N/A */
+   PSX_GTE_R21 = 21,      /* N/A */
+   PSX_GTE_R22 = 22,      /* N/A */
+   PSX_GTE_R23 = 23,      /* N/A */
+   PSX_GTE_R24 = 24,      /* N/A */
+   PSX_GTE_R25 = 25,      /* N/A */
+   PSX_GTE_R26 = 26,      /* N/A */
+   PSX_GTE_R27 = 27,      /* N/A */
+   PSX_GTE_R28 = 28,      /* N/A */
+   PSX_GTE_R29 = 29,      /* N/A */
+   PSX_GTE_R30 = 30,      /* N/A */
+   PSX_GTE_R31 = 31,      /* N/A */
+   PSX_GTE_R32 = 32,      /* N/A */
+   PSX_GTE_R33 = 33,      /* N/A */
+   PSX_GTE_R34 = 34,      /* N/A */
+   PSX_GTE_R35 = 35,      /* N/A */
+   PSX_GTE_R36 = 36,      /* N/A */
+   PSX_GTE_R37 = 37,      /* N/A */
+   PSX_GTE_R38 = 38,      /* N/A */
+   PSX_GTE_R39 = 39,      /* N/A */
+   PSX_GTE_R40 = 40,      /* N/A */
+   PSX_GTE_R41 = 41,      /* N/A */
+   PSX_GTE_R42 = 42,      /* N/A */
+   PSX_GTE_R43 = 43,      /* N/A */
+   PSX_GTE_R44 = 44,      /* N/A */
+   PSX_GTE_R45 = 45,      /* N/A */
+   PSX_GTE_R46 = 46,      /* N/A */
+   PSX_GTE_R47 = 47,      /* N/A */
+   PSX_GTE_R48 = 48,      /* N/A */
+   PSX_GTE_R49 = 49,      /* N/A */
+   PSX_GTE_R50 = 50,      /* N/A */
+   PSX_GTE_R51 = 51,      /* N/A */
+   PSX_GTE_R52 = 52,      /* N/A */
+   PSX_GTE_R53 = 53,      /* N/A */
+   PSX_GTE_R54 = 54,      /* N/A */
+   PSX_GTE_R55 = 55,      /* N/A */
+   PSX_GTE_R56 = 56,      /* N/A */
+   PSX_GTE_R57 = 57,      /* N/A */
+   PSX_GTE_R58 = 58,      /* N/A */
+   PSX_GTE_R59 = 59,      /* N/A */
+   PSX_GTE_R60 = 60,      /* N/A */
+   PSX_GTE_R61 = 61,      /* N/A */
+   PSX_GTE_R62 = 62,      /* N/A */
+   PSX_GTE_R63 = 63,      /* N/A */
+};
+
 enum psx_cpu_exception {
    /* Interrupt Request */
    PSX_EXCEPTION_INTERRUPT = 0x0,
@@ -133,6 +201,11 @@ enum psx_cpu_exception {
 # define MIPS_COP_MFC           0x00U
 # define MIPS_COP_MTC           0x04U
 # define MIPS_COP_RFE           0x10U
+#define MIPS_OP_COP2           0x12U
+# define MIPS_GTE_MFC2          0x00U
+# define MIPS_GTE_CFC2          0x02U
+# define MIPS_GTE_MTC2          0x04U
+# define MIPS_GTE_CTC2          0x06U
 #define MIPS_OP_LB             0x20U
 #define MIPS_OP_LH             0x21U
 #define MIPS_OP_LWL            0x22U

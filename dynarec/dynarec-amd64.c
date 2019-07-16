@@ -3010,3 +3010,121 @@ void dynasm_emit_mtc0(struct dynarec_compiler *compiler,
       UNIMPLEMENTED;
    }
 }
+
+void dynasm_emit_mfc2(struct dynarec_compiler *compiler,
+                      enum PSX_REG reg_target,
+                      enum PSX_GTE_REG reg_gte) {
+   const int target = register_location(reg_target);
+   int target_tmp;
+   size_t load_off;
+
+   switch (reg_gte) {
+   default:
+      /* Other registers not handled for now, just return zeroes */
+      dynasm_emit_li(compiler, reg_target, 0);
+      return;
+   }
+
+   if (target >= 0) {
+      target_tmp = target;
+   } else {
+      target_tmp = REG_AX;
+   }
+
+   MOV_OFF_PR64_R32(load_off,
+                    STATE_REG,
+                    target_tmp);
+
+   if (target_tmp != target) {
+      MOVE_TO_BANKED(target_tmp, reg_target);
+   }
+}
+
+void dynasm_emit_mtc2(struct dynarec_compiler *compiler,
+                      enum PSX_REG reg_source,
+                      enum PSX_GTE_REG reg_gte) {
+   int source = register_location(reg_source);
+
+   /* Move value to SI */
+   if (source >= 0) {
+      MOV_R32_R32(source, REG_SI);
+   } else {
+      if (reg_source == 0) {
+         CLEAR_REG(REG_SI);
+      } else {
+         MOV_OFF_PR64_R32(DYNAREC_STATE_REG_OFFSET(reg_source),
+                          STATE_REG,
+                          REG_SI);
+      }
+   }
+
+   switch (reg_gte) {
+   default:
+      /* Move GTE register index to DX */
+      MOV_U32_R32(reg_gte, REG_DX);
+
+      CALL(dynabi_set_gte);
+      break;
+
+      //UNIMPLEMENTED;
+   }
+}
+
+void dynasm_emit_cfc2(struct dynarec_compiler *compiler,
+                      enum PSX_REG reg_target,
+                      enum PSX_GTE_REG reg_gte) {
+   const int target = register_location(reg_target);
+   int target_tmp;
+   size_t load_off;
+
+   switch (reg_gte) {
+   default:
+      /* Other registers not handled for now, just return zeroes */
+      dynasm_emit_li(compiler, reg_target, 0);
+      return;
+   }
+
+   if (target >= 0) {
+      target_tmp = target;
+   } else {
+      target_tmp = REG_AX;
+   }
+
+   MOV_OFF_PR64_R32(load_off,
+                    STATE_REG,
+                    target_tmp);
+
+   if (target_tmp != target) {
+      MOVE_TO_BANKED(target_tmp, reg_target);
+   }
+}
+
+void dynasm_emit_ctc2(struct dynarec_compiler *compiler,
+                      enum PSX_REG reg_source,
+                      enum PSX_GTE_REG reg_gte) {
+   int source = register_location(reg_source);
+
+   /* Move value to SI */
+   if (source >= 0) {
+      MOV_R32_R32(source, REG_SI);
+   } else {
+      if (reg_source == 0) {
+         CLEAR_REG(REG_SI);
+      } else {
+         MOV_OFF_PR64_R32(DYNAREC_STATE_REG_OFFSET(reg_source),
+                          STATE_REG,
+                          REG_SI);
+      }
+   }
+
+   switch (reg_gte) {
+   default:
+      /* Move GTE register index to DX */
+      MOV_U32_R32(reg_gte, REG_DX);
+
+      CALL(dynabi_set_gte);
+      break;
+
+      //UNIMPLEMENTED;
+   }
+}

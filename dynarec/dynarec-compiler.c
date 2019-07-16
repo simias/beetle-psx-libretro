@@ -899,6 +899,32 @@ static void dynarec_decode_instruction(struct opdesc *op) {
          abort();
       }
       break;
+   case MIPS_OP_COP2:
+      switch (reg_s) {
+      case MIPS_GTE_MFC2:
+         op->target = reg_t;
+         op->op0 = reg_d;
+         op->type = OP_LOAD;
+         break;
+      case MIPS_GTE_CFC2:
+         op->target = reg_t;
+         op->op0 = reg_d;
+         op->type = OP_LOAD;
+         break;
+      case MIPS_GTE_MTC2:
+         op->target = reg_d;
+         op->op0 = reg_t;
+         break;
+      case MIPS_GTE_CTC2:
+         op->target = reg_d;
+         op->op0 = reg_t;
+         break;
+      default:
+         printf("Dynarec encountered unsupported GTE instruction %08x (%x)\n",
+                op->instruction, reg_s);
+         abort();
+      }
+      break;
    case MIPS_OP_LBU:
    case MIPS_OP_LB:
    case MIPS_OP_LHU:
@@ -1213,6 +1239,26 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
          break;
       default:
          printf("Dynarec encountered unsupported COP0 instruction %08x\n",
+                op->instruction);
+         abort();
+      }
+      break;
+   case MIPS_OP_COP2:
+      switch ((op->instruction >> 21) & 0x1f) {
+      case MIPS_GTE_MFC2:
+         dynasm_emit_mfc2(compiler, op->target, op->op0);
+         break;
+      case MIPS_GTE_CFC2:
+         dynasm_emit_cfc2(compiler, op->target, op->op0);
+         break;
+      case MIPS_GTE_MTC2:
+         dynasm_emit_mtc2(compiler, op->op0, op->target);
+         break;
+      case MIPS_GTE_CTC2:
+         dynasm_emit_ctc2(compiler, op->op0, op->target);
+         break;
+      default:
+         printf("Dynarec encountered unsupported GTE instruction %08x\n",
                 op->instruction);
          abort();
       }

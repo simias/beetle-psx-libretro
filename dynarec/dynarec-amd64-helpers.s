@@ -372,3 +372,17 @@ dynabi_set_cop0_misc:
         pop %rcx
 
         ret
+
+.global dynabi_set_gte
+.type   dynabi_set_gte, function
+/* Called by the dynarec code when storing the value of a GTE register.
+ * The value is in %esi, the register index in %edx */
+dynabi_set_gte:
+        /* Push counter */
+        push %rcx
+
+        c_call dynarec_set_gte
+
+        pop %rcx
+
+        ret

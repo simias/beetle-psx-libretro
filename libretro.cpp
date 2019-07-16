@@ -935,6 +935,13 @@ uint32_t MDFN_FASTCALL PSX_MemRead32(int32_t &timestamp, uint32_t A)
 }
 
 #ifdef HAVE_DYNAREC
+/* Callback used by the dynarec to handle writes to GTE registers */
+extern "C" void dynarec_set_gte(struct dynarec_state *s,
+                                      uint32_t val,
+                                      uint32_t gte_reg) {
+   DYNAREC_LOG("dynarec gte %08x @ %d\n", val, gte_reg);
+}
+
 /* Callback used by the dynarec to handle writes to "miscelanous" COP0
    registers (i.e. not SR nor CAUSE) */
 extern "C" void dynarec_set_cop0_misc(struct dynarec_state *s,
