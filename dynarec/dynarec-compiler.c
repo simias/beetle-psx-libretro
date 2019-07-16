@@ -942,9 +942,9 @@ static void dynarec_decode_instruction(struct opdesc *op) {
       op->imm.iunsigned = imm;
       op->type = OP_LOAD_COMBINE;
       break;
-   case 0x28: /* SB */
-   case 0x29: /* SH */
-   case 0x2b: /* SW */
+   case MIPS_OP_SB: /* SB */
+   case MIPS_OP_SH: /* SH */
+   case MIPS_OP_SW: /* SW */
       op->op0 = reg_s;
       op->op1 = reg_t;
       op->imm.iunsigned = imm;
