@@ -194,6 +194,9 @@ struct dynarec_ret dynarec_run(struct dynarec_state *state, int32_t cycles_to_ru
          return ret;
       case DYNAREC_EXIT_SYSCALL:
          dynarec_exception(state, PSX_EXCEPTION_SYSCALL);
+         /* Now we can continue the execution from syscall handler */
+         ret.val.code = DYNAREC_EXIT_COUNTER;
+         ret.val.param = 0;
          break;
       case DYNAREC_EXIT_BREAK:
          /* Encountered BREAK instructions */
