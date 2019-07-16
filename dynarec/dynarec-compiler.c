@@ -956,6 +956,17 @@ static void dynarec_decode_instruction(struct opdesc *op) {
       op->imm.iunsigned = imm;
       op->type = OP_STORE_NOALIGN;
       break;
+   case MIPS_OP_LWC2:
+      op->op0 = reg_s;
+      op->op1 = reg_t;
+      op->imm.iunsigned = imm;
+      op->type = OP_LOAD;
+      break;
+   case MIPS_OP_SWC2:
+      op->op0 = reg_s;
+      op->op1 = reg_t;
+      op->imm.iunsigned = imm;
+      break;
    case 0x18:
    case 0x19:
    case 0x1b:
@@ -1278,14 +1289,20 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
    case MIPS_OP_LW:
       dynasm_emit_lw(compiler, op->target, op->imm.iunsigned, op->op0);
       break;
-   case 0x28: /* SB */
+   case MIPS_OP_SB: /* SB */
       dynasm_emit_sb(compiler, op->op0, op->imm.iunsigned, op->op1);
       break;
-   case 0x29: /* SH */
+   case MIPS_OP_SH: /* SH */
       dynasm_emit_sh(compiler, op->op0, op->imm.iunsigned, op->op1);
       break;
-   case 0x2b: /* SW */
+   case MIPS_OP_SW: /* SW */
       dynasm_emit_sw(compiler, op->op0, op->imm.iunsigned, op->op1);
+      break;
+   case MIPS_OP_LWC2:
+      dynasm_emit_lwc2(compiler, op->op0, op->imm.iunsigned, op->op1);
+      break;
+   case MIPS_OP_SWC2:
+      dynasm_emit_swc2(compiler, op->op0, op->imm.iunsigned, op->op1);
       break;
    default:
       printf("Dynarec encountered unsupported instruction %08x\n",

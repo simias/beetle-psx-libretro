@@ -2719,6 +2719,29 @@ void dynasm_emit_lw_noalign(struct dynarec_compiler *compiler,
                       DIR_LOAD_UNSIGNED, WIDTH_WORD, false);
 }
 
+void dynasm_emit_lwc2(struct dynarec_compiler *compiler,
+                    enum PSX_REG reg_target,
+                    int16_t offset,
+                    enum PSX_REG reg_addr) {
+   dynasm_emit_mem_rw(compiler,
+                      reg_addr,
+                      offset,
+                      reg_target,
+                      DIR_LOAD_SIGNED, WIDTH_HALFWORD, true);
+}
+
+
+void dynasm_emit_swc2(struct dynarec_compiler *compiler,
+                    enum PSX_REG reg_addr,
+                    int16_t offset,
+                    enum PSX_REG reg_val) {
+   dynasm_emit_mem_rw(compiler,
+                      reg_addr,
+                      offset,
+                      reg_val,
+                      DIR_STORE, WIDTH_HALFWORD, true);
+}
+
 static uint8_t emit_branch_cond(struct dynarec_compiler *compiler,
                                 enum PSX_REG reg_a,
                                 enum PSX_REG reg_b,

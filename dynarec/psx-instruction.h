@@ -218,6 +218,8 @@ enum psx_cpu_exception {
 #define MIPS_OP_SWL            0x2AU
 #define MIPS_OP_SW             0x2BU
 #define MIPS_OP_SWR            0x2EU
+#define MIPS_OP_LWC2           0x32U
+#define MIPS_OP_SWC2           0x3AU
 
 union mips_instruction {
    uint32_t encoded;
