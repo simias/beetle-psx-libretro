@@ -258,6 +258,8 @@ extern void dynasm_emit_swc2(struct dynarec_compiler *compiler,
                            enum PSX_REG reg_addr,
                            int16_t offset,
                            enum PSX_REG reg_val);
+extern void dynasm_emit_gte_instruction(struct dynarec_compiler *compiler,
+                           uint32_t imm25);
 
 
 #endif /* __DYNAREC_COMPILER_H__ */

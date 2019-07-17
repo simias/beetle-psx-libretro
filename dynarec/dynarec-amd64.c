@@ -3151,3 +3151,8 @@ void dynasm_emit_ctc2(struct dynarec_compiler *compiler,
       //UNIMPLEMENTED;
    }
 }
+
+void dynasm_emit_gte_instruction(struct dynarec_compiler *compiler,
+                                 uint32_t instr) {
+   CALL(dynabi_gte_instruction);
+}

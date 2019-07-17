@@ -386,3 +386,17 @@ dynabi_set_gte:
         pop %rcx
 
         ret
+
+.global dynabi_gte_instruction
+.type   dynabi_gte_instruction, function
+/* Called by the dynarec code when running a GTE instruction.
+ * The value is in %esi, the register index in %edx */
+dynabi_gte_instruction:
+        /* Push counter */
+        push %rcx
+
+        c_call dynarec_gte_instruction
+
+        pop %rcx
+
+        ret

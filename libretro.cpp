@@ -935,6 +935,12 @@ uint32_t MDFN_FASTCALL PSX_MemRead32(int32_t &timestamp, uint32_t A)
 }
 
 #ifdef HAVE_DYNAREC
+/* Callback used by the dynarec to handle GTE instructions */
+extern "C" void dynarec_gte_instruction(struct dynarec_state *s,
+                                      uint32_t instr) {
+   DYNAREC_LOG("dynarec gte imm25 %08x\n", instr);
+}
+
 /* Callback used by the dynarec to handle writes to GTE registers */
 extern "C" void dynarec_set_gte(struct dynarec_state *s,
                                       uint32_t val,

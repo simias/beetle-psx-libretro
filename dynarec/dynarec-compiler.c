@@ -712,6 +712,7 @@ static void dynarec_decode_instruction(struct opdesc *op) {
    uint32_t sysbrk_code = op->instruction >> 6;
    uint8_t  shift = (op->instruction >> 6) & 0x1f;
    uint32_t j_target = (op->instruction & 0x3ffffff) << 2;
+   uint32_t imm25 = op->instruction & 0x1ffffff;
 
    op->type = OP_SIMPLE;
    op->target = PSX_REG_R0;
@@ -918,6 +919,10 @@ static void dynarec_decode_instruction(struct opdesc *op) {
       case MIPS_GTE_CTC2:
          op->target = reg_d;
          op->op0 = reg_t;
+         break;
+      case 0x10: case 0x11: case 0x12: case 0x13: case 0x14: case 0x15: case 0x16: case 0x17:
+      case 0x18: case 0x19: case 0x1A: case 0x1B: case 0x1C: case 0x1D: case 0x1E: case 0x1F:
+         op->imm.iunsigned = imm25;
          break;
       default:
          printf("Dynarec encountered unsupported GTE instruction %08x (%x)\n",
@@ -1267,6 +1272,10 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
          break;
       case MIPS_GTE_CTC2:
          dynasm_emit_ctc2(compiler, op->op0, op->target);
+         break;
+      case 0x10: case 0x11: case 0x12: case 0x13: case 0x14: case 0x15: case 0x16: case 0x17:
+      case 0x18: case 0x19: case 0x1A: case 0x1B: case 0x1C: case 0x1D: case 0x1E: case 0x1F:
+         dynasm_emit_gte_instruction(compiler, op->imm.iunsigned);
          break;
       default:
          printf("Dynarec encountered unsupported GTE instruction %08x\n",
