@@ -1652,9 +1652,14 @@ void dynasm_emit_li(struct dynarec_compiler *compiler,
          CLEAR_REG(target);
       }
    } else {
-      MOV_U32_OFF_PR64(val,
-                       DYNAREC_STATE_REG_OFFSET(reg_t),
-                       STATE_REG);
+      if (reg_t == PSX_REG_R0){
+         /* Moving to R0 is a NOP */
+      }
+      else {
+         MOV_U32_OFF_PR64(val,
+                          DYNAREC_STATE_REG_OFFSET(reg_t),
+                          STATE_REG);
+      }
    }
 }
 
