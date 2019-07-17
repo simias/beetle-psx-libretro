@@ -3055,7 +3055,7 @@ void dynasm_emit_mfc2(struct dynarec_compiler *compiler,
    }
 
    /* Move target index to SI */
-   MOV_U32_R32(target, REG_SI);
+   MOV_U32_R32(reg_target, REG_SI);
 
    /* Move GTE register index to DX */
    MOV_U32_R32(reg_gte, REG_DX);
@@ -3063,7 +3063,7 @@ void dynasm_emit_mfc2(struct dynarec_compiler *compiler,
    /* Move instruction to AX */
    MOV_U32_R32(instr, REG_AX);
 
-   CALL(dynabi_gte_cfc2);
+   CALL(dynabi_gte_mfc2);
 
    /* Move return value into target register if not already there */
    if(target > 0){
@@ -3090,7 +3090,7 @@ void dynasm_emit_cfc2(struct dynarec_compiler *compiler,
    }
 
    /* Move target index to SI */
-   MOV_U32_R32(target, REG_SI);
+   MOV_U32_R32(reg_target, REG_SI);
 
    /* Move GTE register index to DX */
    MOV_U32_R32(reg_gte, REG_DX);
