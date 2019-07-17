@@ -167,7 +167,7 @@ struct dynarec_ret dynarec_run(struct dynarec_state *state, int32_t cycles_to_ru
 
       dynarec_check_for_interrupt(state);
 
-      DYNAREC_LOG("dynarec_run(0x%08x, %d, %08x, %08x)\n", state->pc, ret.counter, state->sr, state->cause);
+      DYNAREC_LOG("dynarec_run(pc:0x%08x, counter:%d, sr:%08x, cause:%08x)\n", state->pc, ret.counter, state->sr, state->cause);
 
       block = dynarec_find_or_compile_block(state, state->pc);
 
