@@ -373,15 +373,75 @@ dynabi_set_cop0_misc:
 
         ret
 
-.global dynabi_set_gte
-.type   dynabi_set_gte, function
-/* Called by the dynarec code when storing the value of a GTE register.
- * The value is in %esi, the register index in %edx */
-dynabi_set_gte:
+.global dynabi_gte_mfc2
+.type   dynabi_gte_mfc2, function
+/* Called by the dynarec code when running a GTE Op.
+ * The target index is in %esi, the gte_reg is in %edx, and the instruction in %eax */
+dynabi_gte_mfc2:
         /* Push counter */
         push %rcx
 
-        c_call dynarec_set_gte
+        /* Move instruction to arg 3 */
+        mov %eax, %ecx
+
+        c_call dynarec_gte_mfc2
+
+        /* Move return value to the target */
+        mov     %eax, %esi
+
+        pop %rcx
+
+        ret
+
+.global dynabi_gte_cfc2
+.type   dynabi_gte_cfc2, function
+/* Called by the dynarec code when running a GTE Op.
+ * The target index is in %esi, the gte_reg is in %edx, and the instruction in %eax */
+dynabi_gte_cfc2:
+        /* Push counter */
+        push %rcx
+
+        /* Move instruction to arg 3 */
+        mov %eax, %ecx
+
+        c_call dynarec_gte_cfc2
+
+        /* Move return value to the target */
+        mov     %eax, %esi
+
+        pop %rcx
+
+        ret
+
+.global dynabi_gte_mtc2
+.type   dynabi_gte_mtc2, function
+/* Called by the dynarec code when running a GTE Op.
+ * The source is in %esi, the gte_reg is in %edx, and the instruction in %eax */
+dynabi_gte_mtc2:
+        /* Push counter */
+        push %rcx
+
+        /* Move instruction to arg 3 */
+        mov %eax, %ecx
+
+        c_call dynarec_gte_mtc2
+
+        pop %rcx
+
+        ret
+
+.global dynabi_gte_ctc2
+.type   dynabi_gte_ctc2, function
+/* Called by the dynarec code when running a GTE Op.
+ * The source is in %esi, the gte_reg is in %edx, and the instruction in %eax */
+dynabi_gte_ctc2:
+        /* Push counter */
+        push %rcx
+
+        /* Move instruction to arg 3 */
+        mov %eax, %ecx
+
+        c_call dynarec_gte_ctc2
 
         pop %rcx
 
@@ -390,7 +450,7 @@ dynabi_set_gte:
 .global dynabi_gte_instruction
 .type   dynabi_gte_instruction, function
 /* Called by the dynarec code when running a GTE instruction.
- * The value is in %esi, the register index in %edx */
+ * The imm25 is in %esi */
 dynabi_gte_instruction:
         /* Push counter */
         push %rcx

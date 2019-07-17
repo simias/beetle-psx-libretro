@@ -240,16 +240,20 @@ extern void dynasm_emit_mtc0(struct dynarec_compiler *compiler,
                              enum PSX_COP0_REG reg_cop0);
 extern void dynasm_emit_mfc2(struct dynarec_compiler *compiler,
                              enum PSX_REG reg_target,
-                             enum PSX_GTE_REG reg_gte);
-extern void dynasm_emit_mtc2(struct dynarec_compiler *compiler,
-                             enum PSX_REG reg_source,
-                             enum PSX_GTE_REG reg_gte);
+                             enum PSX_GTE_REG reg_gte,
+                             uint32_t instr);
 extern void dynasm_emit_cfc2(struct dynarec_compiler *compiler,
                              enum PSX_REG reg_target,
-                             enum PSX_GTE_REG reg_gte);
+                             enum PSX_GTE_REG reg_gte,
+                             uint32_t instr);
+extern void dynasm_emit_mtc2(struct dynarec_compiler *compiler,
+                             enum PSX_REG reg_source,
+                             enum PSX_GTE_REG reg_gte,
+                             uint32_t instr);
 extern void dynasm_emit_ctc2(struct dynarec_compiler *compiler,
                              enum PSX_REG reg_source,
-                             enum PSX_GTE_REG reg_gte);
+                             enum PSX_GTE_REG reg_gte,
+                             uint32_t instr);
 extern void dynasm_emit_lwc2(struct dynarec_compiler *compiler,
                            enum PSX_REG reg_addr,
                            int16_t offset,

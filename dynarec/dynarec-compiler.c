@@ -1304,19 +1304,19 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
       switch ((op->instruction >> 21) & 0x1f) {
       case MIPS_GTE_MFC2:
          DYNAREC_LOG("Emitting MIPS_GTE_MFC2 0x%08x\n", op->instruction);
-         dynasm_emit_mfc2(compiler, op->target, op->op0);
+         dynasm_emit_mfc2(compiler, op->target, op->op0, op->instruction);
          break;
       case MIPS_GTE_CFC2:
          DYNAREC_LOG("Emitting MIPS_GTE_CFC2 0x%08x\n", op->instruction);
-         dynasm_emit_cfc2(compiler, op->target, op->op0);
+         dynasm_emit_cfc2(compiler, op->target, op->op0, op->instruction);
          break;
       case MIPS_GTE_MTC2:
          DYNAREC_LOG("Emitting MIPS_GTE_MTC2 0x%08x\n", op->instruction);
-         dynasm_emit_mtc2(compiler, op->op0, op->target);
+         dynasm_emit_mtc2(compiler, op->op0, op->target, op->instruction);
          break;
       case MIPS_GTE_CTC2:
          DYNAREC_LOG("Emitting MIPS_GTE_CTC2 0x%08x\n", op->instruction);
-         dynasm_emit_ctc2(compiler, op->op0, op->target);
+         dynasm_emit_ctc2(compiler, op->op0, op->target, op->instruction);
          break;
       case 0x10: case 0x11: case 0x12: case 0x13: case 0x14: case 0x15: case 0x16: case 0x17:
       case 0x18: case 0x19: case 0x1A: case 0x1B: case 0x1C: case 0x1D: case 0x1E: case 0x1F:

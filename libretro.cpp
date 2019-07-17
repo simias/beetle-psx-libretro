@@ -26,6 +26,8 @@
 
 #ifdef HAVE_DYNAREC
 # include "dynarec.h"
+# include "pgxp/pgxp_gte.h"
+# include "pgxp/pgxp_cpu.h"
 #endif // HAVE_DYNAREC
 
 #include <vector>
@@ -939,13 +941,57 @@ uint32_t MDFN_FASTCALL PSX_MemRead32(int32_t &timestamp, uint32_t A)
 extern "C" void dynarec_gte_instruction(struct dynarec_state *s,
                                       uint32_t instr) {
    DYNAREC_LOG("dynarec gte imm25 %08x\n", instr);
+   GTE_Instruction(instr);
 }
 
-/* Callback used by the dynarec to handle writes to GTE registers */
-extern "C" void dynarec_set_gte(struct dynarec_state *s,
-                                      uint32_t val,
-                                      uint32_t gte_reg) {
-   DYNAREC_LOG("dynarec gte %08x @ %d\n", val, gte_reg);
+/* Callback used by the dynarec to handle GTE MFC2 */
+extern "C" int32_t dynarec_gte_mfc2(struct dynarec_state *s,
+                                      uint32_t target,
+                                      uint32_t gte_reg,
+                                      uint32_t instr) {
+         //MFC2 - Move from Coprocessor
+         DYNAREC_LOG("dynarec gte MFC2 instruction %08x\n", instr);
+         uint32 LDValue = GTE_ReadDR(gte_reg);
+         if (PGXP_GetModes() & PGXP_MODE_GTE)
+            PGXP_GTE_MFC2(instr, LDValue, LDValue);
+         return CPU_reg[target].value;
+}
+
+/* Callback used by the dynarec to handle GTE CFC2 */
+extern "C" int32_t dynarec_gte_cfc2(struct dynarec_state *s,
+                                      uint32_t target,
+                                      uint32_t gte_reg,
+                                      uint32_t instr) {
+         //CFC2 - Move from Coprocessor
+         DYNAREC_LOG("dynarec gte CFC2 instruction %08x\n", instr);
+         uint32 LDValue = GTE_ReadCR(gte_reg);
+         if (PGXP_GetModes() & PGXP_MODE_GTE)
+            PGXP_GTE_CFC2(instr, LDValue, LDValue);
+         return CPU_reg[target].value;
+}
+
+/* Callback used by the dynarec to handle GTE MTC2 */
+extern "C" void dynarec_gte_mtc2(struct dynarec_state *s,
+                                      uint32_t source,
+                                      uint32_t gte_reg,
+                                      uint32_t instr) {
+         //MTC2 - Move from Coprocessor
+         DYNAREC_LOG("dynarec gte MTC2 instruction %08x\n", instr);
+         GTE_WriteDR(gte_reg, source);
+         if (PGXP_GetModes() & PGXP_MODE_GTE)
+            PGXP_GTE_MTC2(instr, source, source);
+}
+
+/* Callback used by the dynarec to handle GTE CTC2 */
+extern "C" void dynarec_gte_ctc2(struct dynarec_state *s,
+                                      uint32_t source,
+                                      uint32_t gte_reg,
+                                      uint32_t instr) {
+         //CTC2 - Move from Coprocessor
+         DYNAREC_LOG("dynarec gte CTC2 instruction %08x\n", instr);
+         GTE_WriteCR(gte_reg, source);
+         if (PGXP_GetModes() & PGXP_MODE_GTE)
+            PGXP_GTE_CTC2(instr, source, source);
 }
 
 /* Callback used by the dynarec to handle writes to "miscelanous" COP0

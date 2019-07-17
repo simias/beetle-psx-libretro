@@ -2728,6 +2728,7 @@ void dynasm_emit_lwc2(struct dynarec_compiler *compiler,
                     enum PSX_REG reg_target,
                     int16_t offset,
                     enum PSX_REG reg_addr) {
+//TODO: Make sure this can load from gte
    dynasm_emit_mem_rw(compiler,
                       reg_addr,
                       offset,
@@ -2740,6 +2741,7 @@ void dynasm_emit_swc2(struct dynarec_compiler *compiler,
                     enum PSX_REG reg_addr,
                     int16_t offset,
                     enum PSX_REG reg_val) {
+//TODO: Make sure this can store to gte
    dynasm_emit_mem_rw(compiler,
                       reg_addr,
                       offset,
@@ -3041,17 +3043,10 @@ void dynasm_emit_mtc0(struct dynarec_compiler *compiler,
 
 void dynasm_emit_mfc2(struct dynarec_compiler *compiler,
                       enum PSX_REG reg_target,
-                      enum PSX_GTE_REG reg_gte) {
+                      enum PSX_GTE_REG reg_gte,
+                      uint32_t instr) {
    const int target = register_location(reg_target);
    int target_tmp;
-   size_t load_off;
-
-   switch (reg_gte) {
-   default:
-      /* Other registers not handled for now, just return zeroes */
-      dynasm_emit_li(compiler, reg_target, 0);
-      return;
-   }
 
    if (target >= 0) {
       target_tmp = target;
@@ -3059,21 +3054,70 @@ void dynasm_emit_mfc2(struct dynarec_compiler *compiler,
       target_tmp = REG_AX;
    }
 
-   MOV_OFF_PR64_R32(load_off,
-                    STATE_REG,
-                    target_tmp);
+   /* Move target index to SI */
+   MOV_U32_R32(target, REG_SI);
 
-   if (target_tmp != target) {
+   /* Move GTE register index to DX */
+   MOV_U32_R32(reg_gte, REG_DX);
+
+   /* Move instruction to AX */
+   MOV_U32_R32(instr, REG_AX);
+
+   CALL(dynabi_gte_cfc2);
+
+   /* Move return value into target register if not already there */
+   if(target > 0){
+      MOV_R32_R32(REG_AX, target_tmp);
+   }
+   
+   /* Don't move into PSX_REG_R0 */
+   if (reg_target != PSX_REG_R0 && target_tmp != target) {
+      MOVE_TO_BANKED(target_tmp, reg_target);
+   }
+}
+
+void dynasm_emit_cfc2(struct dynarec_compiler *compiler,
+                      enum PSX_REG reg_target,
+                      enum PSX_GTE_REG reg_gte,
+                      uint32_t instr) {
+   const int target = register_location(reg_target);
+   int target_tmp;
+
+   if (target >= 0) {
+      target_tmp = target;
+   } else {
+      target_tmp = REG_AX;
+   }
+
+   /* Move target index to SI */
+   MOV_U32_R32(target, REG_SI);
+
+   /* Move GTE register index to DX */
+   MOV_U32_R32(reg_gte, REG_DX);
+
+   /* Move instruction to AX */
+   MOV_U32_R32(instr, REG_AX);
+
+   CALL(dynabi_gte_cfc2);
+
+   /* Move return value into target register if not already there */
+   if(target > 0){
+      MOV_R32_R32(REG_AX, target_tmp);
+   }
+
+   /* Don't move into PSX_REG_R0 */
+   if (reg_target != PSX_REG_R0 && target_tmp != target) {
       MOVE_TO_BANKED(target_tmp, reg_target);
    }
 }
 
 void dynasm_emit_mtc2(struct dynarec_compiler *compiler,
                       enum PSX_REG reg_source,
-                      enum PSX_GTE_REG reg_gte) {
+                      enum PSX_GTE_REG reg_gte,
+                      uint32_t instr) {
    int source = register_location(reg_source);
 
-   /* Move value to SI */
+   /* Move value of source register to SI */
    if (source >= 0) {
       MOV_R32_R32(source, REG_SI);
    } else {
@@ -3086,50 +3130,19 @@ void dynasm_emit_mtc2(struct dynarec_compiler *compiler,
       }
    }
 
-   switch (reg_gte) {
-   default:
-      /* Move GTE register index to DX */
-      MOV_U32_R32(reg_gte, REG_DX);
+   /* Move GTE register index to DX */
+   MOV_U32_R32(reg_gte, REG_DX);
 
-      CALL(dynabi_set_gte);
-      break;
+   /* Move instruction to AX */
+   MOV_U32_R32(instr, REG_AX);
 
-      //UNIMPLEMENTED;
-   }
-}
-
-void dynasm_emit_cfc2(struct dynarec_compiler *compiler,
-                      enum PSX_REG reg_target,
-                      enum PSX_GTE_REG reg_gte) {
-   const int target = register_location(reg_target);
-   int target_tmp;
-   size_t load_off;
-
-   switch (reg_gte) {
-   default:
-      /* Other registers not handled for now, just return zeroes */
-      dynasm_emit_li(compiler, reg_target, 0);
-      return;
-   }
-
-   if (target >= 0) {
-      target_tmp = target;
-   } else {
-      target_tmp = REG_AX;
-   }
-
-   MOV_OFF_PR64_R32(load_off,
-                    STATE_REG,
-                    target_tmp);
-
-   if (target_tmp != target) {
-      MOVE_TO_BANKED(target_tmp, reg_target);
-   }
+   CALL(dynabi_gte_mtc2);
 }
 
 void dynasm_emit_ctc2(struct dynarec_compiler *compiler,
                       enum PSX_REG reg_source,
-                      enum PSX_GTE_REG reg_gte) {
+                      enum PSX_GTE_REG reg_gte,
+                      uint32_t instr) {
    int source = register_location(reg_source);
 
    /* Move value to SI */
@@ -3145,19 +3158,18 @@ void dynasm_emit_ctc2(struct dynarec_compiler *compiler,
       }
    }
 
-   switch (reg_gte) {
-   default:
-      /* Move GTE register index to DX */
-      MOV_U32_R32(reg_gte, REG_DX);
+   /* Move GTE register index to DX */
+   MOV_U32_R32(reg_gte, REG_DX);
 
-      CALL(dynabi_set_gte);
-      break;
+   /* Move instruction to AX */
+   MOV_U32_R32(instr, REG_AX);
 
-      //UNIMPLEMENTED;
-   }
+   CALL(dynabi_gte_ctc2);
 }
 
 void dynasm_emit_gte_instruction(struct dynarec_compiler *compiler,
                                  uint32_t instr) {
+   MOV_U32_R32(instr, REG_SI);
+
    CALL(dynabi_gte_instruction);
 }

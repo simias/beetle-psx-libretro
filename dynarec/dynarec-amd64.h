@@ -21,7 +21,10 @@ extern void dynabi_device_lw(void);
 extern void dynabi_set_cop0_sr(void);
 extern void dynabi_set_cop0_cause(void);
 extern void dynabi_set_cop0_misc(void);
-extern void dynabi_set_gte(void);
+extern int32_t dynabi_gte_mfc2(void);
+extern int32_t dynabi_gte_cfc2(void);
+extern void dynabi_gte_mtc2(void);
+extern void dynabi_gte_ctc2(void);
 extern void dynabi_gte_instruction(void);
 extern void dynabi_recompile(void);
 

@@ -270,10 +270,10 @@ struct dynarec_load_val {
    uint32_t value;
 };
 
-/* Callback used by the dynarec to handle writes to GTE registers */
-extern void dynarec_set_gte(struct dynarec_state *s,
+/* Callback used by the dynarec to handle GTE Ops */
+extern int32_t dynarec_gte_op(struct dynarec_state *s,
                            uint32_t val,
-                           uint32_t gte_reg);
+                           uint32_t instr);
 
 /* Callback used by the dynarec to handle writes to "miscelanous" COP0
    registers (i.e. not SR nor CAUSE) */
