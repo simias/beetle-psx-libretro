@@ -191,6 +191,7 @@ void PS_CPU::Power(void)
 
  GTE_Power();
 
+#ifdef HAVE_DYNAREC
  /* Dynarec init */
  assert(dynarec_state == NULL);
 
@@ -200,6 +201,7 @@ void PS_CPU::Power(void)
  assert(dynarec_state != NULL);
 
  dynarec_set_pc(dynarec_state, BACKED_PC);
+#endif
 }
 
 int PS_CPU::StateAction(StateMem *sm, const unsigned load, const bool data_only)
