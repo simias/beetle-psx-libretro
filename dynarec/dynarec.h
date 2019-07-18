@@ -306,7 +306,8 @@ extern int32_t dynarec_gte_swc2(struct dynarec_state *s,
 
 /* Callback used by the dynarec to handle GTE Instruction */
 extern int32_t dynarec_gte_instruction(struct dynarec_state *s,
-                           uint32_t instr);
+                           uint32_t instr,
+                           uint32_t counter);
 
 /* Callback used by the dynarec to handle writes to "miscelanous" COP0
    registers (i.e. not SR nor CAUSE) */

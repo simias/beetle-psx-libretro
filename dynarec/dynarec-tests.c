@@ -2803,9 +2803,11 @@ int32_t dynarec_gte_swc2(struct dynarec_state *s,
 
 /* Callback used by the dynarec to handle writes to GTE MFC2 */
 int32_t dynarec_gte_instruction(struct dynarec_state *s,
-                           uint32_t instr) {
-   DYNAREC_LOG("dynarec gte instruction %08x\n", instr);
-   return 0;
+                           uint32_t instr,
+                           uint32_t counter) {
+   DYNAREC_LOG("dynarec gte instruction %08x counter:%d\n", instr, counter);
+   /* gte take at least 1 cycle */
+   return counter + 1;
 }
 
 /* Callback used by the dynarec to handle writes to "miscelanous" COP0
