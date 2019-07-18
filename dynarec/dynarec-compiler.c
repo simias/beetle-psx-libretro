@@ -36,8 +36,8 @@ struct opdesc {
    enum PSX_REG op0;
    enum PSX_REG op1;
    union {
-      uint32_t isigned;
-      int32_t  iunsigned;
+      int32_t isigned;
+      uint32_t  iunsigned;
    } imm;
 };
 
