@@ -918,6 +918,8 @@ static void emit_alu_u32_off_pr64(struct dynarec_compiler *compiler,
    emit_alu_u32_off_pr64(compiler, 0x00, (_v), (_o), (_b))
 #define OR_U32_OFF_PR64(_v, _o, _b)                             \
    emit_alu_u32_off_pr64(compiler, 0x08, (_v), (_o), (_b))
+#define XOR_U32_OFF_PR64(_v, _o, _b)                             \
+   emit_alu_u32_off_pr64(compiler, 0x30, (_v), (_o), (_b))
 #define AND_U32_OFF_PR64(_v, _o, _b)                            \
    emit_alu_u32_off_pr64(compiler, 0x20, (_v), (_o), (_b))
 #define CMP_U32_OFF_PR64(_v, _o, _b)                            \
@@ -2148,6 +2150,49 @@ void dynasm_emit_ori(struct dynarec_compiler *compiler,
       }
 
       OR_U32_R32(val, tmp_target);
+
+      if (target != tmp_target) {
+         MOV_R32_OFF_PR64(tmp_target,
+                          DYNAREC_STATE_REG_OFFSET(reg_t),
+                          STATE_REG);
+      }
+   }
+}
+
+void dynasm_emit_xori(struct dynarec_compiler *compiler,
+                     enum PSX_REG reg_t,
+                     enum PSX_REG reg_s,
+                     uint32_t val) {
+   const int target = register_location(reg_t);
+   const int source = register_location(reg_s);
+
+   if (reg_t == reg_s) {
+      /* Shortcut when we're and'ing a register with itself */
+      if (target >= 0) {
+         XOR_U32_R32(val, target);
+      } else {
+         XOR_U32_OFF_PR64(val,
+                         DYNAREC_STATE_REG_OFFSET(reg_t),
+                         STATE_REG);
+      }
+   } else {
+      int tmp_target;
+
+      if (target >= 0) {
+         tmp_target = target;
+      } else {
+         tmp_target = REG_AX;
+      }
+
+      if (source >= 0) {
+         MOV_R32_R32(source, tmp_target);
+      } else {
+         MOV_OFF_PR64_R32(DYNAREC_STATE_REG_OFFSET(reg_s),
+                          STATE_REG,
+                          tmp_target);
+      }
+
+      XOR_U32_R32(val, tmp_target);
 
       if (target != tmp_target) {
          MOV_R32_OFF_PR64(tmp_target,

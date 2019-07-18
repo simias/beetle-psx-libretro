@@ -364,6 +364,30 @@ static void emit_ori(struct dynarec_compiler *compiler,
    dynasm_emit_ori(compiler, reg_target, reg_source, imm);
 }
 
+static void emit_xori(struct dynarec_compiler *compiler,
+                     enum PSX_REG reg_target,
+                     enum PSX_REG reg_source,
+                     uint16_t imm) {
+   if (reg_target == 0) {
+      /* NOP */
+      return;
+   }
+
+   if (reg_source == 0) {
+      dynasm_emit_li(compiler, reg_target, imm);
+      return;
+   }
+
+   if (imm == 0) {
+      if (reg_target != reg_source) {
+         dynasm_emit_mov(compiler, reg_target, reg_source);
+      }
+      return;
+   }
+
+   dynasm_emit_xori(compiler, reg_target, reg_source, imm);
+}
+
 static void emit_add(struct dynarec_compiler *compiler,
                      enum PSX_REG reg_target,
                      enum PSX_REG reg_op0,
@@ -870,6 +894,7 @@ static void dynarec_decode_instruction(struct opdesc *op) {
       break;
    case MIPS_OP_ANDI:
    case MIPS_OP_ORI:
+   case MIPS_OP_XORI:
       op->target = reg_t;
       op->op0    = reg_s;
       op->imm.iunsigned = imm;
@@ -1270,6 +1295,10 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
    case MIPS_OP_ORI:
       DYNAREC_LOG("Emitting MIPS_OP_ORI 0x%08x\n", op->instruction);
       emit_ori(compiler, op->target, op->op0, op->imm.iunsigned);
+      break;
+   case MIPS_OP_XORI:
+      DYNAREC_LOG("Emitting MIPS_OP_XORI 0x%08x\n", op->instruction);
+      emit_xori(compiler, op->target, op->op0, op->imm.iunsigned);
       break;
    case MIPS_OP_LUI:
       DYNAREC_LOG("Emitting MIPS_OP_LUI 0x%08x\n", op->instruction);
