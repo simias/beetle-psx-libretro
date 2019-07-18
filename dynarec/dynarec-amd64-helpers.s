@@ -265,6 +265,8 @@ dynabi_exception:
         /* TODO */
         int $3
 
+        ret /* useless return so debugger can still point to the correct function */
+
 .global dynabi_rfe
 .type   dynabi_rfe, function
 /* Return From Exception */
