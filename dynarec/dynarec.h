@@ -270,9 +270,32 @@ struct dynarec_load_val {
    uint32_t value;
 };
 
-/* Callback used by the dynarec to handle GTE Ops */
-extern int32_t dynarec_gte_op(struct dynarec_state *s,
-                           uint32_t val,
+/* Callback used by the dynarec to handle GTE MFC2 */
+extern int32_t dynarec_gte_mfc2(struct dynarec_state *s,
+                           uint32_t reg_target,
+                           uint32_t reg_gte,
+                           uint32_t instr);
+
+/* Callback used by the dynarec to handle GTE CFC2 */
+extern int32_t dynarec_gte_cfc2(struct dynarec_state *s,
+                           uint32_t reg_target,
+                           uint32_t reg_gte,
+                           uint32_t instr);
+
+/* Callback used by the dynarec to handle GTE MTC2 */
+extern void dynarec_gte_mtc2(struct dynarec_state *s,
+                           uint32_t source,
+                           uint32_t reg_gte,
+                           uint32_t instr);
+
+/* Callback used by the dynarec to handle GTE MFC2 */
+extern void dynarec_gte_ctc2(struct dynarec_state *s,
+                           uint32_t source,
+                           uint32_t reg_gte,
+                           uint32_t instr);
+
+/* Callback used by the dynarec to handle GTE Instruction */
+extern int32_t dynarec_gte_instruction(struct dynarec_state *s,
                            uint32_t instr);
 
 /* Callback used by the dynarec to handle writes to "miscelanous" COP0

@@ -2750,6 +2750,47 @@ int main() {
  * Dummy emulator callbacks *
  ****************************/
 
+/* Callback used by the dynarec to handle writes to GTE MFC2 */
+int32_t dynarec_gte_mfc2(struct dynarec_state *s,
+                           uint32_t reg_target,
+                           uint32_t reg_gte,
+                           uint32_t instr) {
+   DYNAREC_LOG("dynarec gte mfc2 %08x @ %d\n", instr, reg_gte);
+   return 0;
+}
+
+/* Callback used by the dynarec to handle writes to GTE CFC2 */
+int32_t dynarec_gte_cfc2(struct dynarec_state *s,
+                           uint32_t reg_target,
+                           uint32_t reg_gte,
+                           uint32_t instr) {
+   DYNAREC_LOG("dynarec gte cfc2 %08x @ %d\n", instr, reg_gte);
+   return 0;
+}
+
+/* Callback used by the dynarec to handle writes to GTE MTC2 */
+void dynarec_gte_mtc2(struct dynarec_state *s,
+                           uint32_t source,
+                           uint32_t reg_gte,
+                           uint32_t instr) {
+   DYNAREC_LOG("dynarec gte mtc2 %08x @ %d\n", instr, reg_gte);
+}
+
+/* Callback used by the dynarec to handle writes to GTE CTC2 */
+void dynarec_gte_ctc2(struct dynarec_state *s,
+                           uint32_t source,
+                           uint32_t reg_gte,
+                           uint32_t instr) {
+   DYNAREC_LOG("dynarec gte ctc2 %08x @ %d\n", instr, reg_gte);
+}
+
+/* Callback used by the dynarec to handle writes to GTE MFC2 */
+int32_t dynarec_gte_instruction(struct dynarec_state *s,
+                           uint32_t instr) {
+   DYNAREC_LOG("dynarec gte instruction %08x\n", instr);
+   return 0;
+}
+
 /* Callback used by the dynarec to handle writes to "miscelanous" COP0
    registers (i.e. not SR nor CAUSE) */
 void dynarec_set_cop0_misc(struct dynarec_state *s,
