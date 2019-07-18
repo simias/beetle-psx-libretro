@@ -2737,6 +2737,7 @@ int main() {
    RUN_TEST(test_lw);
    RUN_TEST(test_lwl_lwr);
    RUN_TEST(test_cache_isolation);
+   //TODO add tests for gte?: mtc2,mfc2,ctc2,cfc2,swc2,lwc2,imm25
 
    printf("Tests done, results: %u/%u\n", nsuccess, ntests);
 
@@ -2782,6 +2783,22 @@ void dynarec_gte_ctc2(struct dynarec_state *s,
                            uint32_t reg_gte,
                            uint32_t instr) {
    DYNAREC_LOG("dynarec gte ctc2 %08x @ %d\n", instr, reg_gte);
+}
+
+/* Callback used by the dynarec to handle writes to GTE LWC2 */
+int32_t dynarec_gte_lwc2(struct dynarec_state *s,
+                           uint32_t instr,
+                           uint32_t counter) {
+   DYNAREC_LOG("dynarec gte lwc2 %08x counter:%d\n", instr, counter);
+   return 0;
+}
+
+/* Callback used by the dynarec to handle writes to GTE SWC2 */
+int32_t dynarec_gte_swc2(struct dynarec_state *s,
+                           uint32_t instr,
+                           uint32_t counter) {
+   DYNAREC_LOG("dynarec gte swc2 %08x counter:%d\n", instr, counter);
+   return 0;
 }
 
 /* Callback used by the dynarec to handle writes to GTE MFC2 */

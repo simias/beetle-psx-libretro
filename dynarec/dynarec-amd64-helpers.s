@@ -377,7 +377,7 @@ dynabi_set_cop0_misc:
 
 .global dynabi_gte_mfc2
 .type   dynabi_gte_mfc2, function
-/* Called by the dynarec code when running a GTE Op.
+/* Called by the dynarec code when running a GTE MFC2.
  * The target index is in %esi, the gte_reg is in %edx, and the instruction in %eax */
 dynabi_gte_mfc2:
         /* Push counter */
@@ -397,7 +397,7 @@ dynabi_gte_mfc2:
 
 .global dynabi_gte_cfc2
 .type   dynabi_gte_cfc2, function
-/* Called by the dynarec code when running a GTE Op.
+/* Called by the dynarec code when running a GTE CFC2.
  * The target index is in %esi, the gte_reg is in %edx, and the instruction in %eax */
 dynabi_gte_cfc2:
         /* Push counter */
@@ -417,7 +417,7 @@ dynabi_gte_cfc2:
 
 .global dynabi_gte_mtc2
 .type   dynabi_gte_mtc2, function
-/* Called by the dynarec code when running a GTE Op.
+/* Called by the dynarec code when running a GTE MTC2.
  * The source is in %esi, the gte_reg is in %edx, and the instruction in %eax */
 dynabi_gte_mtc2:
         /* Push counter */
@@ -434,7 +434,7 @@ dynabi_gte_mtc2:
 
 .global dynabi_gte_ctc2
 .type   dynabi_gte_ctc2, function
-/* Called by the dynarec code when running a GTE Op.
+/* Called by the dynarec code when running a GTE CTC2.
  * The source is in %esi, the gte_reg is in %edx, and the instruction in %eax */
 dynabi_gte_ctc2:
         /* Push counter */
@@ -446,6 +446,36 @@ dynabi_gte_ctc2:
         c_call dynarec_gte_ctc2
 
         pop %rcx
+
+        ret
+
+.global dynabi_gte_lwc2
+.type   dynabi_gte_lwc2, function
+/* Called by the dynarec code when running a GTE LWC2.
+ * The instruction is in %esi */
+dynabi_gte_lwc2:
+        /* Move counter to arg2
+        mov %ecx, %edx
+
+        c_call dynarec_gte_lwc2
+
+        /* Move return value to the counter */
+        mov     %eax, %ecx
+
+        ret
+
+.global dynabi_gte_swc2
+.type   dynabi_gte_swc2, function
+/* Called by the dynarec code when running a GTE Op.
+ * The instruction is in %esi */
+dynabi_gte_swc2:
+        /* Move counter to arg2
+        mov %ecx, %edx
+
+        c_call dynarec_gte_swc2
+
+        /* Move return value to the counter */
+        mov     %eax, %ecx
 
         ret
 

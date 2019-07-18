@@ -2724,31 +2724,6 @@ void dynasm_emit_lw_noalign(struct dynarec_compiler *compiler,
                       DIR_LOAD_UNSIGNED, WIDTH_WORD, false);
 }
 
-void dynasm_emit_lwc2(struct dynarec_compiler *compiler,
-                    enum PSX_REG reg_target,
-                    int16_t offset,
-                    enum PSX_REG reg_addr) {
-//TODO: Make sure this can load from gte
-   dynasm_emit_mem_rw(compiler,
-                      reg_addr,
-                      offset,
-                      reg_target,
-                      DIR_LOAD_SIGNED, WIDTH_HALFWORD, true);
-}
-
-
-void dynasm_emit_swc2(struct dynarec_compiler *compiler,
-                    enum PSX_REG reg_addr,
-                    int16_t offset,
-                    enum PSX_REG reg_val) {
-//TODO: Make sure this can store to gte
-   dynasm_emit_mem_rw(compiler,
-                      reg_addr,
-                      offset,
-                      reg_val,
-                      DIR_STORE, WIDTH_HALFWORD, true);
-}
-
 static uint8_t emit_branch_cond(struct dynarec_compiler *compiler,
                                 enum PSX_REG reg_a,
                                 enum PSX_REG reg_b,
@@ -3165,6 +3140,22 @@ void dynasm_emit_ctc2(struct dynarec_compiler *compiler,
    MOV_U32_R32(instr, REG_AX);
 
    CALL(dynabi_gte_ctc2);
+}
+
+void dynasm_emit_lwc2(struct dynarec_compiler *compiler,
+                    int32_t instr) {
+   /* Move instr to SI */
+   MOV_U32_R32(instr, REG_SI);
+
+   CALL(dynabi_gte_lwc2);
+}
+
+void dynasm_emit_swc2(struct dynarec_compiler *compiler,
+                    int32_t instr) {
+   /* Move instr to SI */
+   MOV_U32_R32(instr, REG_SI);
+
+   CALL(dynabi_gte_swc2);
 }
 
 void dynasm_emit_gte_instruction(struct dynarec_compiler *compiler,

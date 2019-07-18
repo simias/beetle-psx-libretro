@@ -1363,11 +1363,11 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
       break;
    case MIPS_OP_LWC2:
       DYNAREC_LOG("Emitting MIPS_OP_LWC2 0x%08x\n", op->instruction);
-      dynasm_emit_lwc2(compiler, op->op0, op->imm.iunsigned, op->op1);
+      dynasm_emit_lwc2(compiler, op->instruction);
       break;
    case MIPS_OP_SWC2:
       DYNAREC_LOG("Emitting MIPS_OP_SWC2 0x%08x\n", op->instruction);
-      dynasm_emit_swc2(compiler, op->op0, op->imm.iunsigned, op->op1);
+      dynasm_emit_swc2(compiler, op->instruction);
       break;
    default:
       printf("Dynarec encountered unsupported instruction %08x\n",

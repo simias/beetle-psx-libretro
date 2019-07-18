@@ -25,6 +25,8 @@ extern void dynabi_gte_mfc2(void);
 extern void dynabi_gte_cfc2(void);
 extern void dynabi_gte_mtc2(void);
 extern void dynabi_gte_ctc2(void);
+extern void dynabi_gte_lwc2(void);
+extern void dynabi_gte_swc2(void);
 extern void dynabi_gte_instruction(void);
 extern void dynabi_recompile(void);
 
