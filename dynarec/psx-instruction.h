@@ -196,7 +196,7 @@ enum psx_cpu_exception {
 #define MIPS_OP_SLTIU          0x0BU
 #define MIPS_OP_ANDI           0x0CU
 #define MIPS_OP_ORI            0x0DU
-#define MIPS_OP_XORI            0x0EU
+#define MIPS_OP_XORI           0x0EU
 #define MIPS_OP_LUI            0x0FU
 #define MIPS_OP_COP0           0x10U
 # define MIPS_COP_MFC           0x00U
