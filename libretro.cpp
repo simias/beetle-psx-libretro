@@ -955,7 +955,7 @@ extern "C" int32_t dynarec_gte_mfc2(struct dynarec_state *s,
    uint32 LDValue = GTE_ReadDR(gte_reg);
    if (PGXP_GetModes() & PGXP_MODE_GTE)
       PGXP_GTE_MFC2(instr, LDValue, LDValue);
-   return CPU_reg[target].value;
+   return LDValue;
 }
 
 /* Callback used by the dynarec to handle GTE CFC2 */
@@ -968,7 +968,7 @@ extern "C" int32_t dynarec_gte_cfc2(struct dynarec_state *s,
    uint32 LDValue = GTE_ReadCR(gte_reg);
    if (PGXP_GetModes() & PGXP_MODE_GTE)
       PGXP_GTE_CFC2(instr, LDValue, LDValue);
-   return CPU_reg[target].value;
+   return LDValue;
 }
 
 /* Callback used by the dynarec to handle GTE MTC2 */
