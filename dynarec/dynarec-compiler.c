@@ -986,13 +986,13 @@ static void dynarec_decode_instruction(struct opdesc *op) {
       op->imm.iunsigned = imm;
       op->type = OP_STORE_NOALIGN;
       break;
-   case MIPS_OP_LWC2:
+   case MIPS_GTE_LWC2:
       op->op0 = reg_s;
       op->op1 = reg_t;
       op->imm.iunsigned = imm;
       op->type = OP_LOAD;
       break;
-   case MIPS_OP_SWC2:
+   case MIPS_GTE_SWC2:
       op->op0 = reg_s;
       op->op1 = reg_t;
       op->imm.iunsigned = imm;
@@ -1390,13 +1390,13 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
       DYNAREC_LOG("Emitting MIPS_OP_SW 0x%08x\n", op->instruction);
       dynasm_emit_sw(compiler, op->op0, op->imm.iunsigned, op->op1);
       break;
-   case MIPS_OP_LWC2:
-      DYNAREC_LOG("Emitting MIPS_OP_LWC2 0x%08x\n", op->instruction);
-      dynasm_emit_lwc2(compiler, op->instruction);
+   case MIPS_GTE_LWC2:
+      DYNAREC_LOG("Emitting MIPS_GTE_LWC2 0x%08x\n", op->instruction);
+      dynasm_emit_lwc2(compiler, op->op0, op->imm.iunsigned, op->instruction);
       break;
-   case MIPS_OP_SWC2:
-      DYNAREC_LOG("Emitting MIPS_OP_SWC2 0x%08x\n", op->instruction);
-      dynasm_emit_swc2(compiler, op->instruction);
+   case MIPS_GTE_SWC2:
+      DYNAREC_LOG("Emitting MIPS_GTE_SWC2 0x%08x\n", op->instruction);
+      dynasm_emit_swc2(compiler, op->op0, op->imm.iunsigned, op->instruction);
       break;
    default:
       printf("Dynarec encountered unsupported instruction %08x\n",

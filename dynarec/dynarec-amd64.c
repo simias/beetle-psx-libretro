@@ -3188,17 +3188,53 @@ void dynasm_emit_ctc2(struct dynarec_compiler *compiler,
 }
 
 void dynasm_emit_lwc2(struct dynarec_compiler *compiler,
-                    int32_t instr) {
-   /* Move instr to SI */
-   MOV_U32_R32(instr, REG_SI);
+                    enum PSX_REG reg_source,
+                    uint16_t imm,
+                    uint32_t instr) {
+   int source = register_location(reg_source);
+
+   /* Get addr(rs+imm) and move to SI */
+   if (source >= 0) {
+      MOV_R32_R32(source, REG_SI);
+   } else {
+      if (reg_source == 0) {
+         CLEAR_REG(REG_SI);
+      } else {
+         MOV_OFF_PR64_R32(DYNAREC_STATE_REG_OFFSET(reg_source),
+                          STATE_REG,
+                          REG_SI);
+      }
+   }
+   ADD_U32_R32(imm,REG_SI);
+
+   /* Move instr to DX */
+   MOV_U32_R32(instr, REG_DX);
 
    CALL(dynabi_gte_lwc2);
 }
 
 void dynasm_emit_swc2(struct dynarec_compiler *compiler,
-                    int32_t instr) {
-   /* Move instr to SI */
-   MOV_U32_R32(instr, REG_SI);
+                    enum PSX_REG reg_source,
+                    uint16_t imm,
+                    uint32_t instr) {
+   int source = register_location(reg_source);
+
+   /* Get addr(rs+imm) and move to SI */
+   if (source >= 0) {
+      MOV_R32_R32(source, REG_SI);
+   } else {
+      if (reg_source == 0) {
+         CLEAR_REG(REG_SI);
+      } else {
+         MOV_OFF_PR64_R32(DYNAREC_STATE_REG_OFFSET(reg_source),
+                          STATE_REG,
+                          REG_SI);
+      }
+   }
+   ADD_U32_R32(imm,REG_SI);
+
+   /* Move instr to DX */
+   MOV_U32_R32(instr, REG_DX);
 
    CALL(dynabi_gte_swc2);
 }

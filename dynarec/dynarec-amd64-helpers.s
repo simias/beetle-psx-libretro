@@ -452,11 +452,8 @@ dynabi_gte_ctc2:
 .global dynabi_gte_lwc2
 .type   dynabi_gte_lwc2, function
 /* Called by the dynarec code when running a GTE LWC2.
- * The instruction is in %esi */
+ * The address is in %esi, instruction in %edx*/
 dynabi_gte_lwc2:
-        /* Move counter to arg2
-        mov %ecx, %edx
-
         c_call dynarec_gte_lwc2
 
         /* Move return value to the counter */
@@ -467,11 +464,8 @@ dynabi_gte_lwc2:
 .global dynabi_gte_swc2
 .type   dynabi_gte_swc2, function
 /* Called by the dynarec code when running a GTE Op.
- * The instruction is in %esi */
+ * The address is in %esi, instruction in %edx*/
 dynabi_gte_swc2:
-        /* Move counter to arg2
-        mov %ecx, %edx
-
         c_call dynarec_gte_swc2
 
         /* Move return value to the counter */

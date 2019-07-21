@@ -2787,17 +2787,19 @@ void dynarec_gte_ctc2(struct dynarec_state *s,
 
 /* Callback used by the dynarec to handle writes to GTE LWC2 */
 int32_t dynarec_gte_lwc2(struct dynarec_state *s,
+                           uint32_t addr,
                            uint32_t instr,
                            uint32_t counter) {
-   DYNAREC_LOG("dynarec gte lwc2 %08x counter:%d\n", instr, counter);
+   DYNAREC_LOG("dynarec gte lwc2 %08x @ %d counter:%d\n", instr, addr, counter);
    return 0;
 }
 
 /* Callback used by the dynarec to handle writes to GTE SWC2 */
 int32_t dynarec_gte_swc2(struct dynarec_state *s,
+                           uint32_t addr,
                            uint32_t instr,
                            uint32_t counter) {
-   DYNAREC_LOG("dynarec gte swc2 %08x counter:%d\n", instr, counter);
+   DYNAREC_LOG("dynarec gte swc2 %08x @ %d counter:%d\n", instr, addr, counter);
    return 0;
 }
 

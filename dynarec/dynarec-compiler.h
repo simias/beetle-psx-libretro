@@ -259,9 +259,13 @@ extern void dynasm_emit_ctc2(struct dynarec_compiler *compiler,
                              enum PSX_GTE_REG reg_gte,
                              uint32_t instr);
 extern void dynasm_emit_lwc2(struct dynarec_compiler *compiler,
-                           int32_t instr);
+                           enum PSX_REG reg_source,
+                           uint16_t imm,
+                           uint32_t instr);
 extern void dynasm_emit_swc2(struct dynarec_compiler *compiler,
-                           int32_t instr);
+                           enum PSX_REG reg_source,
+                           uint16_t imm,
+                           uint32_t instr);
 extern void dynasm_emit_gte_instruction(struct dynarec_compiler *compiler,
                            uint32_t imm25);
 

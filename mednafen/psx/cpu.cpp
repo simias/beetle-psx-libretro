@@ -2747,13 +2747,13 @@ void PS_CPU::SetCPUHook(void (*cpuh)(const pscpu_timestamp_t timestamp, uint32 p
  CPUHook = cpuh;
 }
 
+#ifndef HAVE_DYNAREC
 uint32 PS_CPU::GetRegister(unsigned int which, char *special, const uint32 special_len)
 {
  uint32 ret = 0;
 
  if(which >= GSREG_GPR && which < (GSREG_GPR + 32))
   ret = GPR[which];
-#ifndef HAVE_DYNAREC
  else switch(which)
  {
   case GSREG_PC:
@@ -2825,9 +2825,9 @@ uint32 PS_CPU::GetRegister(unsigned int which, char *special, const uint32 speci
 
  }
 
-#endif
  return(ret);
 }
+#endif
 
 #ifndef HAVE_DYNAREC
 void PS_CPU::SetRegister(unsigned int which, uint32 value)

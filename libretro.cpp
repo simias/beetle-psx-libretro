@@ -997,17 +997,13 @@ extern "C" void dynarec_gte_ctc2(struct dynarec_state *s,
 
 /* Callback used by the dynarec to handle GTE LWC2 */
 extern "C" int32_t dynarec_gte_lwc2(struct dynarec_state *s,
+                                      uint32_t addr,
                                       uint32_t instr,
                                       uint32_t counter) {
-   uint16_t imm = (uint16_t) instr;
    int32_t timestamp = CPU->GetEventNT() - counter;
-   uint32_t rs = (instr >> 21) & 0x1F;
    uint32_t rt = (instr >> 16) & 0x1F;
-   //GPR Registers are Registers 0-31
-   uint32_t addr = CPU->GetRegister(rs,0,0) + imm;
-   struct dynarec_load_val r;
 
-   DYNAREC_LOG("dynarec gte lwc2 %08x @ (%d) counter:%d\n", imm, addr, counter);
+   DYNAREC_LOG("dynarec gte lwc2 %08x @ %d\n", instr, addr);
    uint32_t value = PSX_MemRead32(timestamp, addr);
    GTE_WriteDR(rt, value);
 
@@ -1018,16 +1014,13 @@ extern "C" int32_t dynarec_gte_lwc2(struct dynarec_state *s,
 
 /* Callback used by the dynarec to handle GTE SWC2 */
 extern "C" int32_t dynarec_gte_swc2(struct dynarec_state *s,
+                                      uint32_t addr,
                                       uint32_t instr,
                                       uint32_t counter) {
-   uint16_t imm = (uint16_t) instr;
    int32_t timestamp = CPU->GetEventNT() - counter;
-   uint32_t rs = (instr >> 21) & 0x1F;
    uint32_t rt = (instr >> 16) & 0x1F;
-   //GPR Registers are Registers 0-31
-   uint32_t addr = CPU->GetRegister(rs,0,0) + imm;
 
-   DYNAREC_LOG("dynarec gte swc2 imm %08x @ (%d) counter:%d\n", imm, addr, counter);
+   DYNAREC_LOG("dynarec gte swc2 %08x @ %d\n", instr, addr);
    PSX_MemWrite32(timestamp, addr, GTE_ReadDR(rt));
 
    if (PGXP_GetModes() & PGXP_MODE_GTE)
