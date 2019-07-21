@@ -2560,13 +2560,13 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
          case DIR_STORE:
             switch (width) {
             case WIDTH_BYTE:
-               MOV_R8_PR64(value_r, REG_DX);
+               MOV_R8_PR64(value_r, REG_AX);
                break;
             case WIDTH_HALFWORD:
-               MOV_R16_PR64(value_r, REG_DX);
+               MOV_R16_PR64(value_r, REG_AX);
                break;
             case WIDTH_WORD:
-               MOV_R32_PR64(value_r, REG_DX);
+               MOV_R32_PR64(value_r, REG_AX);
                break;
             }
             break;
@@ -2574,20 +2574,20 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
             switch (width) {
             case WIDTH_BYTE:
                if (dir == DIR_LOAD_SIGNED) {
-                  MOVSBL_PR64_R32(REG_DX, value_r);
+                  MOVSBL_PR64_R32(REG_AX, value_r);
                } else {
-                  MOVZBL_PR64_R32(REG_DX, value_r);
+                  MOVZBL_PR64_R32(REG_AX, value_r);
                }
                break;
             case WIDTH_HALFWORD:
                if (dir == DIR_LOAD_SIGNED) {
-                  MOVSWL_PR64_R32(REG_DX, value_r);
+                  MOVSWL_PR64_R32(REG_AX, value_r);
                } else {
-                  MOVZWL_PR64_R32(REG_DX, value_r);
+                  MOVZWL_PR64_R32(REG_AX, value_r);
                }
                break;
             case WIDTH_WORD:
-               MOV_PR64_R32(REG_DX, value_r);
+               MOV_PR64_R32(REG_AX, value_r);
                break;
             }
 
