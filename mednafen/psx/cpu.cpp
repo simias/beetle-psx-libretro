@@ -121,25 +121,25 @@ void PS_CPU::SetFastMap(void *region_mem, uint32 region_address, uint32 region_s
  }
 }
 
-#ifndef HAVE_DYNAREC
 INLINE void PS_CPU::RecalcIPCache(void)
 {
  IPCache = 0;
 
+ #ifdef HAVE_DYNAREC
+ if((dynarec_state->sr & dynarec_state->cause & 0xFF00) && (dynarec_state->sr & 1))
+ #else
  if((CP0.SR & CP0.CAUSE & 0xFF00) && (CP0.SR & 1))
+ #endif
   IPCache = 0x80;
 
  if(Halted)
   IPCache = 0x80;
 }
-#endif
 
 void PS_CPU::SetHalt(bool status)
 {
  Halted = status;
-#ifndef HAVE_DYNAREC
  RecalcIPCache();
-#endif
 }
 
 void PS_CPU::Power(void)
@@ -160,6 +160,18 @@ void PS_CPU::Power(void)
  BACKED_new_PC = BACKED_PC + 4;
  BDBT = 0;
 
+#ifdef HAVE_DYNAREC
+ /* Dynarec init */
+ assert(dynarec_state == NULL);
+
+ dynarec_state = dynarec_init((uint8_t *)MainRAM.data32,
+                              (uint8_t *)ScratchRAM.data32,
+                              (uint8_t *)BIOSROM->data32);
+ assert(dynarec_state != NULL);
+
+ dynarec_set_pc(dynarec_state, BACKED_PC);
+#endif
+
  BACKED_LDWhich = 0x20;
  BACKED_LDValue = 0;
  LDAbsorb = 0;
@@ -167,14 +179,17 @@ void PS_CPU::Power(void)
  ReadAbsorbWhich = 0;
  ReadFudge = 0;
 
-#ifndef HAVE_DYNAREC
+#ifdef HAVE_DYNAREC
+ dynarec_state->sr |= (1 << 22);	// BEV
+ dynarec_state->sr |= (1 << 21);	// TS
+#else
  CP0.SR |= (1 << 22);	// BEV
  CP0.SR |= (1 << 21);	// TS
 
  CP0.PRID = 0x2;
+#endif
 
  RecalcIPCache();
-#endif
 
  BIU = 0;
 
@@ -190,18 +205,6 @@ void PS_CPU::Power(void)
  }
 
  GTE_Power();
-
-#ifdef HAVE_DYNAREC
- /* Dynarec init */
- assert(dynarec_state == NULL);
-
- dynarec_state = dynarec_init((uint8_t *)MainRAM.data32,
-                              (uint8_t *)ScratchRAM.data32,
-                              (uint8_t *)BIOSROM->data32);
- assert(dynarec_state != NULL);
-
- dynarec_set_pc(dynarec_state, BACKED_PC);
-#endif
 }
 
 int PS_CPU::StateAction(StateMem *sm, const unsigned load, const bool data_only)
@@ -274,19 +277,24 @@ int PS_CPU::StateAction(StateMem *sm, const unsigned load, const bool data_only)
  return ret;
 }
 
-#ifndef HAVE_DYNAREC
 void PS_CPU::AssertIRQ(unsigned which, bool asserted)
 {
  assert(which <= 5);
 
+#ifdef HAVE_DYNAREC
+ dynarec_state->cause &= ~(1 << (10 + which));
+
+ if(asserted)
+  dynarec_state->cause |= 1 << (10 + which);
+#else
  CP0.CAUSE &= ~(1 << (10 + which));
 
  if(asserted)
   CP0.CAUSE |= 1 << (10 + which);
+#endif
 
  RecalcIPCache();
 }
-#endif /* HAVE_DYNAREC */
 
 void PS_CPU::SetBIU(uint32 val)
 {
@@ -445,10 +453,10 @@ INLINE T PS_CPU::ReadMemory(pscpu_timestamp_t &timestamp, uint32 address, bool D
 template<typename T>
 INLINE void PS_CPU::WriteMemory(pscpu_timestamp_t &timestamp, uint32 address, uint32 value, bool DS24)
 {
-#ifndef HAVE_DYNAREC
- if(MDFN_LIKELY(!(CP0.SR & 0x10000)))
+#ifdef HAVE_DYNAREC
+ if(MDFN_LIKELY(!(dynarec_state->sr & 0x10000)))
 #else
- if (1)
+ if(MDFN_LIKELY(!(CP0.SR & 0x10000)))
 #endif
  {
   address &= addr_mask[address >> 29];
@@ -2707,18 +2715,6 @@ pscpu_timestamp_t PS_CPU::RunDynarec(int32_t timestamp)
    ACTIVE_TO_BACKING;
 
    return timestamp;
-}
-
-void PS_CPU::AssertIRQ(unsigned which, bool asserted)
-{
-   uint32_t mask = 1U << (10 + which);
-   assert(which <= 5);
-
-   if (asserted) {
-      dynarec_state->cause  |= mask;
-   } else {
-      dynarec_state->cause  &= ~mask;
-   }
 }
 #endif /* HAVE_DYNAREC */
 
