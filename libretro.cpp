@@ -940,7 +940,7 @@ uint32_t MDFN_FASTCALL PSX_MemRead32(int32_t &timestamp, uint32_t A)
 /* Callback used by the dynarec to handle GTE instructions */
 extern "C" int32_t dynarec_gte_instruction(struct dynarec_state *s,
                                       uint32_t instr,
-                                      uint32_t counter) {
+                                      int32_t counter) {
    DYNAREC_LOG("dynarec gte imm25 %08x counter:%d\n", instr, counter);
    return counter + GTE_Instruction(instr);
 }
@@ -999,7 +999,7 @@ extern "C" void dynarec_gte_ctc2(struct dynarec_state *s,
 extern "C" int32_t dynarec_gte_lwc2(struct dynarec_state *s,
                                       uint32_t addr,
                                       uint32_t instr,
-                                      uint32_t counter) {
+                                      int32_t counter) {
    int32_t timestamp = CPU->GetEventNT() - counter;
    uint32_t rt = (instr >> 16) & 0x1F;
 
@@ -1016,7 +1016,7 @@ extern "C" int32_t dynarec_gte_lwc2(struct dynarec_state *s,
 extern "C" int32_t dynarec_gte_swc2(struct dynarec_state *s,
                                       uint32_t addr,
                                       uint32_t instr,
-                                      uint32_t counter) {
+                                      int32_t counter) {
    int32_t timestamp = CPU->GetEventNT() - counter;
    uint32_t rt = (instr >> 16) & 0x1F;
 
