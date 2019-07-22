@@ -483,7 +483,4 @@ dynabi_gte_instruction:
 
         c_call dynarec_gte_instruction
 
-        /* Move return value to the counter */
-        mov     %eax, %ecx
-
         ret

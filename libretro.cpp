@@ -942,7 +942,9 @@ extern "C" int32_t dynarec_gte_instruction(struct dynarec_state *s,
                                       uint32_t instr,
                                       int32_t counter) {
    DYNAREC_LOG("dynarec gte imm25 %08x counter:%d\n", instr, counter);
-   return counter + GTE_Instruction(instr);
+
+   /* tell dynarec how many cycles before a new GTE Read or GTE Instruction can continue */
+   return GTE_Instruction(instr);
 }
 
 /* Callback used by the dynarec to handle GTE MFC2 */
