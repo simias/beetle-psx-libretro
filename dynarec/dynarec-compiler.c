@@ -1018,7 +1018,7 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
    case MIPS_OP_FN:
       switch (op->instruction & 0x3f) {
       case MIPS_FN_SLL:
-         DYNAREC_LOG("Emitting MIPS_FN_SLL 0x%08x\n", op->instruction);
+         DYNAREC_LOG("Emitting MIPS_FN_SLL 0x%08x rd:%d rt:%d imm5:%d\n", op->instruction, op->target, op->op0, op->imm.iunsigned);
          emit_shift_imm(compiler,
                         op->target,
                         op->op0,
@@ -1026,7 +1026,7 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
                         dynasm_emit_sll);
          break;
       case MIPS_FN_SRL:
-         DYNAREC_LOG("Emitting MIPS_FN_SRL 0x%08x\n", op->instruction);
+         DYNAREC_LOG("Emitting MIPS_FN_SRL 0x%08x rd:%d rt:%d imm5:%d\n", op->instruction, op->target, op->op0, op->imm.iunsigned);
          emit_shift_imm(compiler,
                         op->target,
                         op->op0,
@@ -1034,7 +1034,7 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
                         dynasm_emit_srl);
          break;
       case MIPS_FN_SRA:
-         DYNAREC_LOG("Emitting MIPS_FN_SRA 0x%08x\n", op->instruction);
+         DYNAREC_LOG("Emitting MIPS_FN_SRA 0x%08x rd:%d rt:%d imm5:%d\n", op->instruction, op->target, op->op0, op->imm.iunsigned);
          emit_shift_imm(compiler,
                         op->target,
                         op->op0,
@@ -1042,7 +1042,7 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
                         dynasm_emit_sra);
          break;
       case MIPS_FN_SLLV:
-         DYNAREC_LOG("Emitting MIPS_FN_SLLV 0x%08x\n", op->instruction);
+         DYNAREC_LOG("Emitting MIPS_FN_SLLV 0x%08x rd:%d rt:%d rs:%d\n", op->instruction, op->target, op->op0, op->op1);
          emit_shift_reg(compiler,
                         op->target,
                         op->op0,
@@ -1050,7 +1050,7 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
                         dynasm_emit_sllv);
          break;
       case MIPS_FN_SRLV:
-         DYNAREC_LOG("Emitting MIPS_FN_SRLV 0x%08x\n", op->instruction);
+         DYNAREC_LOG("Emitting MIPS_FN_SRLV 0x%08x rd:%d rt:%d rs:%d\n", op->instruction, op->target, op->op0, op->op1);
          emit_shift_reg(compiler,
                         op->target,
                         op->op0,
@@ -1058,7 +1058,7 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
                         dynasm_emit_srlv);
          break;
       case MIPS_FN_SRAV:
-         DYNAREC_LOG("Emitting MIPS_FN_SRAV 0x%08x\n", op->instruction);
+         DYNAREC_LOG("Emitting MIPS_FN_SRAV 0x%08x rd:%d rt:%d rs:%d\n", op->instruction, op->target, op->op0, op->op1);
          emit_shift_reg(compiler,
                         op->target,
                         op->op0,
@@ -1066,19 +1066,19 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
                         dynasm_emit_srav);
          break;
       case MIPS_FN_JR:
-         DYNAREC_LOG("Emitting MIPS_FN_JR 0x%08x\n", op->instruction);
+         DYNAREC_LOG("Emitting MIPS_FN_JR 0x%08x rs:%d\n", op->instruction, op->op0);
          emit_jalr(compiler, op->op0, PSX_REG_R0);
          break;
       case MIPS_FN_JALR:
-         DYNAREC_LOG("Emitting MIPS_FN_JALR 0x%08x\n", op->instruction);
+         DYNAREC_LOG("Emitting MIPS_FN_JALR 0x%08x rs:%d rd:%d\n", op->instruction, op->op0, op->target);
          emit_jalr(compiler, op->op0, op->target);
          break;
       case MIPS_FN_SYSCALL:
-         DYNAREC_LOG("Emitting MIPS_FN_SYSCALL 0x%08x\n", op->instruction);
+         DYNAREC_LOG("Emitting MIPS_FN_SYSCALL 0x%08x code:%d\n", op->instruction, op->imm.iunsigned);
          dynasm_emit_exit(compiler, DYNAREC_EXIT_SYSCALL, op->imm.iunsigned);
          break;
       case MIPS_FN_BREAK:
-         DYNAREC_LOG("Emitting MIPS_FN_BREAK 0x%08x\n", op->instruction);
+         DYNAREC_LOG("Emitting MIPS_FN_BREAK 0x%08x code:%d\n", op->instruction, op->imm.iunsigned);
          if (compiler->state->options & DYNAREC_OPT_EXIT_ON_BREAK) {
             dynasm_emit_exit(compiler, DYNAREC_EXIT_BREAK, op->imm.iunsigned);
          } else {
@@ -1089,7 +1089,7 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
       case MIPS_FN_MTHI:
       case MIPS_FN_MFLO:
       case MIPS_FN_MTLO:
-         DYNAREC_LOG("Emitting MIPS_FN_M[F/T][HI/LO] 0x%08x\n", op->instruction);
+         DYNAREC_LOG("Emitting MIPS_FN_M[F/T][HI/LO] 0x%08x op0:%d target:%d\n", op->instruction, op->op0, op->target);
          if (op->target == PSX_REG_R0) {
             /* nop */
             break;
@@ -1103,7 +1103,7 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
          dynasm_emit_mov(compiler, op->target, op->op0);
          break;
       case MIPS_FN_MULT:
-         DYNAREC_LOG("Emitting MIPS_FN_MULT 0x%08x\n", op->instruction);
+         DYNAREC_LOG("Emitting MIPS_FN_MULT 0x%08x rs:%d rt:%d\n", op->instruction, op->op0, op->op1);
          if (op->op0 == PSX_REG_R0 || op->op1 == PSX_REG_R0) {
             // Multiplication by zero yields zero
             dynasm_emit_li(compiler, PSX_REG_LO, 0);
@@ -1113,7 +1113,7 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
          }
          break;
       case MIPS_FN_MULTU:
-         DYNAREC_LOG("Emitting MIPS_FN_MULTU 0x%08x\n", op->instruction);
+         DYNAREC_LOG("Emitting MIPS_FN_MULTU 0x%08x rs:%d rt:%d\n", op->instruction, op->op0, op->op1);
          if (op->op0 == PSX_REG_R0 || op->op1 == PSX_REG_R0) {
             // Multiplication by zero yields zero
             dynasm_emit_li(compiler, PSX_REG_LO, 0);
@@ -1123,71 +1123,71 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
          }
          break;
       case MIPS_FN_DIV:
-         DYNAREC_LOG("Emitting MIPS_FN_DIV 0x%08x\n", op->instruction);
+         DYNAREC_LOG("Emitting MIPS_FN_DIV 0x%08x rs:%d rt:%d\n", op->instruction, op->op0, op->op1);
          dynasm_emit_div(compiler, op->op0, op->op1);
          break;
       case MIPS_FN_DIVU:
-         DYNAREC_LOG("Emitting MIPS_FN_DIVU 0x%08x\n", op->instruction);
+         DYNAREC_LOG("Emitting MIPS_FN_DIVU 0x%08x rs:%d rt:%d\n", op->instruction, op->op0, op->op1);
          dynasm_emit_divu(compiler, op->op0, op->op1);
          break;
       case MIPS_FN_ADD:
-         DYNAREC_LOG("Emitting MIPS_FN_ADD 0x%08x\n", op->instruction);
+         DYNAREC_LOG("Emitting MIPS_FN_ADD 0x%08x rd:%d rs:%d rt:%d\n", op->instruction, op->target, op->op0, op->op1);
          emit_add(compiler,
                   op->target,
                   op->op0,
                   op->op1);
          break;
       case MIPS_FN_ADDU:
-         DYNAREC_LOG("Emitting MIPS_FN_ADDU 0x%08x\n", op->instruction);
+         DYNAREC_LOG("Emitting MIPS_FN_ADDU 0x%08x rd:%d rs:%d rt:%d\n", op->instruction, op->target, op->op0, op->op1);
          emit_addu(compiler,
                    op->target,
                    op->op0,
                    op->op1);
          break;
       case MIPS_FN_SUB:
-         DYNAREC_LOG("Emitting MIPS_FN_SUB 0x%08x\n", op->instruction);
+         DYNAREC_LOG("Emitting MIPS_FN_SUB 0x%08x rd:%d rs:%d rt:%d\n", op->instruction, op->target, op->op0, op->op1);
          emit_sub(compiler,
                    op->target,
                    op->op0,
                    op->op1);
          break;
       case MIPS_FN_SUBU:
-         DYNAREC_LOG("Emitting MIPS_FN_SUBU 0x%08x\n", op->instruction);
+         DYNAREC_LOG("Emitting MIPS_FN_SUBU 0x%08x rd:%d rs:%d rt:%d\n", op->instruction, op->target, op->op0, op->op1);
          emit_subu(compiler,
                    op->target,
                    op->op0,
                    op->op1);
          break;
       case MIPS_FN_AND:
-         DYNAREC_LOG("Emitting MIPS_FN_AND 0x%08x\n", op->instruction);
+         DYNAREC_LOG("Emitting MIPS_FN_AND 0x%08x rd:%d rs:%d rt:%d\n", op->instruction, op->target, op->op0, op->op1);
          emit_and(compiler,
                   op->target,
                   op->op0,
                   op->op1);
          break;
       case MIPS_FN_OR:
-         DYNAREC_LOG("Emitting MIPS_FN_OR 0x%08x\n", op->instruction);
+         DYNAREC_LOG("Emitting MIPS_FN_OR 0x%08x rd:%d rs:%d rt:%d\n", op->instruction, op->target, op->op0, op->op1);
          emit_or(compiler,
                  op->target,
                  op->op0,
                  op->op1);
          break;
       case MIPS_FN_XOR:
-         DYNAREC_LOG("Emitting MIPS_FN_XOR 0x%08x\n", op->instruction);
+         DYNAREC_LOG("Emitting MIPS_FN_XOR 0x%08x rd:%d rs:%d rt:%d\n", op->instruction, op->target, op->op0, op->op1);
          emit_xor(compiler,
                  op->target,
                  op->op0,
                  op->op1);
          break;
       case MIPS_FN_NOR:
-         DYNAREC_LOG("Emitting MIPS_FN_NOR 0x%08x\n", op->instruction);
+         DYNAREC_LOG("Emitting MIPS_FN_NOR 0x%08x rd:%d rs:%d rt:%d\n", op->instruction, op->target, op->op0, op->op1);
          emit_nor(compiler,
                  op->target,
                  op->op0,
                  op->op1);
          break;
       case MIPS_FN_SLT:
-         DYNAREC_LOG("Emitting MIPS_FN_SLT 0x%08x\n", op->instruction);
+         DYNAREC_LOG("Emitting MIPS_FN_SLT 0x%08x rd:%d rs:%d rt:%d\n", op->instruction, op->target, op->op0, op->op1);
          if (op->target == PSX_REG_R0) {
             /* NOP */
             break;
@@ -1202,7 +1202,7 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
          dynasm_emit_slt(compiler, op->target, op->op0, op->op1);
          break;
       case MIPS_FN_SLTU:
-         DYNAREC_LOG("Emitting MIPS_FN_SLTU 0x%08x\n", op->instruction);
+         DYNAREC_LOG("Emitting MIPS_FN_SLTU 0x%08x rd:%d rs:%d rt:%d\n", op->instruction, op->target, op->op0, op->op1);
          if (op->target == PSX_REG_R0) {
             /* NOP */
             break;
@@ -1229,43 +1229,43 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
       }
       break;
    case MIPS_OP_BXX:
-      DYNAREC_LOG("Emitting MIPS_OP_BXX 0x%08x\n", op->instruction);
+      DYNAREC_LOG("Emitting MIPS_OP_BXX 0x%08x rs%d\n", op->instruction, op->op0);
       emit_bxx(compiler, op);
       break;
    case MIPS_OP_J:
-      DYNAREC_LOG("Emitting MIPS_OP_J 0x%08x\n", op->instruction);
+      DYNAREC_LOG("Emitting MIPS_OP_J 0x%08x imm:0x%08x\n", op->instruction, op->imm.iunsigned);
       emit_j(compiler, op);
       break;
    case MIPS_OP_JAL:
-      DYNAREC_LOG("Emitting MIPS_OP_JAL 0x%08x\n", op->instruction);
+      DYNAREC_LOG("Emitting MIPS_OP_JAL 0x%08x imm:0x%08x\n", op->instruction, op->imm.iunsigned);
       emit_jal(compiler, op);
       break;
    case MIPS_OP_BEQ:
-      DYNAREC_LOG("Emitting MIPS_OP_BEQ 0x%08x\n", op->instruction);
+      DYNAREC_LOG("Emitting MIPS_OP_BEQ 0x%08x rs:%d rt:%d imm:0x%08x\n", op->instruction, op->op0, op->op1, op->imm.isigned);
       emit_beq(compiler, op->imm.isigned, op->op0, op->op1);
       break;
    case MIPS_OP_BNE:
-      DYNAREC_LOG("Emitting MIPS_OP_BNE 0x%08x\n", op->instruction);
+      DYNAREC_LOG("Emitting MIPS_OP_BNE 0x%08x rs:%d rt:%d imm:0x%08x\n", op->instruction, op->op0, op->op1, op->imm.isigned);
       emit_bne(compiler, op->imm.isigned, op->op0, op->op1);
       break;
    case MIPS_OP_BLEZ:
-      DYNAREC_LOG("Emitting MIPS_OP_BLEZ 0x%08x\n", op->instruction);
+      DYNAREC_LOG("Emitting MIPS_OP_BLEZ 0x%08x rs:%d imm:0x%08x\n", op->instruction, op->op0, op->imm.isigned);
       emit_blez(compiler, op->imm.isigned, op->op0);
       break;
    case MIPS_OP_BGTZ:
-      DYNAREC_LOG("Emitting MIPS_OP_BGTZ 0x%08x\n", op->instruction);
+      DYNAREC_LOG("Emitting MIPS_OP_BGTZ 0x%08x rs:%d imm:0x%08x\n", op->instruction, op->op0, op->imm.isigned);
       emit_bgtz(compiler, op->imm.isigned, op->op0);
       break;
    case MIPS_OP_ADDI:
-      DYNAREC_LOG("Emitting MIPS_OP_ADDI 0x%08x\n", op->instruction);
+      DYNAREC_LOG("Emitting MIPS_OP_ADDI 0x%08x rs:%d rt:%d imm:0x%08x\n", op->instruction, op->op0, op->target, op->imm.iunsigned);
       emit_addi(compiler, op->target, op->op0, op->imm.iunsigned);
       break;
    case MIPS_OP_ADDIU:
-      DYNAREC_LOG("Emitting MIPS_OP_ADDIU 0x%08x\n", op->instruction);
+      DYNAREC_LOG("Emitting MIPS_OP_ADDIU 0x%08x rs:%d rt:%d imm:0x%08x\n", op->instruction, op->op0, op->target, op->imm.iunsigned);
       emit_addiu(compiler, op->target, op->op0, op->imm.iunsigned);
       break;
    case MIPS_OP_SLTI: /* SLTI */
-      DYNAREC_LOG("Emitting MIPS_OP_SLTI 0x%08x\n", op->instruction);
+      DYNAREC_LOG("Emitting MIPS_OP_SLTI 0x%08x rs:%d rt:%d imm:0x%08x\n", op->instruction, op->op0, op->target, op->imm.iunsigned);
       if (op->target == PSX_REG_R0) {
          /* NOP */
          break;
@@ -1274,7 +1274,7 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
       dynasm_emit_slti(compiler, op->target, op->op0, op->imm.iunsigned);
       break;
    case MIPS_OP_SLTIU: /* SLTIU */
-      DYNAREC_LOG("Emitting MIPS_OP_SLTIU 0x%08x\n", op->instruction);
+      DYNAREC_LOG("Emitting MIPS_OP_SLTIU 0x%08x rs:%d rt:%d imm:0x%08x\n", op->instruction, op->op0, op->target, op->imm.iunsigned);
       if (op->target == PSX_REG_R0) {
          /* NOP */
          break;
@@ -1289,19 +1289,19 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
       dynasm_emit_sltiu(compiler, op->target, op->op0, op->imm.iunsigned);
       break;
    case MIPS_OP_ANDI:
-      DYNAREC_LOG("Emitting MIPS_OP_ANDI 0x%08x\n", op->instruction);
+      DYNAREC_LOG("Emitting MIPS_OP_ANDI 0x%08x rs:%d rt:%d imm:0x%08x\n", op->instruction, op->op0, op->target, op->imm.iunsigned);
       emit_andi(compiler, op->target, op->op0, op->imm.iunsigned);
       break;
    case MIPS_OP_ORI:
-      DYNAREC_LOG("Emitting MIPS_OP_ORI 0x%08x\n", op->instruction);
+      DYNAREC_LOG("Emitting MIPS_OP_ORI 0x%08x rs:%d rt:%d imm:0x%08x\n", op->instruction, op->op0, op->target, op->imm.iunsigned);
       emit_ori(compiler, op->target, op->op0, op->imm.iunsigned);
       break;
    case MIPS_OP_XORI:
-      DYNAREC_LOG("Emitting MIPS_OP_XORI 0x%08x\n", op->instruction);
+      DYNAREC_LOG("Emitting MIPS_OP_XORI 0x%08x rs:%d rt:%d imm:0x%08x\n", op->instruction, op->op0, op->target, op->imm.iunsigned);
       emit_xori(compiler, op->target, op->op0, op->imm.iunsigned);
       break;
    case MIPS_OP_LUI:
-      DYNAREC_LOG("Emitting MIPS_OP_LUI 0x%08x\n", op->instruction);
+      DYNAREC_LOG("Emitting MIPS_OP_LUI 0x%08x rt:%d imm<<16:0x%08x\n", op->instruction, op->target, op->imm.iunsigned);
       if (op->target == PSX_REG_R0) {
          /* NOP */
          break;
@@ -1312,11 +1312,11 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
    case MIPS_OP_COP0:
       switch ((op->instruction >> 21) & 0x1f) {
       case MIPS_COP_MFC:
-         DYNAREC_LOG("Emitting MIPS_COP_MFC 0x%08x\n", op->instruction);
+         DYNAREC_LOG("Emitting MIPS_COP_MFC 0x%08x rt:%d rd:%d\n", op->instruction, op->target, op->op0);
          dynasm_emit_mfc0(compiler, op->target, op->op0);
          break;
       case MIPS_COP_MTC:
-         DYNAREC_LOG("Emitting MIPS_COP_MTC 0x%08x\n", op->instruction);
+         DYNAREC_LOG("Emitting MIPS_COP_MTC 0x%08x rd:%d rt:%d\n", op->instruction, op->target, op->op0);
          dynasm_emit_mtc0(compiler, op->op0, op->target);
          break;
       case MIPS_COP_RFE:
@@ -1332,24 +1332,24 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
    case MIPS_OP_COP2:
       switch ((op->instruction >> 21) & 0x1f) {
       case MIPS_GTE_MFC2:
-         DYNAREC_LOG("Emitting MIPS_GTE_MFC2 0x%08x\n", op->instruction);
+         DYNAREC_LOG("Emitting MIPS_GTE_MFC2 0x%08x rt:%d rd:%d\n", op->instruction, op->target, op->op0);
          dynasm_emit_mfc2(compiler, op->target, op->op0, op->instruction);
          break;
       case MIPS_GTE_CFC2:
-         DYNAREC_LOG("Emitting MIPS_GTE_CFC2 0x%08x\n", op->instruction);
+         DYNAREC_LOG("Emitting MIPS_GTE_CFC2 0x%08x rt:%d rd:%d\n", op->instruction, op->target, op->op0);
          dynasm_emit_cfc2(compiler, op->target, op->op0, op->instruction);
          break;
       case MIPS_GTE_MTC2:
-         DYNAREC_LOG("Emitting MIPS_GTE_MTC2 0x%08x\n", op->instruction);
+         DYNAREC_LOG("Emitting MIPS_GTE_MTC2 0x%08x rd:%d rt:%d\n", op->instruction, op->target, op->op0);
          dynasm_emit_mtc2(compiler, op->op0, op->target, op->instruction);
          break;
       case MIPS_GTE_CTC2:
-         DYNAREC_LOG("Emitting MIPS_GTE_CTC2 0x%08x\n", op->instruction);
+         DYNAREC_LOG("Emitting MIPS_GTE_CTC2 0x%08x rd:%d rt:%d\n", op->instruction, op->target, op->op0);
          dynasm_emit_ctc2(compiler, op->op0, op->target, op->instruction);
          break;
       case 0x10: case 0x11: case 0x12: case 0x13: case 0x14: case 0x15: case 0x16: case 0x17:
       case 0x18: case 0x19: case 0x1A: case 0x1B: case 0x1C: case 0x1D: case 0x1E: case 0x1F:
-         DYNAREC_LOG("Emitting GTE Instruction 0x%08x\n", op->instruction);
+         DYNAREC_LOG("Emitting GTE Instruction 0x%08x imm25:0x%08x\n", op->instruction, op->imm.iunsigned);
          dynasm_emit_gte_instruction(compiler, op->imm.iunsigned);
          break;
       default:
@@ -1359,43 +1359,43 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
       }
       break;
    case MIPS_OP_LB:
-      DYNAREC_LOG("Emitting MIPS_OP_LB 0x%08x\n", op->instruction);
+      DYNAREC_LOG("Emitting MIPS_OP_LB 0x%08x rt:%d rs:%d imm:0x%08x\n", op->instruction, op->target, op->op0, op->imm.iunsigned);
       dynasm_emit_lb(compiler, op->target, op->imm.iunsigned, op->op0);
       break;
    case MIPS_OP_LBU:
-      DYNAREC_LOG("Emitting MIPS_OP_LBU 0x%08x\n", op->instruction);
+      DYNAREC_LOG("Emitting MIPS_OP_LBU 0x%08x rt:%d rs:%d imm:0x%08x\n", op->instruction, op->target, op->op0, op->imm.iunsigned);
       dynasm_emit_lbu(compiler, op->target, op->imm.iunsigned, op->op0);
       break;
    case MIPS_OP_LH:
-      DYNAREC_LOG("Emitting MIPS_OP_LH 0x%08x\n", op->instruction);
+      DYNAREC_LOG("Emitting MIPS_OP_LH 0x%08x rt:%d rs:%d imm:0x%08x\n", op->instruction, op->target, op->op0, op->imm.iunsigned);
       dynasm_emit_lh(compiler, op->target, op->imm.iunsigned, op->op0);
       break;
    case MIPS_OP_LHU:
-      DYNAREC_LOG("Emitting MIPS_OP_LHU 0x%08x\n", op->instruction);
+      DYNAREC_LOG("Emitting MIPS_OP_LHU 0x%08x rt:%d rs:%d imm:0x%08x\n", op->instruction, op->target, op->op0, op->imm.iunsigned);
       dynasm_emit_lhu(compiler, op->target, op->imm.iunsigned, op->op0);
       break;
    case MIPS_OP_LW:
-      DYNAREC_LOG("Emitting MIPS_OP_LW 0x%08x\n", op->instruction);
+      DYNAREC_LOG("Emitting MIPS_OP_LW 0x%08x rt:%d rs:%d imm:0x%08x\n", op->instruction, op->target, op->op0, op->imm.iunsigned);
       dynasm_emit_lw(compiler, op->target, op->imm.iunsigned, op->op0);
       break;
    case MIPS_OP_SB: /* SB */
-      DYNAREC_LOG("Emitting MIPS_OP_SB 0x%08x\n", op->instruction);
+      DYNAREC_LOG("Emitting MIPS_OP_SB 0x%08x rs:%d rt:%d imm:0x%08x\n", op->instruction, op->op0, op->op1, op->imm.iunsigned);
       dynasm_emit_sb(compiler, op->op0, op->imm.iunsigned, op->op1);
       break;
    case MIPS_OP_SH: /* SH */
-      DYNAREC_LOG("Emitting MIPS_OP_SH 0x%08x\n", op->instruction);
+      DYNAREC_LOG("Emitting MIPS_OP_SH 0x%08x rs:%d rt:%d imm:0x%08x\n", op->instruction, op->op0, op->op1, op->imm.iunsigned);
       dynasm_emit_sh(compiler, op->op0, op->imm.iunsigned, op->op1);
       break;
    case MIPS_OP_SW: /* SW */
-      DYNAREC_LOG("Emitting MIPS_OP_SW 0x%08x\n", op->instruction);
+      DYNAREC_LOG("Emitting MIPS_OP_SW 0x%08x rs:%d rt:%d imm:0x%08x\n", op->instruction, op->op0, op->op1, op->imm.iunsigned);
       dynasm_emit_sw(compiler, op->op0, op->imm.iunsigned, op->op1);
       break;
    case MIPS_GTE_LWC2:
-      DYNAREC_LOG("Emitting MIPS_GTE_LWC2 0x%08x\n", op->instruction);
+      DYNAREC_LOG("Emitting MIPS_GTE_LWC2 0x%08x rs:%d rt:%d imm:0x%08x\n", op->instruction, op->op0, op->op1, op->imm.iunsigned);
       dynasm_emit_lwc2(compiler, op->op0, op->imm.iunsigned, op->instruction);
       break;
    case MIPS_GTE_SWC2:
-      DYNAREC_LOG("Emitting MIPS_GTE_SWC2 0x%08x\n", op->instruction);
+      DYNAREC_LOG("Emitting MIPS_GTE_SWC2 0x%08x rs:%d rt:%d imm:0x%08x\n", op->instruction, op->op0, op->op1, op->imm.iunsigned);
       dynasm_emit_swc2(compiler, op->op0, op->imm.iunsigned, op->instruction);
       break;
    default:
