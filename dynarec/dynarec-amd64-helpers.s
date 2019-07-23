@@ -478,7 +478,7 @@ dynabi_gte_swc2:
 /* Called by the dynarec code when running a GTE instruction.
  * The imm25 is in %esi */
 dynabi_gte_instruction:
-        /* Move counter to arg2
+        /* Move counter to arg2 */
         mov %ecx, %edx
 
         c_call dynarec_gte_instruction
