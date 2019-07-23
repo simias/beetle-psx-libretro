@@ -1257,21 +1257,21 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
       emit_bgtz(compiler, op->imm.isigned, op->op0);
       break;
    case MIPS_OP_ADDI:
-      DYNAREC_LOG("Emitting MIPS_OP_ADDI 0x%08x rs:%d rt:%d imm:0x%08x\n", op->instruction, op->op0, op->target, op->imm.iunsigned);
-      emit_addi(compiler, op->target, op->op0, op->imm.iunsigned);
+      DYNAREC_LOG("Emitting MIPS_OP_ADDI 0x%08x rs:%d rt:%d imm:0x%08x\n", op->instruction, op->op0, op->target, op->imm.isigned);
+      emit_addi(compiler, op->target, op->op0, op->imm.isigned);
       break;
    case MIPS_OP_ADDIU:
-      DYNAREC_LOG("Emitting MIPS_OP_ADDIU 0x%08x rs:%d rt:%d imm:0x%08x\n", op->instruction, op->op0, op->target, op->imm.iunsigned);
-      emit_addiu(compiler, op->target, op->op0, op->imm.iunsigned);
+      DYNAREC_LOG("Emitting MIPS_OP_ADDIU 0x%08x rs:%d rt:%d imm:0x%08x\n", op->instruction, op->op0, op->target, op->imm.isigned);
+      emit_addiu(compiler, op->target, op->op0, op->imm.isigned);
       break;
    case MIPS_OP_SLTI: /* SLTI */
-      DYNAREC_LOG("Emitting MIPS_OP_SLTI 0x%08x rs:%d rt:%d imm:0x%08x\n", op->instruction, op->op0, op->target, op->imm.iunsigned);
+      DYNAREC_LOG("Emitting MIPS_OP_SLTI 0x%08x rs:%d rt:%d imm:0x%08x\n", op->instruction, op->op0, op->target, op->imm.isigned);
       if (op->target == PSX_REG_R0) {
          /* NOP */
          break;
       }
 
-      dynasm_emit_slti(compiler, op->target, op->op0, op->imm.iunsigned);
+      dynasm_emit_slti(compiler, op->target, op->op0, op->imm.isigned);
       break;
    case MIPS_OP_SLTIU: /* SLTIU */
       DYNAREC_LOG("Emitting MIPS_OP_SLTIU 0x%08x rs:%d rt:%d imm:0x%08x\n", op->instruction, op->op0, op->target, op->imm.iunsigned);
