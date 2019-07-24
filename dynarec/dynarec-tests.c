@@ -366,6 +366,7 @@ static int run_test(const char *name, test_fn_t f) {
 #define GTE_MFC2(_rt, _r_c) COP2(MIPS_GTE_MFC2, _rt, _r_c, 0)
 #define GTE_CTC2(_rt, _r_c) COP2(MIPS_GTE_CTC2, _rt, _r_c, 0)
 #define GTE_CFC2(_rt, _r_c) COP2(MIPS_GTE_CFC2, _rt, _r_c, 0)
+#define GTE_imm25 0x4b400006
 
 /*********
  * Tests *
@@ -2852,6 +2853,25 @@ static int test_gte_ctc2(struct dynarec_state *state) {
    return check_regs(state, expected, ARRAY_SIZE(expected));
 }
 
+static int test_gte_imm25(struct dynarec_state *state) {
+   union mips_instruction code[] = {
+      GTE_imm25,
+      BREAK(0x0ff0ff),
+   };
+   uint32_t end_pc = 0x4;
+   struct dynarec_ret ret;
+
+   load_code(state, code, ARRAY_SIZE(code), 0);
+
+   ret = dynarec_run(state, 0x1000);
+
+   TEST_EQ(state->pc, end_pc);
+   TEST_EQ(ret.val.code, DYNAREC_EXIT_BREAK);
+   TEST_EQ(ret.val.param, 0x0ff0ff);
+
+   return check_regs(state, NULL, 0);
+}
+
 int main() {
    unsigned ntests = 0;
    unsigned nsuccess = 0;
@@ -2923,7 +2943,8 @@ int main() {
    RUN_TEST(test_gte_cfc2);
    RUN_TEST(test_gte_mtc2);
    RUN_TEST(test_gte_ctc2);
-   //TODO add tests for gte?: swc2,lwc2,gte_imm25
+   RUN_TEST(test_gte_imm25);
+   //TODO add tests for gte?: swc2,lwc2
 
    printf("Tests done, results: %u/%u\n", nsuccess, ntests);
 
@@ -3000,8 +3021,7 @@ int32_t dynarec_gte_instruction(struct dynarec_state *s,
                            uint32_t instr,
                            int32_t counter) {
    DYNAREC_LOG("dynarec gte instruction %08x counter:%d\n", instr, counter);
-   /* gte take at least 1 cycle */
-   return counter + 1;
+   return 0;
 }
 
 /* Callback used by the dynarec to handle writes to "miscelanous" COP0
