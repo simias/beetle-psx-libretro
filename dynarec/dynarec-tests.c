@@ -70,6 +70,9 @@ static const char *reg_names[] = {
    "PSX_REG_LO",
 };
 
+static int32_t gte_c[32];
+static int32_t gte_d[32];
+
 static int check_regs(struct dynarec_state *state,
                        struct reg_val *regs,
                        size_t nregs) {
@@ -234,6 +237,15 @@ static int run_test(const char *name, test_fn_t f) {
            .reg_cop = (_r_c),                   \
            .misc = (_m) }}
 
+#define COP2(_cop_op, _rt, _r_c, _m)            \
+   (union mips_instruction){                    \
+      .cop =                                    \
+         { .opcode = MIPS_OP_COP2,              \
+           .cop_op = (_cop_op),                 \
+           .reg_t = (_rt),                      \
+           .reg_cop = (_r_c),                   \
+           .misc = (_m) }}
+
 #define JR(_r)                                  \
    FN_RR(MIPS_FN_JR, 0, (_r), 0)
 #define JALR(_rt, _r)                           \
@@ -350,6 +362,10 @@ static int run_test(const char *name, test_fn_t f) {
 #define MTC0(_rt, _r_c) COP0(MIPS_COP_MTC, _rt, _r_c, 0)
 #define MFC0(_rt, _r_c) COP0(MIPS_COP_MFC, _rt, _r_c, 0)
 #define RFE             COP0(MIPS_COP_RFE, 0, 0, 0x10)
+#define GTE_MTC2(_rt, _r_c) COP2(MIPS_GTE_MTC2, _rt, _r_c, 0)
+#define GTE_MFC2(_rt, _r_c) COP2(MIPS_GTE_MFC2, _rt, _r_c, 0)
+#define GTE_CTC2(_rt, _r_c) COP2(MIPS_GTE_CTC2, _rt, _r_c, 0)
+#define GTE_CFC2(_rt, _r_c) COP2(MIPS_GTE_CFC2, _rt, _r_c, 0)
 
 /*********
  * Tests *
@@ -2732,9 +2748,118 @@ static int test_cache_isolation(struct dynarec_state *state) {
    return check_regs(state, expected, ARRAY_SIZE(expected));
 }
 
+static int test_gte_mfc2(struct dynarec_state *state) {
+   union mips_instruction code[] = {
+      GTE_MFC2(PSX_REG_T0, 0),
+      GTE_MFC2(PSX_REG_T1, 31),
+      BREAK(0x0ff0ff),
+   };
+   struct reg_val expected[] = {
+      { .r = PSX_REG_T0, .v = 0xbeef0000 },
+      { .r = PSX_REG_T1, .v = 0xbeef0031 },
+   };
+   uint32_t end_pc = 0x8;
+   struct dynarec_ret ret;
+
+   load_code(state, code, ARRAY_SIZE(code), 0);
+
+   ret = dynarec_run(state, 0x1000);
+
+   TEST_EQ(state->pc, end_pc);
+   TEST_EQ(ret.val.code, DYNAREC_EXIT_BREAK);
+   TEST_EQ(ret.val.param, 0x0ff0ff);
+
+   return check_regs(state, expected, ARRAY_SIZE(expected));
+}
+
+static int test_gte_cfc2(struct dynarec_state *state) {
+   union mips_instruction code[] = {
+      GTE_CFC2(PSX_REG_T0, 0),
+      GTE_CFC2(PSX_REG_T1, 31),
+      BREAK(0x0ff0ff),
+   };
+   struct reg_val expected[] = {
+      { .r = PSX_REG_T0, .v = 0xc0de0000 },
+      { .r = PSX_REG_T1, .v = 0xc0de0031 },
+   };
+   uint32_t end_pc = 0x8;
+   struct dynarec_ret ret;
+
+   load_code(state, code, ARRAY_SIZE(code), 0);
+
+   ret = dynarec_run(state, 0x1000);
+
+   TEST_EQ(state->pc, end_pc);
+   TEST_EQ(ret.val.code, DYNAREC_EXIT_BREAK);
+   TEST_EQ(ret.val.param, 0x0ff0ff);
+
+   return check_regs(state, expected, ARRAY_SIZE(expected));
+}
+
+static int test_gte_mtc2(struct dynarec_state *state) {
+   union mips_instruction code[] = {
+      LI(PSX_REG_T0, 0xbeefc0de),
+      LI(PSX_REG_T1, 0xbeefc1de),
+      GTE_MTC2(PSX_REG_T0, 1),
+      GTE_MTC2(PSX_REG_T1, 30),
+      BREAK(0x0ff0ff),
+   };
+   struct reg_val expected[] = {
+      { .r = PSX_REG_T0, .v = 0xbeefc0de },
+      { .r = PSX_REG_T1, .v = 0xbeefc1de },
+   };
+   uint32_t end_pc = 0x18;
+   struct dynarec_ret ret;
+
+   load_code(state, code, ARRAY_SIZE(code), 0);
+
+   ret = dynarec_run(state, 0x1000);
+
+   TEST_EQ(state->pc, end_pc);
+   TEST_EQ(ret.val.code, DYNAREC_EXIT_BREAK);
+   TEST_EQ(ret.val.param, 0x0ff0ff);
+   TEST_EQ(gte_d[1],0xbeefc0de);
+   TEST_EQ(gte_d[30],0xbeefc1de);
+
+   return check_regs(state, expected, ARRAY_SIZE(expected));
+}
+
+static int test_gte_ctc2(struct dynarec_state *state) {
+   union mips_instruction code[] = {
+      LI(PSX_REG_T0, 0xc0debeef),
+      LI(PSX_REG_T1, 0xc1debeef),
+      GTE_CTC2(PSX_REG_T0, 1),
+      GTE_CTC2(PSX_REG_T1, 30),
+      BREAK(0x0ff0ff),
+   };
+   struct reg_val expected[] = {
+      { .r = PSX_REG_T0, .v = 0xc0debeef },
+      { .r = PSX_REG_T1, .v = 0xc1debeef },
+   };
+   uint32_t end_pc = 0x18;
+   struct dynarec_ret ret;
+
+   load_code(state, code, ARRAY_SIZE(code), 0);
+
+   ret = dynarec_run(state, 0x1000);
+
+   TEST_EQ(state->pc, end_pc);
+   TEST_EQ(ret.val.code, DYNAREC_EXIT_BREAK);
+   TEST_EQ(ret.val.param, 0x0ff0ff);
+   TEST_EQ(gte_c[1],0xc0debeef);
+   TEST_EQ(gte_c[30],0xc1debeef);
+
+   return check_regs(state, expected, ARRAY_SIZE(expected));
+}
+
 int main() {
    unsigned ntests = 0;
    unsigned nsuccess = 0;
+   gte_c[0]  = 0xc0de0000;
+   gte_c[31] = 0xc0de0031;
+   gte_d[0]  = 0xbeef0000;
+   gte_d[31] = 0xbeef0031;
+
 
 #define RUN_TEST(_t) do {                       \
       ntests++;                                 \
@@ -2794,7 +2919,11 @@ int main() {
    RUN_TEST(test_lw);
    RUN_TEST(test_lwl_lwr);
    RUN_TEST(test_cache_isolation);
-   //TODO add tests for gte?: mtc2,mfc2,ctc2,cfc2,swc2,lwc2,imm25
+   RUN_TEST(test_gte_mfc2);
+   RUN_TEST(test_gte_cfc2);
+   RUN_TEST(test_gte_mtc2);
+   RUN_TEST(test_gte_ctc2);
+   //TODO add tests for gte?: swc2,lwc2,gte_imm25
 
    printf("Tests done, results: %u/%u\n", nsuccess, ntests);
 
@@ -2813,8 +2942,9 @@ int32_t dynarec_gte_mfc2(struct dynarec_state *s,
                            uint32_t reg_target,
                            uint32_t reg_gte,
                            uint32_t instr) {
-   DYNAREC_LOG("dynarec gte mfc2 %08x @ %d\n", instr, reg_gte);
-   return 0;
+   DYNAREC_LOG("dynarec gte mfc2 0x%08x @ (%d)\n", gte_d[reg_gte], reg_gte);
+   /* return data from fake gte data registers  */
+   return gte_d[reg_gte];
 }
 
 /* Callback used by the dynarec to handle writes to GTE CFC2 */
@@ -2822,8 +2952,9 @@ int32_t dynarec_gte_cfc2(struct dynarec_state *s,
                            uint32_t reg_target,
                            uint32_t reg_gte,
                            uint32_t instr) {
-   DYNAREC_LOG("dynarec gte cfc2 %08x @ %d\n", instr, reg_gte);
-   return 0;
+   DYNAREC_LOG("dynarec gte cfc2 0x%08x @ (%d)\n", gte_c[reg_gte], reg_gte);
+   /* return data from fake gte control registers  */
+   return gte_c[reg_gte];
 }
 
 /* Callback used by the dynarec to handle writes to GTE MTC2 */
@@ -2831,7 +2962,9 @@ void dynarec_gte_mtc2(struct dynarec_state *s,
                            uint32_t source,
                            uint32_t reg_gte,
                            uint32_t instr) {
-   DYNAREC_LOG("dynarec gte mtc2 %08x @ %d\n", instr, reg_gte);
+   DYNAREC_LOG("dynarec gte mtc2 0x%08x @ %d\n", source, reg_gte);
+   /* write data to fake gte data registers  */
+   gte_d[reg_gte] = source;
 }
 
 /* Callback used by the dynarec to handle writes to GTE CTC2 */
@@ -2839,7 +2972,9 @@ void dynarec_gte_ctc2(struct dynarec_state *s,
                            uint32_t source,
                            uint32_t reg_gte,
                            uint32_t instr) {
-   DYNAREC_LOG("dynarec gte ctc2 %08x @ %d\n", instr, reg_gte);
+   DYNAREC_LOG("dynarec gte ctc2 0x%08x @ %d\n", source, reg_gte);
+   /* write data to fake gte control registers  */
+   gte_c[reg_gte] = source;
 }
 
 /* Callback used by the dynarec to handle writes to GTE LWC2 */
