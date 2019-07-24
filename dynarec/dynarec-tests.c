@@ -2789,7 +2789,7 @@ void dynarec_gte_ctc2(struct dynarec_state *s,
 int32_t dynarec_gte_lwc2(struct dynarec_state *s,
                            uint32_t addr,
                            uint32_t instr,
-                           uint32_t counter) {
+                           int32_t counter) {
    DYNAREC_LOG("dynarec gte lwc2 %08x @ %d counter:%d\n", instr, addr, counter);
    return 0;
 }
@@ -2798,7 +2798,7 @@ int32_t dynarec_gte_lwc2(struct dynarec_state *s,
 int32_t dynarec_gte_swc2(struct dynarec_state *s,
                            uint32_t addr,
                            uint32_t instr,
-                           uint32_t counter) {
+                           int32_t counter) {
    DYNAREC_LOG("dynarec gte swc2 %08x @ %d counter:%d\n", instr, addr, counter);
    return 0;
 }
@@ -2806,7 +2806,7 @@ int32_t dynarec_gte_swc2(struct dynarec_state *s,
 /* Callback used by the dynarec to handle writes to GTE MFC2 */
 int32_t dynarec_gte_instruction(struct dynarec_state *s,
                            uint32_t instr,
-                           uint32_t counter) {
+                           int32_t counter) {
    DYNAREC_LOG("dynarec gte instruction %08x counter:%d\n", instr, counter);
    /* gte take at least 1 cycle */
    return counter + 1;
