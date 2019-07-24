@@ -306,6 +306,8 @@ static int run_test(const char *name, test_fn_t f) {
    FN_RI(MIPS_OP_ADDIU, (_rt), (_ro), (_i))
 #define ORI(_rt, _ro, _i)                       \
    FN_RI(MIPS_OP_ORI, (_rt), (_ro), (_i))
+#define XORI(_rt, _ro, _i)                       \
+   FN_RI(MIPS_OP_XORI, (_rt), (_ro), (_i))
 #define ANDI(_rt, _ro, _i)                      \
    FN_RI(MIPS_OP_ANDI, (_rt), (_ro), (_i))
 #define SLTI(_rt, _ro, _i)                      \
@@ -553,6 +555,60 @@ static int test_ori(struct dynarec_state *state) {
       { .r = PSX_REG_T3, .v = 0x89ab },
    };
    uint32_t end_pc = 0x50;
+   struct dynarec_ret ret;
+
+   load_code(state, code, ARRAY_SIZE(code), 0);
+
+   ret = dynarec_run(state, 0x1000);
+
+   TEST_EQ(state->pc, end_pc);
+   TEST_EQ(ret.val.code, DYNAREC_EXIT_BREAK);
+   TEST_EQ(ret.val.param, 0x0ff0ff);
+
+   return check_regs(state, expected, ARRAY_SIZE(expected));
+}
+
+static int test_xori(struct dynarec_state *state) {
+   union mips_instruction code[] = {
+      LI(PSX_REG_T0, 6),
+      LI(PSX_REG_T1, 3),
+      LI(PSX_REG_T2, 0xfffff000),
+      LI(PSX_REG_T3, 0),
+      LI(PSX_REG_T4, 0x1234abcd),
+      LI(PSX_REG_T5, 0),
+
+      XORI(PSX_REG_R0, PSX_REG_T2, 0xabcd),
+      XORI(PSX_REG_R0, PSX_REG_R0, 0xabcd),
+      XORI(PSX_REG_S0, PSX_REG_R0, 0x1234),
+      XORI(PSX_REG_S1, PSX_REG_T0, 0xff00),
+      XORI(PSX_REG_V0, PSX_REG_T0, 0xabc0),
+      XORI(PSX_REG_V1, PSX_REG_T0, 0x3450),
+      XORI(PSX_REG_S2, PSX_REG_T0, 0),
+      XORI(PSX_REG_S3, PSX_REG_T0, 0xffff),
+      XORI(PSX_REG_T0, PSX_REG_T0, 0),
+      XORI(PSX_REG_T1, PSX_REG_T1, 0),
+      XORI(PSX_REG_T2, PSX_REG_T2, 0xffff),
+      XORI(PSX_REG_T3, PSX_REG_T3, 0x89ab),
+      XORI(PSX_REG_T4, PSX_REG_T4, 0xabcd),
+      XORI(PSX_REG_T5, PSX_REG_T5, 0),
+
+      BREAK(0x0ff0ff),
+   };
+   struct reg_val expected[] = {
+      { .r = PSX_REG_S0, .v = 0x1234 },
+      { .r = PSX_REG_S1, .v = 0xff06 },
+      { .r = PSX_REG_V0, .v = 0xabc6 },
+      { .r = PSX_REG_V1, .v = 0x3456 },
+      { .r = PSX_REG_S2, .v = 6 },
+      { .r = PSX_REG_S3, .v = 0xfff9 },
+      { .r = PSX_REG_T0, .v = 6 },
+      { .r = PSX_REG_T1, .v = 3 },
+      { .r = PSX_REG_T2, .v = 0xffff0fff },
+      { .r = PSX_REG_T3, .v = 0x89ab },
+      { .r = PSX_REG_T4, .v = 0x12340000 },
+      { .r = PSX_REG_T5, .v = 0 },
+   };
+   uint32_t end_pc = 0x68;
    struct dynarec_ret ret;
 
    load_code(state, code, ARRAY_SIZE(code), 0);
@@ -2692,6 +2748,7 @@ int main() {
    RUN_TEST(test_lui);
    RUN_TEST(test_counter);
    RUN_TEST(test_ori);
+   RUN_TEST(test_xori);
    RUN_TEST(test_addi_no_exception);
    RUN_TEST(test_addiu);
    RUN_TEST(test_andi);
