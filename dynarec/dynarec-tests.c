@@ -1505,6 +1505,8 @@ static int test_slt(struct dynarec_state *state) {
       LI(PSX_REG_T1, 3),
       LI(PSX_REG_T2, -1),
       LI(PSX_REG_T3, 0),
+      LI(PSX_REG_A0, -1),
+      LI(PSX_REG_A1, -10),
 
       SLT(PSX_REG_R0, PSX_REG_R0, PSX_REG_T0),
       SLT(PSX_REG_S0, PSX_REG_R0, PSX_REG_T2),
@@ -1519,6 +1521,8 @@ static int test_slt(struct dynarec_state *state) {
       SLT(PSX_REG_T1, PSX_REG_T2, PSX_REG_T1),
       SLT(PSX_REG_T2, PSX_REG_T1, PSX_REG_T2),
       SLT(PSX_REG_T0, PSX_REG_T0, PSX_REG_S0),
+      SLT(PSX_REG_A1, PSX_REG_A0, PSX_REG_A1),
+      SLT(PSX_REG_A0, PSX_REG_A0, PSX_REG_A1),
 
       BREAK(0x0ff0ff),
    };
@@ -1534,8 +1538,10 @@ static int test_slt(struct dynarec_state *state) {
       { .r = PSX_REG_T1, .v = 1 },
       { .r = PSX_REG_T2, .v = 0 },
       { .r = PSX_REG_T3, .v = 0 },
+      { .r = PSX_REG_A0, .v = 1 },
+      { .r = PSX_REG_A1, .v = 0 },
    };
-   uint32_t end_pc = 0x54;
+   uint32_t end_pc = 0x6c;
    struct dynarec_ret ret;
 
    load_code(state, code, ARRAY_SIZE(code), 0);
@@ -1555,6 +1561,8 @@ static int test_sltu(struct dynarec_state *state) {
       LI(PSX_REG_T1, 3),
       LI(PSX_REG_T2, 0xffffffff),
       LI(PSX_REG_T3, 0),
+      LI(PSX_REG_A0, 0x0000ffff),
+      LI(PSX_REG_A1, 0xffffffff),
 
       SLTU(PSX_REG_R0, PSX_REG_R0, PSX_REG_T0),
       SLTU(PSX_REG_S0, PSX_REG_R0, PSX_REG_T2),
@@ -1569,6 +1577,8 @@ static int test_sltu(struct dynarec_state *state) {
       SLTU(PSX_REG_T1, PSX_REG_T1, PSX_REG_T2),
       SLTU(PSX_REG_T2, PSX_REG_T2, PSX_REG_T1),
       SLTU(PSX_REG_T0, PSX_REG_T0, PSX_REG_S0),
+      SLTU(PSX_REG_A1, PSX_REG_A0, PSX_REG_A1),
+      SLTU(PSX_REG_A0, PSX_REG_A0, PSX_REG_A1),
 
       BREAK(0x0ff0ff),
    };
@@ -1584,8 +1594,10 @@ static int test_sltu(struct dynarec_state *state) {
       { .r = PSX_REG_T1, .v = 1 },
       { .r = PSX_REG_T2, .v = 0 },
       { .r = PSX_REG_T3, .v = 0 },
+      { .r = PSX_REG_A0, .v = 0 },
+      { .r = PSX_REG_A1, .v = 1 },
    };
-   uint32_t end_pc = 0x54;
+   uint32_t end_pc = 0x6c;
    struct dynarec_ret ret;
 
    load_code(state, code, ARRAY_SIZE(code), 0);
