@@ -2251,11 +2251,6 @@ extern void dynasm_emit_slt(struct dynarec_compiler *compiler,
    int op0 = register_location(reg_op0);
    int op1 = register_location(reg_op1);
 
-   if (target < 0) {
-      /* Use AX as temporary */
-      target = REG_AX;
-   }
-
    if (op0 < 0) {
       /* Use SI as temporary */
       op0 = REG_SI;
@@ -2278,12 +2273,14 @@ extern void dynasm_emit_slt(struct dynarec_compiler *compiler,
       }
    }
 
-   CLEAR_REG(target);
+   CLEAR_REG(REG_AX);
    CMP_R32_R32(op1, op0);
-   SETL_R8(target);
+   SETL_R8(REG_AX);
 
-   if (target == REG_AX) {
-      MOVE_TO_BANKED(target, reg_target);
+   if (target < 0) {
+      MOVE_TO_BANKED(REG_AX, reg_target);
+   }else{
+      MOV_R32_R32(REG_AX, target);
    }
 }
 
@@ -2294,11 +2291,6 @@ extern void dynasm_emit_sltu(struct dynarec_compiler *compiler,
    int target = register_location(reg_target);
    int op0 = register_location(reg_op0);
    int op1 = register_location(reg_op1);
-
-   if (target < 0) {
-      /* Use AX as temporary */
-      target = REG_AX;
-   }
 
    if (op0 < 0) {
       /* Use SI as temporary */
@@ -2318,12 +2310,14 @@ extern void dynasm_emit_sltu(struct dynarec_compiler *compiler,
       MOVE_FROM_BANKED(reg_op1, REG_DX);
    }
 
-   CLEAR_REG(target);
+   CLEAR_REG(REG_AX);
    CMP_R32_R32(op1, op0);
-   SETB_R8(target);
+   SETB_R8(REG_AX);
 
-   if (target == REG_AX) {
-      MOVE_TO_BANKED(target, reg_target);
+   if (target < 0) {
+      MOVE_TO_BANKED(REG_AX, reg_target);
+   }else{
+      MOV_R32_R32(REG_AX, target);
    }
 }
 
@@ -2334,11 +2328,6 @@ extern void dynasm_emit_slti(struct dynarec_compiler *compiler,
    int target = register_location(reg_target);
    int op = register_location(reg_op);
 
-   if (target < 0) {
-      /* Use AX as temporary */
-      target = REG_AX;
-   }
-
    if (op < 0) {
       /* Use SI as temporary */
       op = REG_SI;
@@ -2346,12 +2335,14 @@ extern void dynasm_emit_slti(struct dynarec_compiler *compiler,
       MOVE_FROM_BANKED(reg_op, REG_SI);
    }
 
-   CLEAR_REG(target);
+   CLEAR_REG(REG_AX);
    CMP_U32_R32(val, op);
-   SETL_R8(target);
+   SETL_R8(REG_AX);
 
-   if (target == REG_AX) {
-      MOVE_TO_BANKED(target, reg_target);
+   if (target < 0) {
+      MOVE_TO_BANKED(REG_AX, reg_target);
+   }else{
+      MOV_R32_R32(REG_AX, target);
    }
 }
 
@@ -2362,11 +2353,6 @@ extern void dynasm_emit_sltiu(struct dynarec_compiler *compiler,
    int target = register_location(reg_target);
    int op = register_location(reg_op);
 
-   if (target < 0) {
-      /* Use AX as temporary */
-      target = REG_AX;
-   }
-
    if (op < 0) {
       /* Use SI as temporary */
       op = REG_SI;
@@ -2374,12 +2360,14 @@ extern void dynasm_emit_sltiu(struct dynarec_compiler *compiler,
       MOVE_FROM_BANKED(reg_op, REG_SI);
    }
 
-   CLEAR_REG(target);
+   CLEAR_REG(REG_AX);
    CMP_U32_R32(val, op);
-   SETB_R8(target);
+   SETB_R8(REG_AX);
 
-   if (target == REG_AX) {
-      MOVE_TO_BANKED(target, reg_target);
+   if (target < 0) {
+      MOVE_TO_BANKED(REG_AX, reg_target);
+   }else{
+      MOV_R32_R32(REG_AX, target);
    }
 }
 
