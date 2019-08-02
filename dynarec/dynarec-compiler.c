@@ -1413,11 +1413,26 @@ static uint32_t load_le(const uint8_t *p) {
       (((uint32_t)p[3]) << 24);
 }
 
+struct dynarec_source_block {
+      uint32_t base;
+      uint32_t size;
+      /* Offset of the pointer containing the recompiled block in
+       * `dynarec_state` */
+      size_t   state_ptr_off;
+};
+
+static const struct dynarec_source_block dynarec_recompilable_blocks[] = {
+   { PSX_RAM_BASE, PSX_RAM_SIZE,
+      offsetof(struct dynarec_state, ram) },
+   { PSX_BIOS_BASE, PSX_BIOS_SIZE,
+      offsetof(struct dynarec_state, bios) },
+};
+
 struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
                                         uint32_t addr) {
    struct dynarec_compiler  compiler = { 0 };
    struct dynarec_block *block;
-   const uint8_t *block_start;
+   const uint8_t *block_start = NULL;
    const uint8_t *block_end;
    const uint8_t *block_max;
    const uint8_t *cur;
@@ -1425,6 +1440,7 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
    bool eob;
    struct opdesc op = { .type = OP_SIMPLE };
    struct opdesc ds_op = { .type = OP_SIMPLE };
+   unsigned i;
 
    DYNAREC_LOG("Recompiling block starting at 0x%08x\n", addr);
 
@@ -1433,14 +1449,22 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
    /* Some memory regions are aliased several time in the memory map */
    canonical_addr = dynarec_canonical_address(addr);
 
-   if (canonical_addr < PSX_RAM_SIZE) {
-      block_start = state->ram + canonical_addr;
-      block_max = state->ram + PSX_RAM_SIZE;
-   } else if (canonical_addr >= PSX_BIOS_BASE &&
-              canonical_addr < (PSX_BIOS_BASE + PSX_BIOS_SIZE)){
-      block_start = state->bios + (canonical_addr - PSX_BIOS_BASE);
-      block_max = state->bios + PSX_RAM_SIZE;
-   } else {
+   /* Find the recompilation target since code can live in different sections of
+    * the memory map */
+   for (i = 0; i < ARRAY_SIZE(dynarec_recompilable_blocks); i++) {
+      const struct dynarec_source_block *b = &dynarec_recompilable_blocks[i];
+
+      if (canonical_addr >= b->base &&
+          canonical_addr < (b->base + b->size)) {
+         block_start =
+            *((const uint8_t **)(((char *)state) + b->state_ptr_off));
+         block_max = block_start + b->size;
+         block_start += canonical_addr - b->base;
+         break;
+      }
+   }
+
+   if (block_start == NULL) {
       /* What are we trying to recompile here exactly ? */
       assert("Recompiling unknown address" == NULL);
       return NULL;

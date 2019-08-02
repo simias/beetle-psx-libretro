@@ -47,6 +47,8 @@ enum dynarec_exit {
 
 /* PSX RAM size in bytes: 2MB */
 #define PSX_RAM_SIZE               0x200000U
+/* Base address for PSX RAM */
+#define PSX_RAM_BASE               0
 /* BIOS ROM size in bytes: 512kB */
 #define PSX_BIOS_SIZE              0x80000U
 /* Base address for the BIOS ROM */
