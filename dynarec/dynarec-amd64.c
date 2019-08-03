@@ -2745,6 +2745,10 @@ static uint8_t emit_branch_cond(struct dynarec_compiler *compiler,
 
       if (a > 0) {
          TEST_R32_R32(a, a);
+      } else if (reg_a == PSX_REG_R0) {
+         /* Both regs zero case */
+         MOV_U32_R32(0, REG_AX);
+         CMP_R32_R32(REG_AX, REG_AX);
       } else {
          CMP_U32_OFF_PR64(0,
                           DYNAREC_STATE_REG_OFFSET(reg_a),
