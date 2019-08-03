@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stddef.h>
+#include <assert.h>
 
 #include "rbtree.h"
 
@@ -190,17 +191,17 @@ static int dynarec_block_compare_key(const struct rbt_node *n,
 }
 
 struct dynarec_state {
+   /*
+    * Everything in this first part is referenced by offset in the assembly code
+    * so be very careful if you modify it since you'll have to update the
+    * offsets in the assembly as well.
+    */
+
    /* Region mask, it's used heavily in the dynarec'd code so it's
       convenient to have it accessible in this struct. */
    uint32_t region_mask[8];
    /* Current value of the PC */
    uint32_t pc;
-   /* Pointer to the PSX RAM */
-   uint8_t *ram;
-   /* Pointer to the PSX scratchpad */
-   uint8_t *scratchpad;
-   /* Pointer to the PSX BIOS */
-   const uint8_t *bios;
    /* All general purpose CPU registers except R0 */
    uint32_t regs[PSX_REG_TOTAL - 1];
    /* Cop0r11: cause register */
@@ -209,6 +210,20 @@ struct dynarec_state {
    uint32_t sr;
    /* Cop0r14: Exception PC */
    uint32_t epc;
+
+   /*
+    * Starting from here you can modify this structure without breaking the
+    * assembly.
+    */
+
+   /* Pointer to the PSX RAM */
+   uint8_t *ram;
+   /* Pointer to the PSX scratchpad */
+   uint8_t *scratchpad;
+   /* Pointer to the PSX BIOS */
+   const uint8_t *bios;
+   /* Pointer to the PSX Expansion 1 (NULL if no expansion is available) */
+   const uint8_t *expansion1;
    /* Executable region of memory containing the dynarec'd code */
    uint8_t *map;
    /* Length of the map */
@@ -230,6 +245,25 @@ struct dynarec_state {
    /* Recompiled blocks stored by PSX start address */
    struct rbtree blocks;
 };
+
+#ifdef static_assert
+
+/* If those asserts trigger the offsets need to be updated here *and* in the
+ * assembly files */
+#define DYNAREC_CHECK_STATE_OFFSET(_m, _o) \
+   static_assert(offsetof(struct dynarec_state, _m) == _o, \
+                 "Unexpected offset for dynarec_state->" # _m)
+
+#ifdef DYNAREC_ARCH_AMD64
+DYNAREC_CHECK_STATE_OFFSET(region_mask, 0x00);
+DYNAREC_CHECK_STATE_OFFSET(pc, 0x20);
+DYNAREC_CHECK_STATE_OFFSET(regs, 0x24);
+DYNAREC_CHECK_STATE_OFFSET(cause, 0xac);
+DYNAREC_CHECK_STATE_OFFSET(sr, 0xb0);
+DYNAREC_CHECK_STATE_OFFSET(epc, 0xb4);
+#endif
+
+#endif /* static_assert */
 
 static struct dynarec_block *dynarec_find_block(struct dynarec_state *state,
                                                 uint32_t addr) {

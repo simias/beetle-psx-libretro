@@ -1,8 +1,8 @@
 /* offsetof(struct dynarec_state, pc) */
-.EQU PC_REG_OFFSET,    32
+.EQU PC_REG_OFFSET,    0x20
 
 /* offsetof(struct dynarec_state, regs) */
-.EQU STATE_REG_OFFSET, 0x40
+.EQU STATE_REG_OFFSET, 0x24
 
 .EQU AT_REG_OFFSET,    (STATE_REG_OFFSET + 4 * 0)
 .EQU V0_REG_OFFSET,    (STATE_REG_OFFSET + 4 * 1)
@@ -15,10 +15,10 @@
 .EQU DT_REG_OFFSET,    (STATE_REG_OFFSET + 4 * 31)
 
 /* offsetof(struct dynarec_state, cause) */
-.EQU STATE_CAUSE_OFFSET, 0xc8
+.EQU STATE_CAUSE_OFFSET, 0xac
 
 /* offsetof(struct dynarec_state, sr) */
-.EQU STATE_SR_OFFSET, 0xcc
+.EQU STATE_SR_OFFSET, 0xb0
 
 .EQU DYNAREC_CACHE_FLUSH, 1
 
@@ -60,7 +60,7 @@ dynasm_execute:
 
         /* Store the "cached" PSX registers back into the state struct.
          * Dynarec'd code always keeps the dynarec_state pointer in
-	 * %rdi, so we don't have to worry about preserving it here. */
+         * %rdi, so we don't have to worry about preserving it here. */
         mov     %r8d,  AT_REG_OFFSET(%rdi)
         mov     %r9d,  V0_REG_OFFSET(%rdi)
         mov     %r10d, V1_REG_OFFSET(%rdi)
