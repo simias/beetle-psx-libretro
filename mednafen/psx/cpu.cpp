@@ -142,6 +142,8 @@ void PS_CPU::SetHalt(bool status)
  RecalcIPCache();
 }
 
+bool PSX_HasPIO(void);
+
 void PS_CPU::Power(void)
 {
  assert(sizeof(ICache) == sizeof(ICache_Bulk));
@@ -164,9 +166,29 @@ void PS_CPU::Power(void)
  /* Dynarec init */
  assert(dynarec_state == NULL);
 
+ uint8_t *expansion1 = NULL;
+
+ if (PSX_HasPIO()) {
+    unsigned i;
+
+    /* Mednafen splits the expansion in two buffers (PIOMem and TextMem). That's
+     * not super convenient for us so I'm going to copy both of them in one
+     * contiguous buffer */
+    expansion1 = new uint8_t[PSX_EXPANSION1_SIZE];
+
+    /* Let's read 32bits at a time to speed things up a bit */
+    uint32_t *p = reinterpret_cast<uint32_t *>(expansion1);
+
+    for (i = 0; i < PSX_EXPANSION1_SIZE / 4; i++) {
+       p[i] = PSX_MemPeek32(PSX_EXPANSION1_BASE + i * 4);
+    }
+ }
+
  dynarec_state = dynarec_init((uint8_t *)MainRAM.data32,
                               (uint8_t *)ScratchRAM.data32,
-                              (uint8_t *)BIOSROM->data32);
+                              (uint8_t *)BIOSROM->data32,
+                              expansion1);
+
  assert(dynarec_state != NULL);
 
  dynarec_set_pc(dynarec_state, BACKED_PC);

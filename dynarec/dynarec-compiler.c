@@ -1426,6 +1426,8 @@ static const struct dynarec_source_block dynarec_recompilable_blocks[] = {
       offsetof(struct dynarec_state, ram) },
    { PSX_BIOS_BASE, PSX_BIOS_SIZE,
       offsetof(struct dynarec_state, bios) },
+   { PSX_EXPANSION1_BASE, PSX_EXPANSION1_SIZE,
+      offsetof(struct dynarec_state, expansion1) },
 };
 
 struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
@@ -1466,7 +1468,7 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
 
    if (block_start == NULL) {
       /* What are we trying to recompile here exactly ? */
-      assert("Recompiling unknown address" == NULL);
+      DYNAREC_FATAL("Recompiling unknown address %08x\n", canonical_addr);
       return NULL;
    }
 

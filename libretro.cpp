@@ -332,6 +332,10 @@ FrontIO *FIO = NULL;
 MultiAccessSizeMem<512 * 1024, uint32, false> *BIOSROM = NULL;
 static MultiAccessSizeMem<65536, uint32, false> *PIOMem = NULL;
 
+bool PSX_HasPIO(void) {
+   return PIOMem != NULL;
+}
+
 MultiAccessSizeMem<2048 * 1024, uint32, false> MainRAM;
 
 static uint32_t TextMem_Start;

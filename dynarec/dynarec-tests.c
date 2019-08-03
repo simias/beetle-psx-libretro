@@ -138,7 +138,7 @@ static int run_test(const char *name, test_fn_t f) {
    unsigned i;
    int ret;
 
-   struct dynarec_state *state = dynarec_init(ram, scratchpad, bios);
+   struct dynarec_state *state = dynarec_init(ram, scratchpad, bios, NULL);
 
    state->options |= DYNAREC_OPT_EXIT_ON_BREAK;
 

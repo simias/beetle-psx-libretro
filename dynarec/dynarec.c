@@ -9,7 +9,8 @@
 
 struct dynarec_state *dynarec_init(uint8_t *ram,
                                    uint8_t *scratchpad,
-                                   const uint8_t *bios) {
+                                   const uint8_t *bios,
+                                   const uint8_t *expansion1) {
    struct dynarec_state *state;
 
    dyndebug_deregister_all();
@@ -30,6 +31,7 @@ struct dynarec_state *dynarec_init(uint8_t *ram,
    state->ram = ram;
    state->scratchpad = scratchpad;
    state->bios = bios;
+   state->expansion1 = expansion1;
    rbt_init(&state->blocks);
 
 

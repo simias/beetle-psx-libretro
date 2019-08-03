@@ -58,6 +58,10 @@ enum dynarec_exit {
 #define PSX_SCRATCHPAD_SIZE        1024U
 /* Base address for the scratchpad */
 #define PSX_SCRATCHPAD_BASE        0x1F800000U
+/* Size of Expansion 1 (8MB) */
+#define PSX_EXPANSION1_SIZE        0x800000U
+/* Base address of Expansion 1 */
+#define PSX_EXPANSION1_BASE        0x1F000000U
 
 /* For now I assume every instruction takes exactly 4 cycles to
    execute. It's rather optimistic (the average in practice is
@@ -274,7 +278,8 @@ static struct dynarec_block *dynarec_find_block(struct dynarec_state *state,
 
 struct dynarec_state *dynarec_init(uint8_t *ram,
                                    uint8_t *scratchpad,
-                                   const uint8_t *bios);
+                                   const uint8_t *bios,
+                                   const uint8_t *expansion1);
 void dynarec_flush_cache(struct dynarec_state *state);
 struct dynarec_block *dynarec_find_block(struct dynarec_state *state,
                                          uint32_t addr);
