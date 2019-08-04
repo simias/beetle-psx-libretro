@@ -2270,7 +2270,11 @@ extern void dynasm_emit_slti(struct dynarec_compiler *compiler,
       /* Use SI as temporary */
       op = REG_SI;
 
-      MOVE_FROM_BANKED(reg_op, REG_SI);
+      if (reg_op0 != PSX_REG_R0) {
+         MOVE_FROM_BANKED(reg_op0, REG_SI);
+      } else {
+         CLEAR_REG(REG_SI);
+      }
    }
 
    CLEAR_REG(REG_AX);
@@ -2295,7 +2299,11 @@ extern void dynasm_emit_sltiu(struct dynarec_compiler *compiler,
       /* Use SI as temporary */
       op = REG_SI;
 
-      MOVE_FROM_BANKED(reg_op, REG_SI);
+      if (reg_op0 != PSX_REG_R0) {
+         MOVE_FROM_BANKED(reg_op0, REG_SI);
+      } else {
+         CLEAR_REG(REG_SI);
+      }
    }
 
    CLEAR_REG(REG_AX);
