@@ -91,7 +91,7 @@ code.
 
 ## Branch delay slot
 
-One quirck of the MIPS processor used in the PSX is that the
+One quick of the MIPS processor used in the PSX is that the
 instruction immediately after a branch instruction is always included,
 even if the branch is taken.
 
@@ -102,7 +102,7 @@ For instance if you consider the following sequence:
     mov     a0, t0
 ```
 
-The `j` istruction unconditionally jump to `some_func` so you'd expect
+The `j` instruction unconditionally jump to `some_func` so you'd expect
 the following `mov` not to be executed. However due to branch delay
 the `mov` is actually run before the jump takes effect.
 
@@ -204,8 +204,8 @@ lw    s0, 20(sp)
 What happens here? Let's see:
 
 * First the `jr` is encountered, the CPU prepares to jump to `ra` but...
-* ... first the branch delay slot is executed, invoking the `lw`
-* The next instruction will effectively be in the `lw`'s load delay slot... but
+* ... First the branch delay slot is executed, invoking the `lw`
+* The next instruction will effectively be in the `lw`'s load delay slot... But
   what instruction is that?
 
 The answer to that question is that the next instruction will be whatever code
@@ -250,7 +250,7 @@ compiled files. Check the `Makefile` for an example.
 When JIT integration is enabled the recompiler will register every
 compiled block with GDB giving it a name of the form
 `block_0x<start_address>` where `start_address` is the address of the
-begining of the block in PSX memory.
+beginning of the block in PSX memory.
 
 For instance the first recompiled block of the BIOS will be named
 `block_0xbfc00000`. You can use this information to make sense of
@@ -271,7 +271,7 @@ does the same?)
 
 ## Fast SP mode
 
-I expect that SP-relative loads and store are targetting the stack in
+I expect that SP-relative loads and store are targeting the stack in
 RAM, we might be able to assume that and remove all the memory mapping
 checks from these. Since pushing and popping data from stack is pretty
 common it might be worth to add an option for that.
