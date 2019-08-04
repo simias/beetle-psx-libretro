@@ -169,17 +169,74 @@ old value of 1. That means that after running this code `v1` will
 contain 1 while `v0` and `s0` will both contain whatever value was at
 `<some_memory_location>`.
 
-### Load and branch delay slots
+### Branch in load delay
 
 Load delay slots seem relatively straightforward to implement at first
-but they compound poorly with branch delay slots. Consider the
-following code:
+but things can get messy when you have load delays in branch delays or
+vice-versa. Consider the following code:
 
 ```asm
 lw    ra, 20(sp)
 jr    ra
 addi  sp, sp, 20
 ```
+
+This is a common sequence to return from a function. It restores the previous
+value of RA and returns to the caller. Not however that the code makes use of
+the load delay slot: the `jr ra` takes place in the LDS of `lw ra, 20(sp)`, that
+means that it will use the _previous_ value of `ra`, not the one being restored
+(which is what we want here).
+
+In order to implement this correctly we need to be careful to keep the old value
+of `ra` as a target for the `jr` and _then_ execute both the `addi` in the jump
+delay slot _and_ update `ra` with the value from the `lw`.
+
+### Load in branch delay
+
+Trickier still is the (fortunately rare) situation where you have a load in a
+branch delay slot, for instance:
+
+```asm
+jr    ra
+lw    s0, 20(sp)
+```
+
+What happens here? Let's see:
+
+* First the `jr` is encountered, the CPU prepares to jump to `ra` but...
+* ... first the branch delay slot is executed, invoking the `lw`
+* The next instruction will effectively be in the `lw`'s load delay slot... but
+  what instruction is that?
+
+The answer to that question is that the next instruction will be whatever code
+is located at the address pointed to by `ra` since we've jumped over there. So
+if the code at `ra` looks like this:
+
+```asm
+some_function:
+   mov   t0, s0
+   mov   t1, s0
+```
+
+We end up with the first `mov` being in the load delay slot while the second
+will take whatever value was loaded in `s0`.
+
+That means that the first instruction of any block could potentially end up in a
+load delay slot if it's called in a sequence like this. Worse, it could be
+called in a load delay slot in some cases but not in others. There's no way to
+know ahead of time.
+
+Fortunately this particular sequence is of little practical use so it's not very
+common in the wild. I doubt for instance that a compiler would generate code
+that relied on this behaviour (I'm not even sure if this is actually officially
+defined by the MIPS spec, even though it seems to work reliably in practice on
+the PSX CPU).
+
+For this reason this particular sequence is not implemented. If we have a load
+in a branch delay slot we assume that the target code will never attempt to
+reference the loaded register in the first instruction. If this ever turns out
+to be a problem we'll have to be more clever about it by keeping track of load
+delays across block jumps.
 
 # Debugger support
 
@@ -234,3 +291,22 @@ this matters for most games but accuracy's sake we might add a test
 for it.
 
 ## Reload SR and CAUSE from CP0.Regs[rd] when necessary
+
+## Optimize block tree structure
+
+At the moment I'm using a simple red-black tree to store and retrieve block
+data. I think this could be massively improved but it requires more
+benchmarking:
+
+### Some blocks are probably a lot "hotter" than others
+
+There are probably some code in a very hot path that are used a lot more than
+others. Depending on how they get linked together they may end up being
+looked-up very often in the tree. It could be good to monitor this and bump
+these blocks towards the root of the tree for faster retrieval.
+
+### Block garbage collection
+
+Using a similar approach as above we could monitor which blocks are unused and
+drop them. We need to be careful not to drop linked blocks however, so we'll
+have to keep track of block references and use that in our algorithm.
