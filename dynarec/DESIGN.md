@@ -91,7 +91,7 @@ code.
 
 ## Branch delay slot
 
-One quick of the MIPS processor used in the PSX is that the
+One quirk of the MIPS processor used in the PSX is that the
 instruction immediately after a branch instruction is always included,
 even if the branch is taken.
 
