@@ -189,6 +189,10 @@ extern void dynasm_emit_sw_noalign(struct dynarec_compiler *compiler,
                                    enum PSX_REG reg_addr,
                                    int16_t offset,
                                    enum PSX_REG reg_val);
+extern void dynasm_emit_swl_noalign(struct dynarec_compiler *compiler,
+                                   enum PSX_REG reg_addr,
+                                   int16_t offset,
+                                   enum PSX_REG reg_val);
 extern void dynasm_emit_sh(struct dynarec_compiler *compiler,
                            enum PSX_REG reg_addr,
                            int16_t offset,

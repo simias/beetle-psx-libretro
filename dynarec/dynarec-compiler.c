@@ -711,6 +711,12 @@ static bool try_fold_swl_swr(struct dynarec_compiler *compiler,
       return false;
    }
 
+   uint32_t addr = op_swr->op0 + op_swr->imm.iunsigned;
+   if ((addr & 0x3) == 0 || (addr & 0x3) == 1) {
+      /* storing 24/32bit word, do not fold */
+      return false;
+   }
+
    /* We can fold the two instructions into a single (potentially)
       non-aligned access */
    dynasm_emit_sw_noalign(compiler,
@@ -1390,6 +1396,14 @@ static void dynarec_emit_instruction(struct dynarec_compiler *compiler,
       DYNAREC_LOG("Emitting MIPS_OP_SW 0x%08x rs:%d rt:%d imm:0x%08x\n", op->instruction, op->op0, op->op1, op->imm.iunsigned);
       dynasm_emit_sw(compiler, op->op0, op->imm.iunsigned, op->op1);
       break;
+   case MIPS_OP_SWL: /* SWL */
+      DYNAREC_LOG("Emitting MIPS_OP_SWL 0x%08x rs:%d rt:%d imm:0x%08x\n", op->instruction, op->op0, op->op1, op->imm.iunsigned);
+      dynasm_emit_swl_noalign(compiler, op->op0, op->imm.iunsigned, op->op1);
+      break;
+   case MIPS_OP_SWR: /* SWR */
+      DYNAREC_LOG("Emitting MIPS_OP_SWR 0x%08x rs:%d rt:%d imm:0x%08x\n", op->instruction, op->op0, op->op1, op->imm.iunsigned);
+      dynasm_emit_sw_noalign(compiler, op->op0, op->imm.iunsigned, op->op1);
+      break;
    case MIPS_GTE_LWC2:
       DYNAREC_LOG("Emitting MIPS_GTE_LWC2 0x%08x rs:%d rt:%d imm:0x%08x\n", op->instruction, op->op0, op->op1, op->imm.iunsigned);
       dynasm_emit_lwc2(compiler, op->op0, op->imm.iunsigned, op->instruction);
@@ -1535,6 +1549,15 @@ struct dynarec_block *dynarec_recompile(struct dynarec_state *state,
          cur += 4;
          compiler.pc += 4;
          compiler.spent_cycles += PSX_CYCLES_PER_INSTRUCTION;
+         continue;
+      }else if (op.type == OP_STORE_NOALIGN &&
+                ds_op.type == OP_STORE_NOALIGN) {
+         /* could not fold, emit normally */
+         dynarec_emit_instruction(&compiler, &op);
+         cur += 4;
+         compiler.pc += 4;
+         compiler.spent_cycles += PSX_CYCLES_PER_INSTRUCTION;
+         dynarec_emit_instruction(&compiler, &ds_op);
          continue;
       }
 

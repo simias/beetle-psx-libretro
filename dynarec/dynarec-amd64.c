@@ -2321,6 +2321,7 @@ enum MEM_DIR {
    DIR_LOAD_SIGNED,
    DIR_LOAD_UNSIGNED,
    DIR_STORE,
+   DIR_STOREL,
 };
 
 enum MEM_WIDTH {
@@ -2365,7 +2366,7 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
    if (value_r < 0) {
       /* Use %rsi as temporary register */
 
-      if (dir == DIR_STORE) {
+      if (dir == DIR_STORE || dir == DIR_STOREL) {
          /* Load value to be stored */
          if (reg_val == PSX_REG_R0) {
             CLEAR_REG(REG_SI);
@@ -2377,6 +2378,12 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
       }
 
       value_r = REG_SI;
+   }
+
+   if (dir == DIR_STOREL){
+      MOV_U32_R32(0x3, REG_AX);
+      NOT_R32(REG_AX);
+      AND_R32_R32(REG_AX, REG_DX);
    }
 
    if (width != WIDTH_BYTE && strict_align) {
@@ -2429,6 +2436,7 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
 
       switch (dir) {
       case DIR_STORE:
+      case DIR_STOREL:
          switch (width) {
          case WIDTH_WORD:
             MOV_R32_PR64(value_r, REG_DX);
@@ -2492,6 +2500,7 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
 
          switch (dir) {
          case DIR_STORE:
+         case DIR_STOREL:
             switch (width) {
             case WIDTH_BYTE:
                MOV_R8_PR64(value_r, REG_AX);
@@ -2540,6 +2549,7 @@ static void dynasm_emit_mem_rw(struct dynarec_compiler *compiler,
 
          switch (dir) {
          case DIR_STORE:
+         case DIR_STOREL:
             /* Make sure the value is in %rsi (arg1) */
             if (value_r != REG_SI) {
                MOV_R32_R32(value_r, REG_SI);
@@ -2634,6 +2644,17 @@ void dynasm_emit_sw_noalign(struct dynarec_compiler *compiler,
                       offset,
                       reg_val,
                       DIR_STORE, WIDTH_WORD, false);
+}
+
+void dynasm_emit_swl_noalign(struct dynarec_compiler *compiler,
+                            enum PSX_REG reg_addr,
+                            int16_t offset,
+                            enum PSX_REG reg_val) {
+   dynasm_emit_mem_rw(compiler,
+                      reg_addr,
+                      offset,
+                      reg_val,
+                      DIR_STOREL, WIDTH_WORD, false);
 }
 
 void dynasm_emit_lb(struct dynarec_compiler *compiler,
