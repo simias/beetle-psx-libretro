@@ -1038,7 +1038,9 @@ extern "C" int32_t dynarec_gte_lwc2(struct dynarec_state *s,
 
    if (PGXP_GetModes() & PGXP_MODE_GTE)
       PGXP_GTE_LWC2(instr, value, addr);
-   return CPU->GetEventNT() - timestamp;
+   int32_t r = CPU->GetEventNT() - timestamp;
+   if (r<0) return counter;
+   return r;
 }
 
 /* Callback used by the dynarec to handle GTE SWC2 */
@@ -1057,7 +1059,9 @@ extern "C" int32_t dynarec_gte_swc2(struct dynarec_state *s,
 
    /* recompute the timestamp, it's possible that the "next event"
       timestamp has been modified */
-   return CPU->GetEventNT() - timestamp;
+   int32_t r = CPU->GetEventNT() - timestamp;
+   if (r<0) return counter;
+   return r;
 }
 
 /* Callback used by the dynarec to handle writes to "miscelanous" COP0
@@ -1083,7 +1087,9 @@ extern "C" int32_t dynarec_callback_sw(struct dynarec_state *s,
 
    /* recompute the timestamp, it's possible that the "next event"
       timestamp has been modified */
-   return CPU->GetEventNT() - timestamp;
+   int32_t r = CPU->GetEventNT() - timestamp;
+   if (r<0) return counter;
+   return r;
 }
 
 extern "C" int32_t dynarec_callback_sh(struct dynarec_state *s,
@@ -1098,7 +1104,9 @@ extern "C" int32_t dynarec_callback_sh(struct dynarec_state *s,
 
    /* recompute the timestamp, it's possible that the "next event"
       timestamp has been modified */
-   return CPU->GetEventNT() - timestamp;
+   int32_t r = CPU->GetEventNT() - timestamp;
+   if (r<0) return counter;
+   return r;
 }
 
 extern "C" int32_t dynarec_callback_sb(struct dynarec_state *s,
@@ -1113,7 +1121,9 @@ extern "C" int32_t dynarec_callback_sb(struct dynarec_state *s,
 
    /* recompute the timestamp, it's possible that the "next event"
       timestamp has been modified */
-   return CPU->GetEventNT() - timestamp;
+   int32_t r = CPU->GetEventNT() - timestamp;
+   if (r<0) return counter;
+   return r;
 }
 
 extern "C" struct dynarec_load_val dynarec_callback_lb(struct dynarec_state *s,
@@ -1127,6 +1137,7 @@ extern "C" struct dynarec_load_val dynarec_callback_lb(struct dynarec_state *s,
    DYNAREC_LOG("dynarec lb %08x @ %08x (%d)\n", r.value, addr, counter);
 
    r.counter = CPU->GetEventNT() - timestamp;
+   if (r.counter<0) r.counter = counter;
 
    return r;
 }
@@ -1142,6 +1153,7 @@ extern "C" struct dynarec_load_val dynarec_callback_lh(struct dynarec_state *s,
    DYNAREC_LOG("dynarec lh %08x @ %08x (%d)\n", r.value, addr, counter);
 
    r.counter = CPU->GetEventNT() - timestamp;
+   if (r.counter<0) r.counter = counter;
 
    return r;
 }
@@ -1157,6 +1169,7 @@ extern "C" struct dynarec_load_val dynarec_callback_lw(struct dynarec_state *s,
    DYNAREC_LOG("dynarec lw %08x @ %08x (%d)\n", r.value, addr, counter);
 
    r.counter = CPU->GetEventNT() - timestamp;
+   if (r.counter<0) r.counter = counter;
 
    return r;
 }
