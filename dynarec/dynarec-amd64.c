@@ -3166,6 +3166,9 @@ void dynasm_emit_lwc2(struct dynarec_compiler *compiler,
    }
    ADD_U32_R32(imm,REG_SI);
 
+   /* Mask the address in case it was in one of the mirrors */
+   AND_U32_R32(PSX_RAM_SIZE - 1, REG_SI);
+
    /* Move instr to DX */
    MOV_U32_R32(instr, REG_DX);
 
@@ -3191,6 +3194,9 @@ void dynasm_emit_swc2(struct dynarec_compiler *compiler,
       }
    }
    ADD_U32_R32(imm,REG_SI);
+
+   /* Mask the address in case it was in one of the mirrors */
+   AND_U32_R32(PSX_RAM_SIZE - 1, REG_SI);
 
    /* Move instr to DX */
    MOV_U32_R32(instr, REG_DX);
