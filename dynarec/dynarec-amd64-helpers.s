@@ -388,9 +388,6 @@ dynabi_gte_mfc2:
 
         c_call dynarec_gte_mfc2
 
-        /* Move return value to the target */
-        mov     %eax, %esi
-
         pop %rcx
 
         ret
@@ -407,9 +404,6 @@ dynabi_gte_cfc2:
         mov %eax, %ecx
 
         c_call dynarec_gte_cfc2
-
-        /* Move return value to the target */
-        mov     %eax, %esi
 
         pop %rcx
 
