@@ -3025,13 +3025,6 @@ void dynasm_emit_mfc2(struct dynarec_compiler *compiler,
                       enum PSX_GTE_REG reg_gte,
                       uint32_t instr) {
    const int target = register_location(reg_target);
-   int target_tmp;
-
-   if (target >= 0) {
-      target_tmp = target;
-   } else {
-      target_tmp = REG_AX;
-   }
 
    /* Move target index to SI */
    MOV_U32_R32(reg_target, REG_SI);
@@ -3044,14 +3037,12 @@ void dynasm_emit_mfc2(struct dynarec_compiler *compiler,
 
    CALL(dynabi_gte_mfc2);
 
-   /* Move return value into target register if not already there */
    if(target > 0){
-      MOV_R32_R32(REG_AX, target_tmp);
-   }
-   
-   /* Don't move into PSX_REG_R0 */
-   if (reg_target != PSX_REG_R0 && target_tmp != target) {
-      MOVE_TO_BANKED(target_tmp, reg_target);
+      /* Move return value into target register */
+      MOV_R32_R32(REG_AX, target);
+   } else if (reg_target != PSX_REG_R0) {
+      /* Move return value to reg_target other than PSX_REG_R0 */
+      MOVE_TO_BANKED(REG_AX, reg_target);
    }
 }
 
@@ -3060,13 +3051,6 @@ void dynasm_emit_cfc2(struct dynarec_compiler *compiler,
                       enum PSX_GTE_REG reg_gte,
                       uint32_t instr) {
    const int target = register_location(reg_target);
-   int target_tmp;
-
-   if (target >= 0) {
-      target_tmp = target;
-   } else {
-      target_tmp = REG_AX;
-   }
 
    /* Move target index to SI */
    MOV_U32_R32(reg_target, REG_SI);
@@ -3079,14 +3063,12 @@ void dynasm_emit_cfc2(struct dynarec_compiler *compiler,
 
    CALL(dynabi_gte_cfc2);
 
-   /* Move return value into target register if not already there */
    if(target > 0){
-      MOV_R32_R32(REG_AX, target_tmp);
-   }
-
-   /* Don't move into PSX_REG_R0 */
-   if (reg_target != PSX_REG_R0 && target_tmp != target) {
-      MOVE_TO_BANKED(target_tmp, reg_target);
+      /* Move return value into target register */
+      MOV_R32_R32(REG_AX, target);
+   } else if (reg_target != PSX_REG_R0) {
+      /* Move return value to reg_target other than PSX_REG_R0 */
+      MOVE_TO_BANKED(REG_AX, reg_target);
    }
 }
 
