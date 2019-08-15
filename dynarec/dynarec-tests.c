@@ -3069,9 +3069,10 @@ int32_t dynarec_gte_lwc2(struct dynarec_state *s,
                            uint32_t instr,
                            int32_t counter) {
    uint32_t rt = (instr>>16) & 0x1f;
-   DYNAREC_LOG("dynarec gte lwc2 addr:0x%08x gtert:%d \n", addr, rt);
-   /* set the fake gte data register if the addr pointer was correct*/
-   if(addr==0xc0de1234){
+   DYNAREC_LOG("dynarec gte lwc2 addr:0x%08x gte rt:%d \n", addr, rt);
+   /* set the fake gte data register if the addr pointer was correct
+    * after masking address to be in ram*/
+   if(addr==0x1e1234){
       gte_d[rt]=0xc0de5678;
    }
    return 0;
@@ -3083,9 +3084,10 @@ int32_t dynarec_gte_swc2(struct dynarec_state *s,
                            uint32_t instr,
                            int32_t counter) {
    uint32_t rt = (instr>>16) & 0x1f;
-   DYNAREC_LOG("dynarec gte swc2 addr:0x%08x gtert:%d \n", addr, rt);
-   /* set our fake memory addr to what was in fake gte register*/
-   if(addr==0xc0de1234){
+   DYNAREC_LOG("dynarec gte swc2 addr:0x%08x gte rt:%d \n", addr, rt);
+   /* set our fake memory addr to what was in fake gte register if
+    * the address is correct after masking address to be in ram*/
+   if(addr==0x1e1234){
       gte_addr=gte_d[rt];
    }
    return 0;
