@@ -60,9 +60,10 @@ void main() {
 
    // position.z increases as the primitives near the camera so we
    // reverse the order to match the common GL convention
-   float zpos = 1.0 - (position.z / 32768.);
+   float zpos = (position.z / 32768.);
 
-   gl_Position.xyzw = vec4(xpos * wpos, ypos * wpos, zpos * wpos, wpos);
+   gl_Position.xyzw = vec4(xpos, ypos, zpos, 1.0);
+   // gl_Position.xyzw = vec4(xpos * wpos, ypos * wpos, zpos * wpos, wpos);
    //gl_Position.xyzw = vec4(xpos, ypos, zpos, 1.);
 
    // Glium doesn't support 'normalized' for now

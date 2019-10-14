@@ -1690,7 +1690,7 @@ static void vertex_preprocessing(
 
    for (unsigned i = 0; i < count; i++)
    {
-      v[i].position[2] = z;
+      // v[i].position[2] = z;
       v[i].texture_window[0] = renderer->tex_x_mask;
       v[i].texture_window[1] = renderer->tex_x_or;
       v[i].texture_window[2] = renderer->tex_y_mask;
@@ -2313,11 +2313,11 @@ static void rsx_gl_push_quad(
       default:
          break;
    }
-
+   
    CommandVertex v[4] =
    {
       {
-         {p0x, p0y, 0.95, p0w},   /* position */
+         {p0x, p0y, p0w, 1.0},   /* position */
          {
             (uint8_t) c0,
             (uint8_t) (c0 >> 8),
@@ -2333,7 +2333,7 @@ static void rsx_gl_push_quad(
 		 {min_u, min_v, max_u, max_v},
       },
       {
-         {p1x, p1y, 0.95, p1w }, /* position */
+         {p1x, p1y, p1w, 1.0f }, /* position */
          {
             (uint8_t) c1,
             (uint8_t) (c1 >> 8),
@@ -2349,7 +2349,7 @@ static void rsx_gl_push_quad(
 		 {min_u, min_v, max_u, max_v},
       },
       {
-         {p2x, p2y, 0.95, p2w }, /* position */
+         {p2x, p2y, p2w, 1.0f }, /* position */
          {
             (uint8_t) c2,
             (uint8_t) (c2 >> 8),
@@ -2365,7 +2365,7 @@ static void rsx_gl_push_quad(
 		 {min_u, min_v, max_u, max_v},
       },
       {
-         {p3x, p3y, 0.95, p3w }, /* position */
+         {p3x, p3y, p3w, 1.0f }, /* position */
          {
             (uint8_t) c3,
             (uint8_t) (c3 >> 8),
@@ -2453,7 +2453,7 @@ static void rsx_gl_push_triangle(
    CommandVertex v[3] =
    {
       {
-         {p0x, p0y, 0.95, p0w},   /* position */
+         {p0x, p0y, p0w, 1.0f},   /* position */
          {
             (uint8_t) c0,
             (uint8_t) (c0 >> 8),
@@ -2469,7 +2469,7 @@ static void rsx_gl_push_triangle(
 		 {min_u, min_v, max_u, max_v},
       },
       {
-         {p1x, p1y, 0.95, p1w }, /* position */
+         {p1x, p1y, p1w, 1.0f }, /* position */
          {
             (uint8_t) c1,
             (uint8_t) (c1 >> 8),
@@ -2485,7 +2485,7 @@ static void rsx_gl_push_triangle(
 		 {min_u, min_v, max_u, max_v},
       },
       {
-         {p2x, p2y, 0.95, p2w }, /* position */
+         {p2x, p2y, p2w, 1.0f }, /* position */
          {
             (uint8_t) c2,
             (uint8_t) (c2 >> 8),
