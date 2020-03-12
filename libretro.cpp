@@ -80,6 +80,11 @@ bool cd_async = false;
 bool cd_warned_slow = false;
 int64 cd_slow_timeout = 8000; // microseconds
 
+// If true, the GPU will always use NTSC timings even for PAL games
+bool force_ntsc = false;
+// If true, PAL games will run at 60fps
+bool fast_pal = false;
+
 #ifdef HAVE_LIGHTREC
 enum DYNAREC psx_dynarec;
 bool psx_dynarec_invalidate;
@@ -1920,7 +1925,7 @@ static void InitCommon(std::vector<CDIF *> *_CDInterfaces, const bool EmulateMem
    PSX_CPU = new PS_CPU();
    PSX_SPU = new PS_SPU();
 
-   GPU_Init(region == REGION_EU, sls, sle, psx_gpu_upscale_shift);
+   GPU_Init(region == REGION_EU && !force_ntsc, sls, sle, psx_gpu_upscale_shift);
 
    PSX_CDC = new PS_CDC();
    PSX_FIO = new FrontIO(emulate_memcard, emulate_multitap);
@@ -3322,6 +3327,26 @@ static void check_variables(bool startup)
       widescreen_hack = false;
    }
 
+   var.key = BEETLE_OPT(pal_video_override);
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      // Only allow force_ntsc to take effect at startup since it changes the
+      // GPU init sequence
+      if (startup && strcmp(var.value, "force_ntsc") == 0)
+      {
+         force_ntsc = true;
+      }
+
+      if (!force_ntsc) {
+         bool want_fast_pal = strcmp(var.value, "fast_pal") == 0;
+
+         if (want_fast_pal != fast_pal) {
+            fast_pal = want_fast_pal;
+            has_new_timing = true;
+         }
+      }
+   }
+
    var.key = BEETLE_OPT(analog_calibration);
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
    {
@@ -4086,7 +4111,7 @@ bool retro_load_game(const struct retro_game_info *info)
 
    // Determine content_is_pal before calling alloc_surface()
    unsigned disc_region = CalcDiscSCEx();
-   content_is_pal = (disc_region == REGION_EU);
+   content_is_pal = (disc_region == REGION_EU) && !force_ntsc;
 
    alloc_surface();
 
@@ -4356,7 +4381,7 @@ void retro_run(void)
       {
          char msg_buffer[64];
          // Just report the "real-world" refresh rate here regardless of system av info reported to the frontend
-         float fps = content_is_pal ?
+         float fps = (content_is_pal && !fast_pal) ?
                         (currently_interlaced ? FPS_PAL_INTERLACED : FPS_PAL_NONINTERLACED) :
                         (currently_interlaced ? FPS_NTSC_INTERLACED : FPS_NTSC_NONINTERLACED);
          float internal_fps = (internal_frame_count * fps) / INTERNAL_FPS_SAMPLE_PERIOD;
@@ -4680,6 +4705,11 @@ void retro_deinit(void)
 
 unsigned retro_get_region(void)
 {
+   // simias: should I override this when fast_pal is set? Currently when
+   // `force_ntsc` is set this will return RETRO_REGION_NTSC, is this what we
+   // want?
+   //
+   // I'm not entirely sure what's that used for.
    return content_is_pal ? RETRO_REGION_PAL : RETRO_REGION_NTSC;
 }
 

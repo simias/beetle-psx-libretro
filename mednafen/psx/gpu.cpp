@@ -56,6 +56,9 @@
 
 */
 
+extern bool force_ntsc;
+extern bool fast_pal;
+
 /*
    November 29, 2012 notes:
 
@@ -539,17 +542,17 @@ static INLINE bool CalcFIFOReadyBit(void)
 
 static void RSX_UpdateDisplayMode(void)
 {
-   bool depth_24bpp = !!(GPU.DisplayMode & 0x10);
+   bool depth_24bpp = !!(GPU.EffectiveDisplayMode & 0x10);
 
    //uint16_t yres = GPU.VertEnd - GPU.VertStart;
 
    bool is_pal_mode = false;
-   if((GPU.DisplayMode & DISP_PAL) == DISP_PAL)
+   if((GPU.EffectiveDisplayMode & DISP_PAL) == DISP_PAL)
       is_pal_mode = true;
 
    // Both 2nd bit and 5th bit have to be enabled to use interlacing properly.
    bool is_480i_mode = false;
-   if((GPU.DisplayMode & (DISP_INTERLACED | DISP_VERT480)) == (DISP_INTERLACED | DISP_VERT480))
+   if((GPU.EffectiveDisplayMode & (DISP_INTERLACED | DISP_VERT480)) == (DISP_INTERLACED | DISP_VERT480))
    {
       //yres *= 2;
       is_480i_mode = true;
@@ -559,7 +562,7 @@ static void RSX_UpdateDisplayMode(void)
 
    enum width_modes curr_width_mode;
 
-   if ((GPU.DisplayMode >> 6) & 1)
+   if ((GPU.EffectiveDisplayMode >> 6) & 1)
    {
       // HRes ~ 368pixels
       //pixelclock_divider = 7;
@@ -567,7 +570,7 @@ static void RSX_UpdateDisplayMode(void)
    }
    else
    {
-      switch (GPU.DisplayMode & 3)
+      switch (GPU.EffectiveDisplayMode & 3)
       {
          case 0:
             // Hres ~ 256pixels
@@ -814,6 +817,7 @@ void GPU_SoftReset(void) // Control command 0x00
    GPU.DisplayFB_YStart = 0;
 
    GPU.DisplayMode = 0;
+   GPU.EffectiveDisplayMode = 0;
 
    GPU.HorizStart = 0x200;
    GPU.HorizEnd = 0xC00;
@@ -916,6 +920,7 @@ void GPU_Power(void)
    GPU.FBRW_CurX = 0;
 
    GPU.DisplayMode = 0;
+   GPU.EffectiveDisplayMode = 0;
    GPU.DisplayOff = 1;
    GPU.DisplayFB_XStart = 0;
    GPU.DisplayFB_YStart = 0;
@@ -1183,6 +1188,11 @@ void GPU_Write(const int32_t timestamp, uint32_t A, uint32_t V)
          case 0x08:
             //printf("\n\nDISPLAYMODE SET: 0x%02x, %u *************************\n\n\n", V & 0xFF, scanline);
             GPU.DisplayMode = V & 0xFF;
+            GPU.EffectiveDisplayMode = GPU.DisplayMode;
+            if (force_ntsc) {
+               GPU.EffectiveDisplayMode &= ~DISP_PAL;
+            }
+
             RSX_UpdateDisplayMode();
             break;
 
@@ -1401,7 +1411,7 @@ int32_t GPU_Update(const int32_t sys_timestamp)
 {
    int32 gpu_clocks;
    static const uint32_t DotClockRatios[5] = { 10, 8, 5, 4, 7 };
-   const uint32_t dmc = (GPU.DisplayMode & 0x40) ? 4 : (GPU.DisplayMode & 0x3);
+   const uint32_t dmc = (GPU.EffectiveDisplayMode & 0x40) ? 4 : (GPU.EffectiveDisplayMode & 0x3);
    const uint32_t dmw = 2800 / DotClockRatios[dmc];   // Must be <= 768
    int32_t sys_clocks = sys_timestamp - GPU.lastts;
 
@@ -1440,8 +1450,8 @@ int32_t GPU_Update(const int32_t sys_timestamp)
       GPU.LineClockCounter -= chunk_clocks;
 
       GPU.DotClockCounter += chunk_clocks;
-      dot_clocks = GPU.DotClockCounter / DotClockRatios[GPU.DisplayMode & 0x3];
-      GPU.DotClockCounter -= dot_clocks * DotClockRatios[GPU.DisplayMode & 0x3];
+      dot_clocks = GPU.DotClockCounter / DotClockRatios[GPU.EffectiveDisplayMode & 0x3];
+      GPU.DotClockCounter -= dot_clocks * DotClockRatios[GPU.EffectiveDisplayMode & 0x3];
 
       TIMER_AddDotClocks(dot_clocks);
 
@@ -1457,7 +1467,11 @@ int32_t GPU_Update(const int32_t sys_timestamp)
          if(GPU.LinePhase)
          {
             TIMER_SetHRetrace(true);
-            GPU.LineClockCounter = 200;
+            if(GPU.EffectiveDisplayMode & DISP_PAL && fast_pal) {
+               GPU.LineClockCounter = (200 * 25) / 30;
+            } else {
+               GPU.LineClockCounter = 200;
+            }
             TIMER_ClockHRetrace();
          }
          else
@@ -1469,8 +1483,12 @@ int32_t GPU_Update(const int32_t sys_timestamp)
 
             TIMER_SetHRetrace(false);
 
-            if(GPU.DisplayMode & DISP_PAL)
-               GPU.LineClockCounter = 3405 - 200;
+            if(GPU.EffectiveDisplayMode & DISP_PAL)
+               if (fast_pal) {
+                  GPU.LineClockCounter = (((3405 - 200) * 25) / 30);
+               } else {
+                  GPU.LineClockCounter = 3405 - 200;
+               }
             else
                GPU.LineClockCounter = 3412 + GPU.PhaseChange - 200;
 
@@ -1501,7 +1519,7 @@ int32_t GPU_Update(const int32_t sys_timestamp)
                   PSX_RequestMLExit();
                }
 
-               if(GPU.DisplayMode & DISP_INTERLACED)
+               if(GPU.EffectiveDisplayMode & DISP_INTERLACED)
                   GPU.field = !GPU.field;
                else
                   GPU.field = 0;
@@ -1512,9 +1530,9 @@ int32_t GPU_Update(const int32_t sys_timestamp)
                assert(GPU.sl_zero_reached == false);
                GPU.sl_zero_reached = true;
 
-               if(GPU.DisplayMode & DISP_INTERLACED)
+               if(GPU.EffectiveDisplayMode & DISP_INTERLACED)
                {
-                  if(GPU.DisplayMode & DISP_PAL)
+                  if(GPU.EffectiveDisplayMode & DISP_PAL)
                      GPU.LinesPerField = 313 - GPU.field;
                   else                   // NTSC
                      GPU.LinesPerField = 263 - GPU.field;
@@ -1523,7 +1541,7 @@ int32_t GPU_Update(const int32_t sys_timestamp)
                {
                   GPU.field = 0;  // May not be the correct place for this?
 
-                  if(GPU.DisplayMode & DISP_PAL)
+                  if(GPU.EffectiveDisplayMode & DISP_PAL)
                      GPU.LinesPerField = 314;
                   else        // NTSC
                      GPU.LinesPerField = 263;
@@ -1532,7 +1550,7 @@ int32_t GPU_Update(const int32_t sys_timestamp)
 
                if (rsx_intf_is_type() == RSX_SOFTWARE && GPU.espec)
                {
-                  if((bool)(GPU.DisplayMode & DISP_PAL) != GPU.HardwarePALType)
+                  if((bool)(GPU.EffectiveDisplayMode & DISP_PAL) != GPU.HardwarePALType)
                   {
                      GPU.DisplayRect->x = 0;
                      GPU.DisplayRect->y = 0;
@@ -1555,13 +1573,13 @@ int32_t GPU_Update(const int32_t sys_timestamp)
                   }
                   else
                   {
-                     GPU.espec->InterlaceOn = (bool)(GPU.DisplayMode & DISP_INTERLACED);
-                     GPU.espec->InterlaceField = (bool)(GPU.DisplayMode & DISP_INTERLACED) && GPU.field;
+                     GPU.espec->InterlaceOn = (bool)(GPU.EffectiveDisplayMode & DISP_INTERLACED);
+                     GPU.espec->InterlaceField = (bool)(GPU.EffectiveDisplayMode & DISP_INTERLACED) && GPU.field;
 
                      GPU.DisplayRect->x = 0;
                      GPU.DisplayRect->y = 0;
                      GPU.DisplayRect->w = 0;
-                     GPU.DisplayRect->h = VisibleLineCount << (bool)(GPU.DisplayMode & DISP_INTERLACED);
+                     GPU.DisplayRect->h = VisibleLineCount << (bool)(GPU.EffectiveDisplayMode & DISP_INTERLACED);
 
                      // Clear ~0 state.
                      GPU.LineWidths[0] = 0;
@@ -1609,7 +1627,7 @@ int32_t GPU_Update(const int32_t sys_timestamp)
 
                GPU.DisplayFB_CurYOffset = 0;
 
-               if((GPU.DisplayMode & 0x24) == 0x24)
+               if((GPU.EffectiveDisplayMode & 0x24) == 0x24)
                   GPU.field_ram_readout = !GPU.field;
                else
                   GPU.field_ram_readout = 0;
@@ -1637,7 +1655,7 @@ int32_t GPU_Update(const int32_t sys_timestamp)
             // upper bit(ODE) of the GPU status port, though the
             // test that showed an oddity was pathological in
             // that VertEnd < VertStart in it.
-            if((GPU.DisplayMode & 0x24) == 0x24)
+            if((GPU.EffectiveDisplayMode & 0x24) == 0x24)
                displayfb_yoffset = (GPU.DisplayFB_CurYOffset << 1) + (GPU.InVBlank ? 0 : GPU.field_ram_readout);
 
             GPU.DisplayFB_CurLineYReadout = (GPU.DisplayFB_YStart + displayfb_yoffset) & 0x1FF;
@@ -1648,7 +1666,7 @@ int32_t GPU_Update(const int32_t sys_timestamp)
             unsigned pix_clock_div = 0;
             uint32_t *dest = NULL;
 
-            if((bool)(GPU.DisplayMode & DISP_PAL) == GPU.HardwarePALType
+            if((bool)(GPU.EffectiveDisplayMode & DISP_PAL) == GPU.HardwarePALType
                   && GPU.scanline >= FirstVisibleLine
                   && GPU.scanline < (FirstVisibleLine + VisibleLineCount))
             {
@@ -1669,7 +1687,7 @@ int32_t GPU_Update(const int32_t sys_timestamp)
 
                if(dx_start < 0)
                {
-                  fb_x -= dx_start * ((GPU.DisplayMode & DISP_RGB24) ? 3 : 2);
+                  fb_x -= dx_start * ((GPU.EffectiveDisplayMode & DISP_RGB24) ? 3 : 2);
                   fb_x &= 0x7FF; //0x3FF;
                   dx_start = 0;
                }
@@ -1713,7 +1731,7 @@ int32_t GPU_Update(const int32_t sys_timestamp)
                            RED_SHIFT,
                            GREEN_SHIFT,
                            BLUE_SHIFT,
-                           GPU.DisplayMode & DISP_RGB24,
+                           GPU.EffectiveDisplayMode & DISP_RGB24,
                            src,
                            dest,
                            udx_start,
@@ -1858,6 +1876,18 @@ void GPU_RestoreStateP2(bool load)
 
 void GPU_RestoreStateP3(void)
 {
+   GPU.EffectiveDisplayMode = GPU.DisplayMode;
+
+   if (force_ntsc) {
+      GPU.EffectiveDisplayMode &= ~DISP_PAL;
+      // I don't think this is actually necessary since it's not stored in the
+      // savestate at the moment but better safe than sorry
+      if (GPU.HardwarePALType) {
+         GPU.HardwarePALType = false;
+         GPU_RecalcClockRatio();
+      }
+   }
+
    for(unsigned i = 0; i < 256; i++)
    {
       GPU.TexCache[i].Tag = TexCache_Tag[i];

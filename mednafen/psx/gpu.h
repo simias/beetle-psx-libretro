@@ -165,6 +165,9 @@ struct PS_GPU
    // Display Parameters
    //
    uint32 DisplayMode;
+   // Effective display mode (copy of DisplayMode that can be tweaked by core
+   // options)
+   uint32 EffectiveDisplayMode;
 
    bool DisplayOff;
    uint32 DisplayFB_XStart;
